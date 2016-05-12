@@ -58,7 +58,7 @@ bool SshClient::channelReady()
 }
 
 
-int SshClient::connectToHost(const QString & user, const QString & host, quint16 port, bool lock, bool checkHostKey, unsigned int retry )
+int SshClient::connectSshToHost(const QString & user, const QString & host, quint16 port, bool lock, bool checkHostKey, unsigned int retry )
 {
     QEventLoop wait;
     QTimer timeout;

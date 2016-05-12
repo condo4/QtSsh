@@ -64,7 +64,7 @@ public:
     SshClient(QObject * parent = NULL);
     ~SshClient();
 
-    int connectToHost(const QString & username,const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
+    int connectSshToHost(const QString & username,const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
     void disconnectFromHost();
     void setPassphrase(const QString & pass);
     void setKeys(const QString &publicKey, const QString &privateKey);
