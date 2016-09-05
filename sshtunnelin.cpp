@@ -22,7 +22,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, QString port_identifier, quint16 por
     }
 
 #if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelIn(" << _name << ") : try reverse forwarding port " << _port << " from " << this->localTcpPort;
+    qDebug() << "DEBUG : SshTunnelIn(" << _name << ") : try reverse forwarding port " << _port << " from " << bind;
 #endif
 
     sshDataReceived();

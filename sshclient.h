@@ -5,6 +5,7 @@
 #include <QList>
 #include <QTcpSocket>
 #include <QTimer>
+#include "sshserviceport.h"
 #include "debug.h"
 
 extern "C" {
@@ -82,6 +83,10 @@ public:
 
     bool channelReady();
 
+    quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
+    quint16 openRemotePortForwarding(QString servicename, quint16 port);
+    void closePortForwarding(QString servicename);
+
 signals:
     void sshConnected();
     void sshDisconnected();
@@ -91,6 +96,8 @@ signals:
     void sshDataReceived();
     void sshReset();
     void _connectionTerminate();
+    void portForwardingOpened(QString name);
+    void portForwardingClosed(QString name);
 
 public slots:
     void tx_data(qint64 len);
@@ -111,6 +118,7 @@ private:
     // libssh2 stuff
     LIBSSH2_SESSION    * _session;
     LIBSSH2_KNOWNHOSTS * _knownHosts;
+    QMap<QString,SshServicePort*>   _channels;
 
     SshState _state;
 

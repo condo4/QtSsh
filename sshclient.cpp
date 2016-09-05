@@ -2,8 +2,10 @@
 #include <QTemporaryFile>
 #include <QDir>
 #include <QEventLoop>
+#include "sshtunnelin.h"
+#include "sshtunneloutsrv.h"
 
-SshClient::SshClient(QObject * parent): 
+SshClient::SshClient(QObject * parent):
     QTcpSocket(parent),
     _session(NULL),
     _knownHosts(0),
@@ -55,6 +57,43 @@ LIBSSH2_SESSION *SshClient::session()
 bool SshClient::channelReady()
 {
     return (_state == ActivatingChannels);
+}
+
+quint16 SshClient::openLocalPortForwarding(QString servicename, quint16 port, quint16 bind)
+{
+    if(_channels.contains(servicename))
+    {
+        return _channels.value(servicename)->localPort();
+    }
+
+    SshServicePort *tunnel = new SshTunnelIn(this, servicename, port, bind);
+    _channels.insert(servicename, tunnel);
+    emit portForwardingOpened(servicename);
+    return tunnel->localPort();
+}
+
+quint16 SshClient::openRemotePortForwarding(QString servicename, quint16 port)
+{
+    if(_channels.contains(servicename))
+    {
+        return _channels.value(servicename)->localPort();
+    }
+
+    SshServicePort *tunnel = new SshTunnelOutSrv(this, servicename, port);
+    _channels.insert(servicename, tunnel);
+    emit portForwardingOpened(servicename);
+    return tunnel->localPort();
+}
+
+void SshClient::closePortForwarding(QString servicename)
+{
+    if(_channels.contains(servicename))
+    {
+        SshServicePort *tunnel = _channels.value(servicename);
+        _channels.remove(servicename);
+        delete tunnel;
+        emit portForwardingClosed(servicename);
+    }
 }
 
 
@@ -443,6 +482,11 @@ void SshClient::_readyRead()
 
 void SshClient::_reset()
 {
+    /* Close all Opened Channels */
+    foreach(QString name, _channels.keys()){
+        closePortForwarding(name);
+    }
+
 #if defined(DEBUG_SSHCLIENT)
     qDebug("DEBUG : SshClient : reset");
 #endif
