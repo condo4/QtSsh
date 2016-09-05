@@ -7,12 +7,43 @@
 #include "sshprocess.h"
 #include "sshscpsend.h"
 
+static ssize_t qt_callback_libssh_recv(int socket,void *buffer, size_t length,int flags, void **abstract)
+{
+    Q_UNUSED(socket);
+    Q_UNUSED(flags);
+
+    QTcpSocket * c = reinterpret_cast<QTcpSocket *>(* abstract);
+    int r = c->read(reinterpret_cast<char *>(buffer), length);
+    if (r == 0)
+    {
+        return -EAGAIN;
+    }
+    return r;
+}
+
+static ssize_t qt_callback_libssh_send(int socket,const void * buffer, size_t length,int flags, void ** abstract)
+{
+    Q_UNUSED(socket);
+    Q_UNUSED(flags);
+
+    QTcpSocket * c = reinterpret_cast<QTcpSocket *>(* abstract);
+    int r = c->write(reinterpret_cast<const char *>(buffer), length);
+    if (r == 0)
+    {
+        return -EAGAIN;
+    }
+    return r;
+}
+
 SshClient::SshClient(QObject * parent):
-    QTcpSocket(parent),
+    QObject(parent),
     _session(NULL),
     _knownHosts(0),
+    _socket(this),
     _state(NoState),
     _errorcode(0),
+    _sshConnected(false),
+    _errorMessage(QString()),
     _cntTxData(0),
     _cntRxData(0)
 {
@@ -20,15 +51,23 @@ SshClient::SshClient(QObject * parent):
     qDebug() << "DEBUG : SshClient : Enter in constructor, @" << this;
 #endif
 
-    connect(this,       SIGNAL(connected()),                         this, SLOT(_connected()));
-    connect(this,       SIGNAL(disconnected()),                      this, SLOT(_disconnected()));
-    connect(this,       SIGNAL(readyRead()),                         this, SLOT(_readyRead()));
-    connect(this,       SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(_tcperror(QAbstractSocket::SocketError)));
+    connect(&_socket,   SIGNAL(connected()),                         this, SLOT(_connected()));
+    connect(&_socket,   SIGNAL(disconnected()),                      this, SLOT(_disconnected()));
+    connect(&_socket,   SIGNAL(readyRead()),                         this, SLOT(_readyRead()));
+    connect(&_socket,   SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(_tcperror(QAbstractSocket::SocketError)));
     connect(&_cntTimer, SIGNAL(timeout()),                           this, SLOT(_cntRate()));
     connect(&_keepalive,SIGNAL(timeout()),                           this, SLOT(_sendKeepAlive()));
 
     Q_ASSERT(libssh2_init(0) == 0);
-    _reset();
+    _session = libssh2_session_init_ex(NULL, NULL, NULL,reinterpret_cast<void *>(&_socket));
+
+    libssh2_session_callback_set(_session, LIBSSH2_CALLBACK_RECV,reinterpret_cast<void*>(& qt_callback_libssh_recv));
+    libssh2_session_callback_set(_session, LIBSSH2_CALLBACK_SEND,reinterpret_cast<void*>(& qt_callback_libssh_send));
+    Q_ASSERT(_session);
+    _knownHosts = libssh2_knownhost_init(_session);
+    Q_ASSERT(_knownHosts);
+    libssh2_session_set_blocking(_session, 0);
+
     _cntTimer.setInterval(1000);
     _cntTimer.start();
 }
@@ -38,13 +77,9 @@ SshClient::~SshClient()
 #if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : SshClient : Enter in destructor, @"<< this << " state is " << _state;
 #endif
-    this->disconnect();
 
-    if (_session)
-    {
-        libssh2_knownhost_free(_knownHosts);
-        libssh2_session_free(_session);
-    }
+    disconnectSshFromHost();
+
 #if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : SshClient : Quit destructor";
 #endif
@@ -59,6 +94,11 @@ LIBSSH2_SESSION *SshClient::session()
 bool SshClient::channelReady()
 {
     return (_state == ActivatingChannels);
+}
+
+bool SshClient::waitForBytesWritten(int msecs)
+{
+    return _socket.waitForBytesWritten(msecs);
 }
 
 quint16 SshClient::openLocalPortForwarding(QString servicename, quint16 port, quint16 bind)
@@ -127,6 +167,10 @@ QString SshClient::sendFile(QString src, QString dst)
 
 int SshClient::connectSshToHost(const QString & user, const QString & host, quint16 port, bool lock, bool checkHostKey, unsigned int retry )
 {
+    if(_sshConnected) {
+        qDebug() << "ERROR : Allways connected";
+        return 0;
+    }
     QEventLoop wait;
     QTimer timeout;
     _hostname = host;
@@ -144,7 +188,7 @@ int SshClient::connectSshToHost(const QString & user, const QString & host, quin
     connect(&timeout, SIGNAL(timeout()), &wait, SLOT(quit()));
     timeout.start();
     do {
-        QTcpSocket::connectToHost(_hostname, _port);
+        _socket.connectToHost(_hostname, _port);
         if(lock)
         {
             wait.exec();
@@ -165,6 +209,44 @@ int SshClient::connectSshToHost(const QString & user, const QString & host, quin
     _keepalive.start();
     libssh2_keepalive_config(_session, 1, 5);
     return _errorcode;
+}
+
+void SshClient::disconnectSshFromHost()
+{
+    if(!_sshConnected) return;
+
+    QEventLoop wait;
+
+    /* Close all Opened Channels */
+    foreach(QString name, _channels.keys()){
+        closePortForwarding(name);
+    }
+
+    _keepalive.stop();
+    emit sshReset();
+
+    if (_knownHosts)
+    {
+        libssh2_knownhost_free(_knownHosts);
+    }
+    if (_state > TcpHostConnected)
+    {
+        libssh2_session_disconnect(_session, "good bye!");
+    }
+    if (_session)
+    {
+        libssh2_session_free(_session);
+    }
+    _state = NoState;
+    _errorcode = 0;
+    _errorMessage = QString();
+    _failedMethods.clear();
+    _availableMethods.clear();
+
+    connect(this, SIGNAL(sshDisconnected()), &wait, SLOT(quit()));
+    _socket.disconnectFromHost();
+    wait.exec();
+    _socket.close();
 }
 
 void SshClient::disconnectFromHost()
@@ -227,7 +309,7 @@ bool SshClient::addKnownHost(const QString & hostname,const SshKey & key)
 
 quint16 SshClient::sshSocketLocalPort()
 {
-    return localPort();
+    return _socket.localPort();
 }
 
 SshKey SshClient::hostKey() const
@@ -240,33 +322,7 @@ QString SshClient::hostName() const
     return _hostname;
 }
 
-static ssize_t qt_callback_libssh_recv(int socket,void *buffer, size_t length,int flags, void **abstract)
-{
-    Q_UNUSED(socket);
-    Q_UNUSED(flags);
 
-    QTcpSocket * c = reinterpret_cast<QTcpSocket *>(* abstract);
-    int r = c->read(reinterpret_cast<char *>(buffer), length);
-    if (r == 0)
-    {
-        return -EAGAIN;
-    }
-    return r;
-}
-
-static ssize_t qt_callback_libssh_send(int socket,const void * buffer, size_t length,int flags, void ** abstract)
-{
-    Q_UNUSED(socket);
-    Q_UNUSED(flags);
-
-    QTcpSocket * c = reinterpret_cast<QTcpSocket *>(* abstract);
-    int r = c->write(reinterpret_cast<const char *>(buffer), length);
-    if (r == 0)
-    {
-        return -EAGAIN;
-    }
-    return r;
-}
 
 
 void SshClient::_connected()
@@ -276,6 +332,7 @@ void SshClient::_connected()
 #endif
     _state = InitializeSession;
     _readyRead();
+    _sshConnected = true;
 }
 
 void SshClient::_tcperror(QAbstractSocket::SocketError err)
@@ -321,7 +378,7 @@ void SshClient::_readyRead()
     {
         case InitializeSession:
         {
-            int sock=socketDescriptor();
+            int sock = _socket.socketDescriptor();
             int ret = 0;
 
             if ((ret = libssh2_session_startup(_session, sock)) == LIBSSH2_ERROR_EAGAIN)
@@ -385,7 +442,7 @@ void SshClient::_readyRead()
                 if (libssh2_userauth_authenticated(_session))
                 {
                     //null auth ok
-                    emit connected();
+                    _connected();
                     _state = TryingAuthentication;
                     return;
                 }
@@ -546,7 +603,7 @@ void SshClient::_reset()
     _knownHosts = libssh2_knownhost_init(_session);
     Q_ASSERT(_knownHosts);
     libssh2_session_set_blocking(_session, 0);
-    QAbstractSocket::disconnectFromHost();
+    _socket.disconnectFromHost();
 }
 
 void SshClient::_disconnected()
@@ -558,6 +615,7 @@ void SshClient::_disconnected()
         _reset();
     }
 
+    _sshConnected = false;
     emit sshDisconnected();
 }
 
@@ -576,4 +634,3 @@ void SshClient::_delaydErrorEmit()
     _errorcode = _delayError;
     emit _connectionTerminate();
 }
-

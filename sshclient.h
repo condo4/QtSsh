@@ -26,11 +26,28 @@ class SshKey {
 };
 
 
-class  SshClient : public QTcpSocket
+
+class  SshClient : public QObject
 {
     Q_OBJECT
 
 public:
+    enum Error {
+        NoError = 0,
+        AuthenticationError,
+        HostKeyUnknownError,
+        HostKeyInvalidError,
+        HostKeyMismatchError,
+        ConnectionRefusedError,
+        UnexpectedShutdownError,
+        HostNotFoundError,
+        SocketError,
+        TimeOut,
+        UnknownError
+    };
+
+private:
+
     enum SshState {
         NoState = 0,
         TcpHostConnected = 1,
@@ -48,24 +65,47 @@ public:
     enum KnownHostsFormat {
         OpenSslFormat
     };
-    enum Error {
-        NoError = 0,
-        AuthenticationError,
-        HostKeyUnknownError,
-        HostKeyInvalidError,
-        HostKeyMismatchError,
-        ConnectionRefusedError,
-        UnexpectedShutdownError,
-        HostNotFoundError,
-        SocketError,
-        TimeOut,
-        UnknownError
-    };
 
+    // libssh2 stuff
+    LIBSSH2_SESSION    * _session;
+    LIBSSH2_KNOWNHOSTS * _knownHosts;
+    QMap<QString,SshServicePort*>   _channels;
+    QTcpSocket _socket;
+
+    SshState _state;
+
+    int _port;
+    int _errorcode;
+    bool _sshConnected;
+
+    QString _hostname;
+    QString _username;
+    QString _passphrase;
+    QString _privateKey;
+    QString _publicKey;
+
+    QString _errorMessage;
+
+    SshKey  _hostKey;
+
+    SshClient::Error _delayError;
+
+    // authentication methods
+    SshClient::AuthenticationMethod        _currentAuthTry;
+    QList<SshClient::AuthenticationMethod> _availableMethods;
+    QList<SshClient::AuthenticationMethod> _failedMethods;
+
+    qint64 _cntTxData;
+    qint64 _cntRxData;
+    QTimer _cntTimer;
+    QTimer _keepalive;
+
+public:
     SshClient(QObject * parent = NULL);
     ~SshClient();
 
     int connectSshToHost(const QString & username,const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
+    void disconnectSshFromHost();
     void disconnectFromHost();
     void setPassphrase(const QString & pass);
     void setKeys(const QString &publicKey, const QString &privateKey);
@@ -83,6 +123,7 @@ public:
 
     bool channelReady();
 
+    bool waitForBytesWritten(int msecs);
     quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
     quint16 openRemotePortForwarding(QString servicename, quint16 port);
     void closePortForwarding(QString servicename);
@@ -115,39 +156,6 @@ private slots:
     void _tcperror(QAbstractSocket::SocketError err);
     void _cntRate();
     void _sendKeepAlive();
-
-private:
-    // libssh2 stuff
-    LIBSSH2_SESSION    * _session;
-    LIBSSH2_KNOWNHOSTS * _knownHosts;
-    QMap<QString,SshServicePort*>   _channels;
-
-    SshState _state;
-
-    int _port;
-    int _errorcode;
-
-    QString _hostname;
-    QString _username;
-    QString _passphrase;
-    QString _privateKey;
-    QString _publicKey;
-
-    QString _errorMessage;
-
-    SshKey  _hostKey;
-
-    SshClient::Error _delayError;
-
-    // authentication methods
-    SshClient::AuthenticationMethod        _currentAuthTry;
-    QList<SshClient::AuthenticationMethod> _availableMethods;
-    QList<SshClient::AuthenticationMethod> _failedMethods;
-
-    qint64 _cntTxData;
-    qint64 _cntRxData;
-    QTimer _cntTimer;
-    QTimer _keepalive;
 };
 
 #endif
