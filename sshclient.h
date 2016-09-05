@@ -86,6 +86,8 @@ public:
     quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
     quint16 openRemotePortForwarding(QString servicename, quint16 port);
     void closePortForwarding(QString servicename);
+    QString runCommand(QString command);
+    QString sendFile(QString src, QString dst);
 
 signals:
     void sshConnected();

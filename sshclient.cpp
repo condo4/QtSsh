@@ -4,6 +4,8 @@
 #include <QEventLoop>
 #include "sshtunnelin.h"
 #include "sshtunneloutsrv.h"
+#include "sshprocess.h"
+#include "sshscpsend.h"
 
 SshClient::SshClient(QObject * parent):
     QTcpSocket(parent),
@@ -94,6 +96,32 @@ void SshClient::closePortForwarding(QString servicename)
         delete tunnel;
         emit portForwardingClosed(servicename);
     }
+}
+
+QString SshClient::runCommand(QString command)
+{
+    SshProcess *sshProcess = NULL;
+    sshProcess = new SshProcess(this);
+    if(sshProcess == NULL)
+    {
+        return QString();
+    }
+    sshProcess->start(command);
+    return sshProcess->result();
+}
+
+QString SshClient::sendFile(QString src, QString dst)
+{
+    QEventLoop wait;
+    SshScpSend *sender = new SshScpSend(this, src, dst);
+    connect(sender, SIGNAL(transfertTerminate()), &wait, SLOT(quit()));
+    QString d = sender->send();
+    wait.exec();
+#ifdef DEBUG_SSHCLIENT
+    qDebug() << "DEBUG : Transfert file satus: " << sender->state();
+#endif
+    sender->deleteLater();
+    return d;
 }
 
 
