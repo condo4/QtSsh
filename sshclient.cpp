@@ -7,6 +7,7 @@
 #include "sshtunneloutsrv.h"
 #include "sshprocess.h"
 #include "sshscpsend.h"
+#include "sshsftp.h"
 
 static ssize_t qt_callback_libssh_recv(int socket,void *buffer, size_t length,int flags, void **abstract)
 {
@@ -40,6 +41,7 @@ SshClient::SshClient(QObject * parent):
     QObject(parent),
     _session(NULL),
     _knownHosts(0),
+    _sftp(NULL),
     _socket(this),
     _state(NoState),
     _errorcode(0),
@@ -171,6 +173,91 @@ QString SshClient::sendFile(QString src, QString dst)
     return d;
 }
 
+void SshClient::enableSftp()
+{
+    if(!_sftp)
+    {
+        _sftp = new SshSFtp(this);
+        qDebug() << "DEBUG : Enable sFtp";
+        QObject::connect(_sftp, &SshSFtp::xfer, this, [this](){
+            emit sFtpXfer();
+        });
+    }
+    emit enableSftpTerminate();
+}
+
+QString SshClient::sFtpSend(QString source, QString dest)
+{
+    QString res;
+    enableSftp();
+    res = _sftp->send(source, dest);
+    emit sFtpSendTerminate(res);
+    return res;
+}
+
+bool SshClient::sFtpGet(QString source, QString dest, bool override)
+{
+    bool res;
+    enableSftp();
+    res = _sftp->get(source, dest, override);
+    emit sFtpGetTerminate(res);
+    return res;
+}
+
+int SshClient::sFtpMkdir(QString dest)
+{
+    int res;
+    enableSftp();
+    res = _sftp->mkdir(dest);
+    qDebug() << "DEBUG : SshClient::sFtpMkdir " << dest << " = " << res;
+    emit sFtpMkdirTerminate(res);
+    return res;
+}
+
+QStringList SshClient::sFtpDir(QString d)
+{
+    QStringList res;
+    enableSftp();
+    res = _sftp->dir(d);
+    emit sFtpDirTerminate(res);
+    return res;
+}
+
+bool SshClient::sFtpIsDir(QString d)
+{
+    bool res;
+    enableSftp();
+    res = _sftp->isDir(d);
+    emit sFtpIsDirTerminate(res);
+    return res;
+}
+
+bool SshClient::sFtpIsFile(QString d)
+{
+    bool res;
+    enableSftp();
+    res = _sftp->isFile(d);
+    emit sFtpIsFileTerminate(res);
+    return res;
+}
+
+int SshClient::sFtpMkpath(QString dest)
+{
+    int res;
+    enableSftp();
+    res = _sftp->mkpath(dest);
+    emit sFtpMkpathTerminate(res);
+    return res;
+}
+
+bool SshClient::sFtpUnlink(QString d)
+{
+    bool res;
+    enableSftp();
+    res = _sftp->unlink(d);
+    emit sFtpUnlinkTerminate(res);
+    return res;
+}
 
 int SshClient::connectSshToHost(const QString & user, const QString & host, quint16 port, bool lock, bool checkHostKey, unsigned int retry )
 {
@@ -229,6 +316,12 @@ void SshClient::disconnectSshFromHost()
     /* Close all Opened Channels */
     foreach(QString name, _channels.keys()){
         closePortForwarding(name);
+    }
+
+    /* Close SFTP if enabled */
+    if(!_sftp) {
+        delete _sftp;
+        _sftp = NULL;
     }
 
     _keepalive.stop();

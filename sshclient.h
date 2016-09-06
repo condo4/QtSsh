@@ -13,6 +13,8 @@ extern "C" {
 #include <errno.h>
 }
 
+class SshSFtp;
+
 class SshKey {
     public:
         enum Type {
@@ -65,6 +67,7 @@ private:
     // libssh2 stuff
     LIBSSH2_SESSION    * _session;
     LIBSSH2_KNOWNHOSTS * _knownHosts;
+    SshSFtp            *_sftp;
     QMap<QString,SshServicePort*>   _channels;
     QTcpSocket _socket;
 
@@ -139,7 +142,17 @@ signals:
     void openLocalPortForwardingTerminate(quint16);
     void openRemotePortForwardingTerminate(quint16);
     void closePortForwardingTerminate();
+    void enableSftpTerminate();
     void sendFileTerminate(QString);
+    void sFtpSendTerminate(QString);
+    void sFtpGetTerminate(bool);
+    void sFtpMkdirTerminate(int);
+    void sFtpDirTerminate(QStringList);
+    void sFtpIsDirTerminate(bool);
+    void sFtpIsFileTerminate(bool);
+    void sFtpMkpathTerminate(int);
+    void sFtpUnlinkTerminate(bool);
+    void sFtpXfer();
 
 public slots:
     void tx_data(qint64 len);
@@ -154,6 +167,17 @@ public slots:
     void closePortForwarding(QString servicename);
 
     QString sendFile(QString src, QString dst);
+
+    /* SFTP Methode wrapper */
+    void enableSftp();
+    QString sFtpSend(QString source, QString dest);
+    bool sFtpGet(QString source, QString dest, bool override = false);
+    int sFtpMkdir(QString dest);
+    QStringList sFtpDir(QString d);
+    bool sFtpIsDir(QString d);
+    bool sFtpIsFile(QString d);
+    int sFtpMkpath(QString dest);
+    bool sFtpUnlink(QString d);
 
 private slots:
     void _readyRead();
