@@ -9,7 +9,8 @@ HEADERS += \
     $$PWD/sshtunneloutsrv.h \
     $$PWD/sshserviceport.h \
     $$PWD/sshscpsend.h \
-    $$PWD/sshsftp.h
+    $$PWD/sshsftp.h \
+    $$PWD/sshworker.h
 
 SOURCES += \
     $$PWD/sshtunnelout.cpp \
@@ -19,6 +20,7 @@ SOURCES += \
     $$PWD/sshclient.cpp \
     $$PWD/sshtunneloutsrv.cpp \
     $$PWD/sshscpsend.cpp \
-    $$PWD/sshsftp.cpp
+    $$PWD/sshsftp.cpp \
+    $$PWD/sshworker.cpp
 
 INCLUDEPATH += $$PWD/
