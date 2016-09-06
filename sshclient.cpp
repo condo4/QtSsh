@@ -1,6 +1,7 @@
 #include "sshclient.h"
 #include <QTemporaryFile>
 #include <QDir>
+#include <QThread>
 #include <QEventLoop>
 #include "sshtunnelin.h"
 #include "sshtunneloutsrv.h"
@@ -48,7 +49,7 @@ SshClient::SshClient(QObject * parent):
     _cntRxData(0)
 {
 #if defined(DEBUG_SSHCLIENT)
-    qDebug() << "DEBUG : SshClient : Enter in constructor, @" << this;
+    qDebug() << "DEBUG : SshClient : Enter in constructor, @" << this << " in " << QThread::currentThread();
 #endif
 
     connect(&_socket,   SIGNAL(connected()),                         this, SLOT(_connected()));
@@ -111,6 +112,7 @@ quint16 SshClient::openLocalPortForwarding(QString servicename, quint16 port, qu
     SshServicePort *tunnel = new SshTunnelIn(this, servicename, port, bind);
     _channels.insert(servicename, tunnel);
     emit portForwardingOpened(servicename);
+    emit openLocalPortForwardingTerminate(tunnel->localPort());
     return tunnel->localPort();
 }
 
@@ -124,6 +126,7 @@ quint16 SshClient::openRemotePortForwarding(QString servicename, quint16 port)
     SshServicePort *tunnel = new SshTunnelOutSrv(this, servicename, port);
     _channels.insert(servicename, tunnel);
     emit portForwardingOpened(servicename);
+    emit openRemotePortForwardingTerminate(tunnel->localPort());
     return tunnel->localPort();
 }
 
@@ -136,18 +139,21 @@ void SshClient::closePortForwarding(QString servicename)
         delete tunnel;
         emit portForwardingClosed(servicename);
     }
+    emit closePortForwardingTerminate();
 }
 
 QString SshClient::runCommand(QString command)
 {
+    QString res;
     SshProcess *sshProcess = NULL;
     sshProcess = new SshProcess(this);
-    if(sshProcess == NULL)
+    if(sshProcess != NULL)
     {
-        return QString();
+        sshProcess->start(command);
+        res = sshProcess->result();
     }
-    sshProcess->start(command);
-    return sshProcess->result();
+    emit runCommandTerminate(res);
+    return res;
 }
 
 QString SshClient::sendFile(QString src, QString dst)
@@ -161,6 +167,7 @@ QString SshClient::sendFile(QString src, QString dst)
     qDebug() << "DEBUG : Transfert file satus: " << sender->state();
 #endif
     sender->deleteLater();
+    emit sendFileTerminate(d);
     return d;
 }
 
@@ -169,6 +176,7 @@ int SshClient::connectSshToHost(const QString & user, const QString & host, quin
 {
     if(_sshConnected) {
         qDebug() << "ERROR : Allways connected";
+        emit connectSshToHostTerminate(0);
         return 0;
     }
     QEventLoop wait;
@@ -208,6 +216,7 @@ int SshClient::connectSshToHost(const QString & user, const QString & host, quin
     _keepalive.setInterval(10000);
     _keepalive.start();
     libssh2_keepalive_config(_session, 1, 5);
+    emit connectSshToHostTerminate(_errorcode);
     return _errorcode;
 }
 
@@ -247,6 +256,7 @@ void SshClient::disconnectSshFromHost()
     _socket.disconnectFromHost();
     wait.exec();
     _socket.close();
+    emit disconnectSshFromHostTerminate();
 }
 
 void SshClient::disconnectFromHost()
@@ -274,17 +284,18 @@ void SshClient::setKeys(const QString &publicKey, const QString &privateKey)
     {
         QTimer::singleShot(0, this, SLOT(_readyRead()));
     }
+    emit setKeysTerminate();
 }
 
-bool SshClient::loadKnownHosts(const QString & file, KnownHostsFormat c)
+bool SshClient::loadKnownHosts(const QString & file)
 {
-    Q_UNUSED(c);
-    return (libssh2_knownhost_readfile(_knownHosts, qPrintable(file), LIBSSH2_KNOWNHOST_FILE_OPENSSH) == 0);
+    bool res = (libssh2_knownhost_readfile(_knownHosts, qPrintable(file), LIBSSH2_KNOWNHOST_FILE_OPENSSH) == 0);
+    emit loadKnownHostsTerminate(res);
+    return (res);
 }
 
-bool SshClient::saveKnownHosts(const QString & file, KnownHostsFormat c) const
+bool SshClient::saveKnownHosts(const QString & file) const
 {
-    Q_UNUSED(c);
     return (libssh2_knownhost_writefile(_knownHosts, qPrintable(file), LIBSSH2_KNOWNHOST_FILE_OPENSSH) == 0);
 }
 

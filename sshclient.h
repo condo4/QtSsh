@@ -25,8 +25,6 @@ class SshKey {
         Type       type;
 };
 
-
-
 class  SshClient : public QObject
 {
     Q_OBJECT
@@ -62,9 +60,7 @@ private:
         PasswordAuthentication,
         PublicKeyAuthentication
     };
-    enum KnownHostsFormat {
-        OpenSslFormat
-    };
+
 
     // libssh2 stuff
     LIBSSH2_SESSION    * _session;
@@ -104,14 +100,11 @@ public:
     SshClient(QObject * parent = NULL);
     ~SshClient();
 
-    int connectSshToHost(const QString & username,const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
-    void disconnectSshFromHost();
     void disconnectFromHost();
     void setPassphrase(const QString & pass);
-    void setKeys(const QString &publicKey, const QString &privateKey);
 
-    bool loadKnownHosts(const QString &file, KnownHostsFormat c = OpenSslFormat);
-    bool saveKnownHosts(const QString &file, KnownHostsFormat c = OpenSslFormat) const;
+
+    bool saveKnownHosts(const QString &file) const;
     bool addKnownHost  (const QString &hostname, const SshKey &key);
 
     quint16 sshSocketLocalPort();
@@ -124,11 +117,7 @@ public:
     bool channelReady();
 
     bool waitForBytesWritten(int msecs);
-    quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
-    quint16 openRemotePortForwarding(QString servicename, quint16 port);
-    void closePortForwarding(QString servicename);
-    QString runCommand(QString command);
-    QString sendFile(QString src, QString dst);
+
 
 signals:
     void sshConnected();
@@ -142,9 +131,29 @@ signals:
     void portForwardingOpened(QString name);
     void portForwardingClosed(QString name);
 
+    void setKeysTerminate();
+    void loadKnownHostsTerminate(bool res);
+    void connectSshToHostTerminate(int res);
+    void runCommandTerminate(QString res);
+    void disconnectSshFromHostTerminate();
+    void openLocalPortForwardingTerminate(quint16);
+    void openRemotePortForwardingTerminate(quint16);
+    void closePortForwardingTerminate();
+    void sendFileTerminate(QString);
+
 public slots:
     void tx_data(qint64 len);
     void rx_data(qint64 len);
+    void setKeys(const QString &publicKey, const QString &privateKey);
+    bool loadKnownHosts(const QString &file);
+    int connectSshToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
+    QString runCommand(QString command);
+    void disconnectSshFromHost();
+    quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
+    quint16 openRemotePortForwarding(QString servicename, quint16 port);
+    void closePortForwarding(QString servicename);
+
+    QString sendFile(QString src, QString dst);
 
 private slots:
     void _readyRead();
