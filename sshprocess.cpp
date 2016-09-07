@@ -13,7 +13,7 @@ SshProcess::SshProcess(SshClient *client) : SshChannel(client)
 
 SshProcess::~SshProcess()
 {
-    this->stopChannel();
+    stopChannel();
 }
 
 QString SshProcess::result()
@@ -23,8 +23,8 @@ QString SshProcess::result()
     QEventLoop loop;
     singleshotTimer.setInterval(2 * 60 * 1000);
     singleshotTimer.setSingleShot(true);
-    connect(this, SIGNAL(connected()),    &loop, SLOT(quit()));
-    connect(this, SIGNAL(readyRead()),    &loop, SLOT(quit()));
+    QObject::connect(this, &SshProcess::connected, &loop, &QEventLoop::quit);
+    QObject::connect(this, &SshProcess::readyRead, &loop, &QEventLoop::quit);
 
     while(!_isEOF)
     {
@@ -37,7 +37,7 @@ QString SshProcess::result()
 
         do {
             result.resize(result.size() + 16*1024);
-            readResult = this->readData(result.data() + readBytes, result.size() - readBytes);
+            readResult = readData(result.data() + readBytes, result.size() - readBytes);
             if (readResult > 0 || readBytes == 0)
                 readBytes += readResult;
         } while (readResult > 0);

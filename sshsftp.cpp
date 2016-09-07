@@ -353,7 +353,7 @@ SshSFtp::SshSFtp(SshClient *client):
     SshChannel(client)
 
 {
-    QObject::connect(client,SIGNAL(sshDataReceived()), this, SLOT(sshDataReceived()));
+    QObject::connect(client, &SshClient::sshDataReceived, this, &SshSFtp::sshDataReceived);
 
     while(!(_sftpSession = libssh2_sftp_init(sshClient->session())))
     {

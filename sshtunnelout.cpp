@@ -13,10 +13,10 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString por
 {
     sshChannel = libssh2_channel_direct_tcpip(this->sshClient->session(), "127.0.0.1", _port);
     if(sshChannel) emit channelReady();
-    connect(_tcpsocket, SIGNAL(readyRead()),                           this, SLOT(tcpDataReceived()));
-    connect(_tcpsocket, SIGNAL(disconnected()),                        this, SLOT(tcpDisconnected()));
-    connect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
-    connect(client,SIGNAL(sshDataReceived()), this, SLOT(sshDataReceived()));
+    QObject::connect(_tcpsocket, &QTcpSocket::readyRead,      this, &SshTunnelOut::tcpDataReceived);
+    QObject::connect(_tcpsocket, &QTcpSocket::disconnected,   this, &SshTunnelOut::tcpDisconnected);
+    QObject::connect(client,     &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
+    QObject::connect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
 
 #if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : SshTunnelOut : Connection" << port_identifier << "created";
@@ -27,10 +27,10 @@ void SshTunnelOut::close(QString reason)
 {
     if(!_opened) return;
     _opened = false;
-    disconnect(_tcpsocket, SIGNAL(readyRead()),                           this, SLOT(tcpDataReceived()));
-    disconnect(_tcpsocket, SIGNAL(disconnected()),                        this, SLOT(tcpDisconnected()));
-    disconnect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
-    disconnect(sshClient,SIGNAL(sshDataReceived()), this, SLOT(sshDataReceived()));
+    QObject::disconnect(_tcpsocket, &QTcpSocket::readyRead, this,  &SshTunnelOut::tcpDataReceived);
+    QObject::disconnect(_tcpsocket, SIGNAL(disconnected()),                        this, SLOT(tcpDisconnected()));
+    QObject::disconnect(sshClient,SIGNAL(sshDataReceived()), this, SLOT(sshDataReceived()));
+    QObject::disconnect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
     if(_tcpsocket->state() == QAbstractSocket::ConnectedState)
         _tcpsocket->disconnectFromHost();
     _tcpsocket->deleteLater();

@@ -285,5 +285,7 @@ void SshWorker::run()
 
     emit threadReady();
     loop.exec();
-    qDebug() << "INFO : SshWorker thread terminated " << " in Thread " << QThread::currentThread();
+#if defined(DEBUG_SSHWORKER)
+    qDebug() << "DEBUG : SshWorker thread terminated " << " in Thread " << QThread::currentThread();
+#endif
 }

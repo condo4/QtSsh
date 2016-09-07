@@ -102,7 +102,7 @@ SshScpSend::SshScpSend(SshClient *client, QString source, QString dest):
     _source(source),
     _destination(dest)
 {
-    QObject::connect(client,SIGNAL(sshDataReceived()), this, SLOT(sshDataReceived()));
+    QObject::connect(client, &SshClient::sshDataReceived, this, &SshScpSend::sshDataReceived);
 }
 
 QString SshScpSend::send()
@@ -120,7 +120,6 @@ QString SshScpSend::send()
     }
 
     stat(loclfile, &_fileinfo);
-
 
     /* Send a file via scp. The mode parameter must only have permissions! */
 #ifdef DEBUG_SCPSEND

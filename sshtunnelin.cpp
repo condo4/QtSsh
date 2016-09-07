@@ -196,9 +196,9 @@ void SshTunnelIn::sshDataReceived()
             {
                 _tcpsocket = new QTcpSocket(this);
                 _tcpsocket->setReadBufferSize(16384);
-                connect(_tcpsocket, SIGNAL(disconnected()),                      this, SLOT(onLocalSocketDisconnected()));
-                connect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onLocalSocketError(QAbstractSocket::SocketError)));
-                connect(_tcpsocket, SIGNAL(readyRead()),                         this, SLOT(onLocalSocketDataReceived()) );
+                QObject::connect(_tcpsocket, &QTcpSocket::disconnected, this, &SshTunnelIn::onLocalSocketDisconnected);
+                QObject::connect(_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
+                QObject::connect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onLocalSocketError(QAbstractSocket::SocketError)));
             }
 
             if (_tcpsocket != NULL)
