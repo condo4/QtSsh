@@ -178,7 +178,9 @@ void SshClient::enableSftp()
     if(!_sftp)
     {
         _sftp = new SshSFtp(this);
+#if defined(DEBUG_SSHCLIENT)
         qDebug() << "DEBUG : Enable sFtp";
+#endif
         QObject::connect(_sftp, &SshSFtp::xfer, this, [this](){
             emit sFtpXfer();
         });
@@ -189,6 +191,9 @@ void SshClient::enableSftp()
 QString SshClient::sFtpSend(QString source, QString dest)
 {
     QString res;
+#if defined(DEBUG_SFTP)
+    qDebug() << "DEBUG : SshClient::sFtpSend(" << source << "," << dest << ")";
+#endif
     enableSftp();
     res = _sftp->send(source, dest);
     emit sFtpSendTerminate(res);
@@ -582,20 +587,9 @@ void SshClient::_readyRead()
         }
         case LookingAuthOptions:
         {
-            if (_availableMethods.contains(SshClient::PublicKeyAuthentication) &&
-                !_privateKey.isNull() &&
-                !_failedMethods.contains(SshClient::PublicKeyAuthentication))
+            if (_availableMethods.contains(SshClient::PublicKeyAuthentication) && !_privateKey.isNull() && (!_failedMethods.contains(SshClient::PublicKeyAuthentication) || (!_failedMethods.contains(SshClient::PasswordAuthentication))))
             {
                 _currentAuthTry = SshClient::PublicKeyAuthentication;
-                _state = TryingAuthentication;
-                _readyRead();
-                return;
-            }
-            if (_availableMethods.contains(SshClient::PasswordAuthentication) &&
-                !_passphrase.isNull() &&
-                !_failedMethods.contains(SshClient::PasswordAuthentication))
-            {
-                _currentAuthTry = SshClient::PasswordAuthentication;
                 _state = TryingAuthentication;
                 _readyRead();
                 return;

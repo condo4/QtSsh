@@ -15,10 +15,13 @@ QString SshSFtp::send(QString source, QString dest)
     long total = 0;
     FILE *local;
     int rc;
-
     LIBSSH2_SFTP_HANDLE *sftpfile;
     if(dest.endsWith("/"))
     {
+        if(!isDir(dest))
+        {
+            mkpath(dest);
+        }
         dest += src.fileName();
     }
 
@@ -66,7 +69,7 @@ QString SshSFtp::send(QString source, QString dest)
              }
              if(rc < 0)
              {
-                 qDebug() << "ERROR : Write error "<< rc;
+                 qDebug() << "ERROR : Write error send(" << source << "," <<  dest << ") = " << rc;
                  break;
              }
              ptr += rc;
@@ -260,19 +263,12 @@ bool SshSFtp::isDir(QString d)
         {
             _waitData(2000);
         }
-        else
+        else if(!sftpdir && (rc == LIBSSH2_ERROR_SFTP_PROTOCOL))
         {
-            if(!sftpdir)
-            {
-                if(rc == -31)
-                {
-                    return false;
-                }
-            }
+                return false;
         }
     } while (!sftpdir);
     libssh2_sftp_closedir(sftpdir);
-
     return true;
 }
 
