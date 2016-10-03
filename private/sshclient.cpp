@@ -223,7 +223,7 @@ QStringList SshClient::sFtpDir(QString d)
 {
     QStringList res;
     enableSftp();
-    res = _sftp->dir(d);
+    res = _sftp->readdir(d);
     emit sFtpDirTerminate(res);
     return res;
 }

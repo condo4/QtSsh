@@ -3,9 +3,10 @@
 
 #include <QObject>
 #include <QThread>
+#include "sshfs.h"
 #include "sshclient.h"
 
-class SshWorker : public QThread
+class SshWorker : public QThread, public SshFsInterface
 {
     Q_OBJECT
     SshClient *_client;
@@ -26,17 +27,18 @@ public:
     quint16 openRemotePortForwarding(QString servicename, quint16 port);
     void closePortForwarding(QString servicename);
     QString sendFile(QString src, QString dst);
-
-    /* SFTP Methode wrapper */
     void enableSftp();
-    QString sFtpSend(QString source, QString dest);
-    bool sFtpGet(QString source, QString dest, bool override = false);
-    int sFtpMkdir(QString dest);
-    QStringList sFtpDir(QString d);
-    bool sFtpIsDir(QString d);
-    bool sFtpIsFile(QString d);
-    int sFtpMkpath(QString dest);
-    bool sFtpUnlink(QString d);
+
+    /* <<<SshFsInterface>>> */
+    QString send(QString source, QString dest);
+    bool get(QString source, QString dest, bool override = false);
+    int mkdir(QString dest);
+    QStringList readdir(QString d);
+    bool isDir(QString d);
+    bool isFile(QString d);
+    int mkpath(QString dest);
+    bool unlink(QString d);
+    /* >>>SshFsInterface<<< */
 
 signals:
     void threadReady();

@@ -208,7 +208,7 @@ int SshSFtp::mkdir(QString dest)
     return res;
 }
 
-QStringList SshSFtp::dir(QString d)
+QStringList SshSFtp::readdir(QString d)
 {
     LIBSSH2_SFTP_HANDLE *sftpdir;
     int rc;

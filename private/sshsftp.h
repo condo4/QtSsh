@@ -6,8 +6,9 @@
 #include <QEventLoop>
 #include <QTimer>
 #include <QStringList>
+#include "sshfs.h"
 
-class SshSFtp : public SshChannel
+class SshSFtp : public SshChannel, public SshFsInterface
 {
     Q_OBJECT
 
@@ -23,7 +24,7 @@ public:
     QString send(QString source, QString dest);
     bool get(QString source, QString dest, bool override = false);
     int mkdir(QString dest);
-    QStringList dir(QString d);
+    QStringList readdir(QString d);
     bool isDir(QString d);
     bool isFile(QString d);
     int mkpath(QString dest);

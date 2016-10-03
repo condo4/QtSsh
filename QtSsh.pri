@@ -1,26 +1,27 @@
-
 # QtSsh
 HEADERS += \
-    $$PWD/sshtunnelout.h \
-    $$PWD/sshtunnelin.h \
-    $$PWD/sshprocess.h \
-    $$PWD/sshchannel.h \
+    $$PWD/private/sshtunnelout.h \
+    $$PWD/private/sshtunnelin.h \
+    $$PWD/private/sshprocess.h \
+    $$PWD/private/sshchannel.h \
     $$PWD/sshclient.h \
-    $$PWD/sshtunneloutsrv.h \
-    $$PWD/sshserviceport.h \
-    $$PWD/sshscpsend.h \
-    $$PWD/sshsftp.h \
-    $$PWD/sshworker.h
+    $$PWD/private/sshtunneloutsrv.h \
+    $$PWD/private/sshserviceport.h \
+    $$PWD/private/sshscpsend.h \
+    $$PWD/private/sshsftp.h \
+    $$PWD/sshworker.h \
+    $$PWD/sshfs.h \
+    $$PWD/sshaccess.h
 
 SOURCES += \
-    $$PWD/sshtunnelout.cpp \
-    $$PWD/sshtunnelin.cpp \
-    $$PWD/sshprocess.cpp \
-    $$PWD/sshchannel.cpp \
-    $$PWD/sshclient.cpp \
-    $$PWD/sshtunneloutsrv.cpp \
-    $$PWD/sshscpsend.cpp \
-    $$PWD/sshsftp.cpp \
-    $$PWD/sshworker.cpp
+    $$PWD/private/sshtunnelout.cpp \
+    $$PWD/private/sshtunnelin.cpp \
+    $$PWD/private/sshprocess.cpp \
+    $$PWD/private/sshchannel.cpp \
+    $$PWD/private/sshclient.cpp \
+    $$PWD/private/sshtunneloutsrv.cpp \
+    $$PWD/private/sshscpsend.cpp \
+    $$PWD/private/sshsftp.cpp \
+    $$PWD/private/sshworker.cpp
 
-INCLUDEPATH += $$PWD/
+INCLUDEPATH += $$PWD/ $$PWD/private/

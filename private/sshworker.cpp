@@ -138,7 +138,7 @@ void SshWorker::enableSftp()
     QObject::disconnect(con);
 }
 
-QString SshWorker::sFtpSend(QString source, QString dest)
+QString SshWorker::send(QString source, QString dest)
 {
     QEventLoop wait;
     QString ret;
@@ -152,7 +152,7 @@ QString SshWorker::sFtpSend(QString source, QString dest)
     return ret;
 }
 
-bool SshWorker::sFtpGet(QString source, QString dest, bool override)
+bool SshWorker::get(QString source, QString dest, bool override)
 {
     QEventLoop wait;
     bool ret;
@@ -166,7 +166,7 @@ bool SshWorker::sFtpGet(QString source, QString dest, bool override)
     return ret;
 }
 
-int SshWorker::sFtpMkdir(QString dest)
+int SshWorker::mkdir(QString dest)
 {
     QEventLoop wait;
     int ret;
@@ -180,7 +180,7 @@ int SshWorker::sFtpMkdir(QString dest)
     return ret;
 }
 
-QStringList SshWorker::sFtpDir(QString d)
+QStringList SshWorker::readdir(QString d)
 {
     QEventLoop wait;
     QStringList ret;
@@ -194,7 +194,7 @@ QStringList SshWorker::sFtpDir(QString d)
     return ret;
 }
 
-bool SshWorker::sFtpIsDir(QString d)
+bool SshWorker::isDir(QString d)
 {
     QEventLoop wait;
     bool ret;
@@ -208,7 +208,7 @@ bool SshWorker::sFtpIsDir(QString d)
     return ret;
 }
 
-bool SshWorker::sFtpIsFile(QString d)
+bool SshWorker::isFile(QString d)
 {
     QEventLoop wait;
     bool ret;
@@ -222,7 +222,7 @@ bool SshWorker::sFtpIsFile(QString d)
     return ret;
 }
 
-int SshWorker::sFtpMkpath(QString dest)
+int SshWorker::mkpath(QString dest)
 {
     QEventLoop wait;
     int ret;
@@ -236,7 +236,7 @@ int SshWorker::sFtpMkpath(QString dest)
     return ret;
 }
 
-bool SshWorker::sFtpUnlink(QString d)
+bool SshWorker::unlink(QString d)
 {
     QEventLoop wait;
     bool ret;
