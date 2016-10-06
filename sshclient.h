@@ -22,21 +22,6 @@ class SshSFtp;
 class  SshClient : public QObject, public SshFsInterface, public SshInterface {
     Q_OBJECT
 
-public:
-    enum Error {
-        NoError = 0,
-        AuthenticationError,
-        HostKeyUnknownError,
-        HostKeyInvalidError,
-        HostKeyMismatchError,
-        ConnectionRefusedError,
-        UnexpectedShutdownError,
-        HostNotFoundError,
-        SocketError,
-        TimeOut,
-        UnknownError
-    };
-
 private:
     enum SshState {
         NoState = 0,
@@ -77,8 +62,6 @@ private:
 
     SshKey  _hostKey;
 
-    SshClient::Error _delayError;
-
     // authentication methods
     SshClient::AuthenticationMethod        _currentAuthTry;
     QList<SshClient::AuthenticationMethod> _availableMethods;
@@ -109,7 +92,18 @@ public slots:
     bool addKnownHost  (const QString &hostname, const SshKey &key);
 /* >>>SshInterface<<< */
 
-
+/* <<<SshFsInterface>>> */
+public slots:
+    void enableSFTP();
+    QString send(QString source, QString dest);
+    bool get(QString source, QString dest, bool override = false);
+    int mkdir(QString dest);
+    QStringList readdir(QString d);
+    bool isDir(QString d);
+    bool isFile(QString d);
+    int mkpath(QString dest);
+    bool unlink(QString d);
+/* >>>SshFsInterface<<< */
 
 
     LIBSSH2_SESSION *session();
@@ -120,7 +114,6 @@ public slots:
 signals:
     void connected();
     void disconnected();
-    void sshError(SshClient::Error error);
     void sshAuthenticationRequired(QList<SshClient::AuthenticationMethod> availableMethods);
     void xfer_rate(qint64 tx, qint64 rx);
     void sshDataReceived();
@@ -153,36 +146,16 @@ signals:
     void sFtpXfer();
 
 
-
-
-
-
-
-
 public slots:
     void tx_data(qint64 len);
     void rx_data(qint64 len);
     void askDisconnect();
 
 
-    /* <<<SshFsInterface>>> */
-public slots:
-    void enableSFTP();
-    QString send(QString source, QString dest);
-    bool get(QString source, QString dest, bool override = false);
-    int mkdir(QString dest);
-    QStringList readdir(QString d);
-    bool isDir(QString d);
-    bool isFile(QString d);
-    int mkpath(QString dest);
-    bool unlink(QString d);
-    /* >>>SshFsInterface<<< */
-
 private slots:
     void _readyRead();
     void _connected();
     void _disconnected();
-    void _delaydErrorEmit();
     void _getLastError();
     void _tcperror(QAbstractSocket::SocketError err);
     void _cntRate();

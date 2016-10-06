@@ -277,7 +277,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     _username = user;
     _port = port;
     _state = TcpHostConnected;
-    _errorcode = TimeOut;
+    _errorcode = LIBSSH2_ERROR_TIMEOUT;
 
 #if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : SshClient : trying to connect to host (" << _hostname << ":" << _port << ")";
@@ -292,13 +292,16 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         if(lock)
         {
             wait.exec();
-            if(_errorcode == TimeOut) break;
+            if(_errorcode == LIBSSH2_ERROR_TIMEOUT) break;
         }
+        /*
         if(!checkHostKey && _errorcode == HostKeyUnknownError)
         {
             SshKey serverKey = _hostKey;
             addKnownHost(_hostname, serverKey);
         }
+        */
+            Q_UNUSED(checkHostKey);
     }
     while(_errorcode && retry--);
 #if defined(DEBUG_SSHCLIENT)
@@ -430,8 +433,8 @@ void SshClient::_tcperror(QAbstractSocket::SocketError err)
 {
     if(err == QAbstractSocket::ConnectionRefusedError)
     {
-        _errorcode = ConnectionRefusedError;
-        emit sshError(ConnectionRefusedError);
+        _errorcode = LIBSSH2_ERROR_BAD_SOCKET;
+        qDebug() << "ERROR : SshClient : ConnectionRefusedError";
         emit _connectionTerminate();
     }
     else
@@ -479,8 +482,7 @@ void SshClient::_readyRead()
             if (ret)
             {
                 qWarning() << "WARNING : SshClient : Failure establishing SSH session :" << ret;
-                emit sshError(UnexpectedShutdownError);
-                _errorcode = UnexpectedShutdownError;
+                _getLastError();
                 emit _connectionTerminate();
                 askDisconnect();
                 return;
@@ -544,8 +546,7 @@ void SshClient::_readyRead()
                 else
                 {
                     _getLastError();
-                    emit sshError(UnexpectedShutdownError);
-                    _errorcode = UnexpectedShutdownError;
+                    qDebug() << "ERROR : UnexpectedShutdownError";
                     emit _connectionTerminate();
                     askDisconnect();
                     emit disconnected();
@@ -576,7 +577,7 @@ void SshClient::_readyRead()
                 _readyRead();
                 return;
             }
-            _errorcode = AuthenticationError;
+            _errorcode = LIBSSH2_ERROR_AUTHENTICATION_FAILED;
             emit sshAuthenticationRequired(_availableMethods);
             emit _connectionTerminate();
             break;
@@ -616,15 +617,14 @@ void SshClient::_readyRead()
             else if (ret == 0)
             {
                 _state = ActivatingChannels;
-                _errorcode = NoError;
+                _errorcode = LIBSSH2_ERROR_NONE;
                 emit connected();
                 emit _connectionTerminate();
             }
             else
             {
                 _getLastError();
-                _errorcode = AuthenticationError;
-                emit sshError(AuthenticationError);
+                qDebug() << "ERROR : AuthenticationError";
                 emit _connectionTerminate();
                 _failedMethods.append(_currentAuthTry);
                 _state = LookingAuthOptions;
@@ -707,10 +707,3 @@ void SshClient::_getLastError()
     _errorMessage = QString::fromLocal8Bit(QByteArray::fromRawData(msg, len));
 }
 
-
-void SshClient::_delaydErrorEmit()
-{
-    emit sshError(_delayError);
-    _errorcode = _delayError;
-    emit _connectionTerminate();
-}
