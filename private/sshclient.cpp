@@ -277,7 +277,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     _username = user;
     _port = port;
     _state = TcpHostConnected;
-    _errorcode = LIBSSH2_ERROR_TIMEOUT;
+    _errorcode = 0;
 
 #if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : SshClient : trying to connect to host (" << _hostname << ":" << _port << ")";
@@ -285,7 +285,10 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 
     timeout.setInterval(10*1000);
     connect(this, SIGNAL(_connectionTerminate()), &wait, SLOT(quit()));
-    connect(&timeout, SIGNAL(timeout()), &wait, SLOT(quit()));
+    connect(&timeout, &QTimer::timeout, [&wait, this](){
+        _errorcode = LIBSSH2_ERROR_TIMEOUT;
+        wait.quit();
+    });
     timeout.start();
     do {
         _socket.connectToHost(_hostname, _port);
@@ -570,9 +573,16 @@ void SshClient::_readyRead()
         }
         case LookingAuthOptions:
         {
-            if (_availableMethods.contains(SshClient::PublicKeyAuthentication) && !_privateKey.isNull() && (!_failedMethods.contains(SshClient::PublicKeyAuthentication) || (!_failedMethods.contains(SshClient::PasswordAuthentication))))
+            if (_availableMethods.contains(SshClient::PublicKeyAuthentication) && !_privateKey.isNull() && (!_failedMethods.contains(SshClient::PublicKeyAuthentication) ))
             {
                 _currentAuthTry = SshClient::PublicKeyAuthentication;
+                _state = TryingAuthentication;
+                _readyRead();
+                return;
+            }
+            else if (_availableMethods.contains(SshClient::PasswordAuthentication) && !_passphrase.isNull() && (!_failedMethods.contains(SshClient::PasswordAuthentication)))
+            {
+                _currentAuthTry = SshClient::PasswordAuthentication;
                 _state = TryingAuthentication;
                 _readyRead();
                 return;
