@@ -6,7 +6,7 @@
 #include <QEventLoop>
 #include <QTimer>
 #include <QStringList>
-#include "sshfs.h"
+#include "sshfsinterface.h"
 
 class SshSFtp : public SshChannel, public SshFsInterface
 {
@@ -21,6 +21,10 @@ private:
 public:
     SshSFtp(SshClient * client);
     ~SshSFtp();
+
+
+    /* <<<SshFsInterface>>> */
+    void enableSFTP();
     QString send(QString source, QString dest);
     bool get(QString source, QString dest, bool override = false);
     int mkdir(QString dest);
@@ -29,6 +33,7 @@ public:
     bool isFile(QString d);
     int mkpath(QString dest);
     bool unlink(QString d);
+    /* >>>SshFsInterface<<< */
 
 protected slots:
     void sshDataReceived();

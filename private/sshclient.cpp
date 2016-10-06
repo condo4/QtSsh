@@ -81,7 +81,7 @@ SshClient::~SshClient()
     qDebug() << "DEBUG : SshClient : Enter in destructor, @"<< this << " state is " << _state;
 #endif
 
-    disconnectSshFromHost();
+    disconnectFromHost();
 
 #if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : SshClient : Quit destructor";
@@ -173,7 +173,7 @@ QString SshClient::sendFile(QString src, QString dst)
     return d;
 }
 
-void SshClient::enableSftp()
+void SshClient::enableSFTP()
 {
     if(!_sftp)
     {
@@ -188,83 +188,83 @@ void SshClient::enableSftp()
     emit enableSftpTerminate();
 }
 
-QString SshClient::sFtpSend(QString source, QString dest)
+QString SshClient::send(QString source, QString dest)
 {
     QString res;
 #if defined(DEBUG_SFTP)
     qDebug() << "DEBUG : SshClient::sFtpSend(" << source << "," << dest << ")";
 #endif
-    enableSftp();
+    enableSFTP();
     res = _sftp->send(source, dest);
     emit sFtpSendTerminate(res);
     return res;
 }
 
-bool SshClient::sFtpGet(QString source, QString dest, bool override)
+bool SshClient::get(QString source, QString dest, bool override)
 {
     bool res;
-    enableSftp();
+    enableSFTP();
     res = _sftp->get(source, dest, override);
     emit sFtpGetTerminate(res);
     return res;
 }
 
-int SshClient::sFtpMkdir(QString dest)
+int SshClient::mkdir(QString dest)
 {
     int res;
-    enableSftp();
+    enableSFTP();
     res = _sftp->mkdir(dest);
     qDebug() << "DEBUG : SshClient::sFtpMkdir " << dest << " = " << res;
     emit sFtpMkdirTerminate(res);
     return res;
 }
 
-QStringList SshClient::sFtpDir(QString d)
+QStringList SshClient::readdir(QString d)
 {
     QStringList res;
-    enableSftp();
+    enableSFTP();
     res = _sftp->readdir(d);
     emit sFtpDirTerminate(res);
     return res;
 }
 
-bool SshClient::sFtpIsDir(QString d)
+bool SshClient::isDir(QString d)
 {
     bool res;
-    enableSftp();
+    enableSFTP();
     res = _sftp->isDir(d);
     emit sFtpIsDirTerminate(res);
     return res;
 }
 
-bool SshClient::sFtpIsFile(QString d)
+bool SshClient::isFile(QString d)
 {
     bool res;
-    enableSftp();
+    enableSFTP();
     res = _sftp->isFile(d);
     emit sFtpIsFileTerminate(res);
     return res;
 }
 
-int SshClient::sFtpMkpath(QString dest)
+int SshClient::mkpath(QString dest)
 {
     int res;
-    enableSftp();
+    enableSFTP();
     res = _sftp->mkpath(dest);
     emit sFtpMkpathTerminate(res);
     return res;
 }
 
-bool SshClient::sFtpUnlink(QString d)
+bool SshClient::unlink(QString d)
 {
     bool res;
-    enableSftp();
+    enableSFTP();
     res = _sftp->unlink(d);
     emit sFtpUnlinkTerminate(res);
     return res;
 }
 
-int SshClient::connectSshToHost(const QString & user, const QString & host, quint16 port, bool lock, bool checkHostKey, unsigned int retry )
+int SshClient::connectToHost(const QString & user, const QString & host, quint16 port, bool lock, bool checkHostKey, unsigned int retry )
 {
     if(_sshConnected) {
         qDebug() << "ERROR : Allways connected";
@@ -296,8 +296,8 @@ int SshClient::connectSshToHost(const QString & user, const QString & host, quin
         }
         if(!checkHostKey && _errorcode == HostKeyUnknownError)
         {
-            SshKey serverKey = hostKey();
-            addKnownHost(hostName(), serverKey);
+            SshKey serverKey = _hostKey;
+            addKnownHost(_hostname, serverKey);
         }
     }
     while(_errorcode && retry--);
@@ -312,7 +312,7 @@ int SshClient::connectSshToHost(const QString & user, const QString & host, quin
     return _errorcode;
 }
 
-void SshClient::disconnectSshFromHost()
+void SshClient::disconnectFromHost()
 {
     if(!_sshConnected) return;
 
@@ -350,16 +350,11 @@ void SshClient::disconnectSshFromHost()
     _failedMethods.clear();
     _availableMethods.clear();
 
-    connect(this, SIGNAL(sshDisconnected()), &wait, SLOT(quit()));
+    connect(this, SIGNAL(disconnected()), &wait, SLOT(quit()));
     _socket.disconnectFromHost();
     wait.exec();
     _socket.close();
     emit disconnectSshFromHostTerminate();
-}
-
-void SshClient::disconnectFromHost()
-{
-    _reset();
 }
 
 void SshClient::setPassphrase(const QString & pass)
@@ -371,6 +366,7 @@ void SshClient::setPassphrase(const QString & pass)
     {
         QTimer::singleShot(0, this, SLOT(_readyRead()));
     }
+    emit setPassphraseTerminate();
 }
 
 void SshClient::setKeys(const QString &publicKey, const QString &privateKey)
@@ -392,13 +388,16 @@ bool SshClient::loadKnownHosts(const QString & file)
     return (res);
 }
 
-bool SshClient::saveKnownHosts(const QString & file) const
+bool SshClient::saveKnownHosts(const QString & file)
 {
-    return (libssh2_knownhost_writefile(_knownHosts, qPrintable(file), LIBSSH2_KNOWNHOST_FILE_OPENSSH) == 0);
+    bool res = (libssh2_knownhost_writefile(_knownHosts, qPrintable(file), LIBSSH2_KNOWNHOST_FILE_OPENSSH) == 0);
+    emit saveKnownHostsTerminate(res);
+    return res;
 }
 
 bool SshClient::addKnownHost(const QString & hostname,const SshKey & key)
 {
+    bool ret;
     int typemask = LIBSSH2_KNOWNHOST_TYPE_PLAIN | LIBSSH2_KNOWNHOST_KEYENC_RAW;
     switch (key.type)
     {
@@ -411,27 +410,10 @@ bool SshClient::addKnownHost(const QString & hostname,const SshKey & key)
         case SshKey::UnknownType:
             return false;
     };
-
-    return (libssh2_knownhost_add(_knownHosts, qPrintable(hostname), NULL, key.key.data(), key.key.size(), typemask, NULL));
-
+    ret = (libssh2_knownhost_add(_knownHosts, qPrintable(hostname), NULL, key.key.data(), key.key.size(), typemask, NULL));
+    emit addKnownHostTerminate(ret);
+    return ret;
 }
-
-quint16 SshClient::sshSocketLocalPort()
-{
-    return _socket.localPort();
-}
-
-SshKey SshClient::hostKey() const
-{
-    return _hostKey;
-}
-
-QString SshClient::hostName() const
-{
-    return _hostname;
-}
-
-
 
 
 void SshClient::_connected()
@@ -500,7 +482,7 @@ void SshClient::_readyRead()
                 emit sshError(UnexpectedShutdownError);
                 _errorcode = UnexpectedShutdownError;
                 emit _connectionTerminate();
-                _reset();
+                askDisconnect();
                 return;
             }
             size_t len;
@@ -565,8 +547,8 @@ void SshClient::_readyRead()
                     emit sshError(UnexpectedShutdownError);
                     _errorcode = UnexpectedShutdownError;
                     emit _connectionTerminate();
-                    _reset();
-                    emit sshDisconnected();
+                    askDisconnect();
+                    emit disconnected();
                     return;
                 }
             }
@@ -635,7 +617,7 @@ void SshClient::_readyRead()
             {
                 _state = ActivatingChannels;
                 _errorcode = NoError;
-                emit sshConnected();
+                emit connected();
                 emit _connectionTerminate();
             }
             else
@@ -663,7 +645,7 @@ void SshClient::_readyRead()
     }
 }
 
-void SshClient::_reset()
+void SshClient::askDisconnect()
 {
     /* Close all Opened Channels */
     foreach(QString name, _channels.keys()){
@@ -710,11 +692,11 @@ void SshClient::_disconnected()
     if (_state != NoState)
     {
         qWarning("WARNING : SshClient : unexpected shutdown");
-        _reset();
+        askDisconnect();
     }
 
     _sshConnected = false;
-    emit sshDisconnected();
+    emit disconnected();
 }
 
 void SshClient::_getLastError()

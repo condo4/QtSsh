@@ -3,8 +3,9 @@
 
 class SshFsInterface
 {
-public:
+public slots:
     virtual ~SshFsInterface() {}
+    virtual void enableSFTP() = 0;
     virtual QString send(QString source, QString dest) = 0;
     virtual bool get(QString source, QString dest, bool override = false) = 0;
     virtual int mkdir(QString dest) = 0;

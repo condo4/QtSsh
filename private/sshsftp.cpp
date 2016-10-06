@@ -364,3 +364,8 @@ SshSFtp::~SshSFtp()
 {
     libssh2_sftp_shutdown(_sftpSession);
 }
+
+void SshSFtp::enableSFTP()
+{
+
+}

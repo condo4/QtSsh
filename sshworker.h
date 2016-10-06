@@ -3,33 +3,39 @@
 
 #include <QObject>
 #include <QThread>
-#include "sshfs.h"
+#include "sshfsinterface.h"
+#include "sshinterface.h"
 #include "sshclient.h"
 
-class SshWorker : public QThread, public SshFsInterface
+class SshWorker : public QThread, public SshFsInterface, public SshInterface
 {
     Q_OBJECT
     SshClient *_client;
 
-private slots:
-    void xferRate(qint64 tx, qint64 rx);
-
 public:
     explicit SshWorker(QObject *parent = 0);
-    ~SshWorker();
+    virtual ~SshWorker();
 
-    void setKeys(const QString &publicKey, const QString &privateKey);
-    bool loadKnownHosts(const QString &file);
-    int connectSshToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
-    void disconnectSshFromHost();
+/* <<<SshInterface>>> */
+public slots:
+    int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
+    void disconnectFromHost();
     QString runCommand(QString command);
     quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
     quint16 openRemotePortForwarding(QString servicename, quint16 port);
     void closePortForwarding(QString servicename);
+    void setKeys(const QString &publicKey, const QString &privateKey);
+    bool loadKnownHosts(const QString &file);
     QString sendFile(QString src, QString dst);
-    void enableSftp();
+    void setPassphrase(const QString & pass);
+    bool saveKnownHosts(const QString &file);
+    bool addKnownHost  (const QString &hostname, const SshKey &key);
+/* >>>SshInterface<<< */
 
-    /* <<<SshFsInterface>>> */
+
+/* <<<SshFsInterface>>> */
+public slots:
+    void enableSFTP();
     QString send(QString source, QString dest);
     bool get(QString source, QString dest, bool override = false);
     int mkdir(QString dest);
@@ -38,21 +44,19 @@ public:
     bool isFile(QString d);
     int mkpath(QString dest);
     bool unlink(QString d);
-    /* >>>SshFsInterface<<< */
+/* >>>SshFsInterface<<< */
+
+private slots:
+    void xferRate(qint64 tx, qint64 rx);
+
+public slots:
+    void run();
 
 signals:
     void threadReady();
     void xfer_rate(qint64 tx, qint64 rx);
     void askQuit();
-    void askSetKeys(const QString &publicKey, const QString &privateKey);
-    void askLoadKnownHosts(const QString &file);
-    void askConnectSshToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
-    void askDisconnectSshFromHost();
-    void askRunCommand(QString command);
-    void askOpenLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
-    void askOpenRemotePortForwarding(QString servicename, quint16 port);
-    void askClosePortForwarding(QString servicename);
-    void askSendFile(QString src, QString dst);
+
 
     void askEnableSftp();
     QString askSFtpSend(QString source, QString dest);
@@ -64,12 +68,6 @@ signals:
     int askSFtpMkpath(QString dest);
     bool askSFtpUnlink(QString d);
     void sFtpXfer();
-
-
-public slots:
-    void run();
-
-
 };
 
 #endif // SSHWORKER_H

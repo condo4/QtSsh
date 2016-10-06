@@ -22,7 +22,7 @@ void SshWorker::setKeys(const QString &publicKey, const QString &privateKey)
 {
     QEventLoop wait;
     QMetaObject::Connection con = connect(_client, &SshClient::setKeysTerminate, &wait, &QEventLoop::quit, Qt::QueuedConnection);
-    emit askSetKeys(publicKey, privateKey);
+    QMetaObject::invokeMethod( _client, "setKeys", Qt::QueuedConnection, Q_ARG( const QString, publicKey ), Q_ARG( const QString, privateKey ) );
     wait.exec();
     QObject::disconnect(con);
 }
@@ -35,13 +35,13 @@ bool SshWorker::loadKnownHosts(const QString &file)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askLoadKnownHosts(file);
+    QMetaObject::invokeMethod( _client, "loadKnownHosts", Qt::QueuedConnection, Q_ARG( const QString, file ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
 }
 
-int SshWorker::connectSshToHost(const QString &username, const QString &hostname, quint16 port, bool lock, bool checkHostKey, unsigned int retry)
+int SshWorker::connectToHost(const QString &username, const QString &hostname, quint16 port, bool lock, bool checkHostKey, unsigned int retry)
 {
     QEventLoop wait;
     int ret;
@@ -49,17 +49,17 @@ int SshWorker::connectSshToHost(const QString &username, const QString &hostname
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askConnectSshToHost(username, hostname, port, lock, checkHostKey, retry);
+    QMetaObject::invokeMethod( _client, "connectToHost", Qt::QueuedConnection, Q_ARG(QString, username), Q_ARG(QString, hostname), Q_ARG(quint16, port), Q_ARG(bool, lock), Q_ARG(bool, checkHostKey), Q_ARG(unsigned int, retry) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
 }
 
-void SshWorker::disconnectSshFromHost()
+void SshWorker::disconnectFromHost()
 {
     QEventLoop wait;
     QMetaObject::Connection con = connect(_client, &SshClient::disconnectSshFromHostTerminate, &wait, &QEventLoop::quit, Qt::QueuedConnection);
-    emit askDisconnectSshFromHost();
+    QMetaObject::invokeMethod( _client, "disconnectFromHost", Qt::QueuedConnection);
     wait.exec();
     QObject::disconnect(con);
 }
@@ -72,7 +72,7 @@ QString SshWorker::runCommand(QString command)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askRunCommand(command);
+    QMetaObject::invokeMethod( _client, "runCommand", Qt::QueuedConnection, Q_ARG( QString, command ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -86,7 +86,7 @@ quint16 SshWorker::openLocalPortForwarding(QString servicename, quint16 port, qu
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askOpenLocalPortForwarding(servicename, port, bind);
+    QMetaObject::invokeMethod( _client, "openLocalPortForwarding", Qt::QueuedConnection, Q_ARG( QString, servicename ), Q_ARG( quint16, port ), Q_ARG( quint16, bind ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -100,7 +100,7 @@ quint16 SshWorker::openRemotePortForwarding(QString servicename, quint16 port)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askOpenRemotePortForwarding(servicename, port);
+    QMetaObject::invokeMethod( _client, "openRemotePortForwarding", Qt::QueuedConnection, Q_ARG( QString, servicename ), Q_ARG( quint16, port ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -110,7 +110,7 @@ void SshWorker::closePortForwarding(QString servicename)
 {
     QEventLoop wait;
     QMetaObject::Connection con = connect(_client, &SshClient::closePortForwardingTerminate, &wait, &QEventLoop::quit, Qt::QueuedConnection);
-    emit askClosePortForwarding(servicename);
+    QMetaObject::invokeMethod( _client, "closePortForwarding", Qt::QueuedConnection, Q_ARG( QString, servicename ) );
     wait.exec();
     QObject::disconnect(con);
 }
@@ -123,17 +123,54 @@ QString SshWorker::sendFile(QString src, QString dst)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askSendFile(src, dst);
+    QMetaObject::invokeMethod( _client, "sendFile", Qt::QueuedConnection, Q_ARG( QString, src ), Q_ARG( QString, dst ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
 }
 
-void SshWorker::enableSftp()
+void SshWorker::setPassphrase(const QString &pass)
+{
+    QEventLoop wait;
+    QMetaObject::Connection con = connect(_client, &SshClient::setPassphraseTerminate, &wait, &QEventLoop::quit, Qt::QueuedConnection);
+    QMetaObject::invokeMethod( _client, "setPassphrase", Qt::QueuedConnection, Q_ARG( QString, pass ) );
+    wait.exec();
+    QObject::disconnect(con);
+}
+
+bool SshWorker::saveKnownHosts(const QString &file)
+{
+    QEventLoop wait;
+    bool ret;
+    QMetaObject::Connection con = QObject::connect(_client, &SshClient::saveKnownHostsTerminate, this, [&wait, &ret](bool res) {
+        ret = res;
+        wait.quit();
+    },Qt::QueuedConnection);
+    QMetaObject::invokeMethod( _client, "saveKnownHosts", Qt::QueuedConnection, Q_ARG( QString, file ) );
+    wait.exec();
+    QObject::disconnect(con);
+    return ret;
+}
+
+bool SshWorker::addKnownHost(const QString &hostname, const SshKey &key)
+{
+    QEventLoop wait;
+    bool ret;
+    QMetaObject::Connection con = QObject::connect(_client, &SshClient::addKnownHostTerminate, this, [&wait, &ret](bool res) {
+        ret = res;
+        wait.quit();
+    },Qt::QueuedConnection);
+    QMetaObject::invokeMethod( _client, "addKnownHost", Qt::QueuedConnection, Q_ARG( QString, hostname ), Q_ARG( SshKey, key ) );
+    wait.exec();
+    QObject::disconnect(con);
+    return ret;
+}
+
+void SshWorker::enableSFTP()
 {
     QEventLoop wait;
     QMetaObject::Connection con = connect(_client, &SshClient::enableSftpTerminate, &wait, &QEventLoop::quit, Qt::QueuedConnection);
-    emit askEnableSftp();
+    QMetaObject::invokeMethod( _client, "enableSFTP", Qt::QueuedConnection );
     wait.exec();
     QObject::disconnect(con);
 }
@@ -146,7 +183,7 @@ QString SshWorker::send(QString source, QString dest)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askSFtpSend(source, dest);
+    QMetaObject::invokeMethod( _client, "send", Qt::QueuedConnection, Q_ARG( QString, source ), Q_ARG( QString, dest ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -160,7 +197,7 @@ bool SshWorker::get(QString source, QString dest, bool override)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askSFtpGet(source, dest, override);
+    QMetaObject::invokeMethod( _client, "send", Qt::QueuedConnection, Q_ARG( QString, source ), Q_ARG( QString, dest ), Q_ARG( bool, override ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -174,7 +211,7 @@ int SshWorker::mkdir(QString dest)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askSFtpMkdir(dest);
+    QMetaObject::invokeMethod( _client, "mkdir", Qt::QueuedConnection,  Q_ARG( QString, dest ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -188,7 +225,7 @@ QStringList SshWorker::readdir(QString d)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askSFtpDir(d);
+    QMetaObject::invokeMethod( _client, "readdir", Qt::QueuedConnection,  Q_ARG( QString, d ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -202,7 +239,7 @@ bool SshWorker::isDir(QString d)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askSFtpIsDir(d);
+    QMetaObject::invokeMethod( _client, "isDir", Qt::QueuedConnection,  Q_ARG( QString, d ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -216,7 +253,7 @@ bool SshWorker::isFile(QString d)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askSFtpIsFile(d);
+    QMetaObject::invokeMethod( _client, "isFile", Qt::QueuedConnection,  Q_ARG( QString, d ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -230,7 +267,7 @@ int SshWorker::mkpath(QString dest)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askSFtpMkpath(dest);
+    QMetaObject::invokeMethod( _client, "mkpath", Qt::QueuedConnection,  Q_ARG( QString, dest ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -244,7 +281,7 @@ bool SshWorker::unlink(QString d)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    emit askSFtpUnlink(d);
+    QMetaObject::invokeMethod( _client, "unlink", Qt::QueuedConnection,  Q_ARG( QString, d ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
@@ -260,26 +297,6 @@ void SshWorker::run()
     QEventLoop loop;
     connect(this, &SshWorker::askQuit, &loop, &QEventLoop::quit, Qt::QueuedConnection);
     _client = new SshClient();
-    QObject::connect(this,    &SshWorker::askSetKeys,                  _client, &SshClient::setKeys);
-    QObject::connect(this,    &SshWorker::askLoadKnownHosts,           _client, &SshClient::loadKnownHosts);
-    QObject::connect(this,    &SshWorker::askConnectSshToHost,         _client, &SshClient::connectSshToHost);
-    QObject::connect(this,    &SshWorker::askDisconnectSshFromHost,    _client, &SshClient::disconnectSshFromHost);
-    QObject::connect(this,    &SshWorker::askRunCommand,               _client, &SshClient::runCommand);
-    QObject::connect(this,    &SshWorker::askOpenLocalPortForwarding,  _client, &SshClient::openLocalPortForwarding);
-    QObject::connect(this,    &SshWorker::askOpenRemotePortForwarding, _client, &SshClient::openRemotePortForwarding);
-    QObject::connect(this,    &SshWorker::askClosePortForwarding,      _client, &SshClient::closePortForwarding);
-    QObject::connect(this,    &SshWorker::askSendFile,                 _client, &SshClient::sendFile);
-
-    QObject::connect(this,    &SshWorker::askEnableSftp,               _client, &SshClient::enableSftp);
-    QObject::connect(this,    &SshWorker::askSFtpSend,                 _client, &SshClient::sFtpSend);
-    QObject::connect(this,    &SshWorker::askSFtpGet,                  _client, &SshClient::sFtpGet);
-    QObject::connect(this,    &SshWorker::askSFtpMkdir,                _client, &SshClient::sFtpMkdir);
-    QObject::connect(this,    &SshWorker::askSFtpDir,                  _client, &SshClient::sFtpDir);
-    QObject::connect(this,    &SshWorker::askSFtpIsDir,                _client, &SshClient::sFtpIsDir);
-    QObject::connect(this,    &SshWorker::askSFtpIsFile,               _client, &SshClient::sFtpIsFile);
-    QObject::connect(this,    &SshWorker::askSFtpMkpath,               _client, &SshClient::sFtpMkpath);
-    QObject::connect(this,    &SshWorker::askSFtpUnlink,               _client, &SshClient::sFtpUnlink);
-
     QObject::connect(_client, &SshClient::xfer_rate,                   this,    &SshWorker::xferRate);
     QObject::connect(_client, &SshClient::sFtpXfer,                    this,    &SshWorker::sFtpXfer);
 

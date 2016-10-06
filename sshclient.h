@@ -6,6 +6,8 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include "sshserviceport.h"
+#include "sshfsinterface.h"
+#include "sshinterface.h"
 #include "debug.h"
 
 extern "C" {
@@ -15,20 +17,9 @@ extern "C" {
 
 class SshSFtp;
 
-class SshKey {
-    public:
-        enum Type {
-            UnknownType,
-            Rsa,
-            Dss
-        };
-        QByteArray hash;
-        QByteArray key;
-        Type       type;
-};
 
-class  SshClient : public QObject
-{
+
+class  SshClient : public QObject, public SshFsInterface, public SshInterface {
     Q_OBJECT
 
 public:
@@ -47,7 +38,6 @@ public:
     };
 
 private:
-
     enum SshState {
         NoState = 0,
         TcpHostConnected = 1,
@@ -101,30 +91,35 @@ private:
 
 public:
     SshClient(QObject * parent = NULL);
-    ~SshClient();
+    virtual ~SshClient();
 
+/* <<<SshInterface>>> */
+public slots:
+    int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
     void disconnectFromHost();
+    QString runCommand(QString command);
+    quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
+    quint16 openRemotePortForwarding(QString servicename, quint16 port);
+    void closePortForwarding(QString servicename);
+    void setKeys(const QString &publicKey, const QString &privateKey);
+    bool loadKnownHosts(const QString &file);
+    QString sendFile(QString src, QString dst);
     void setPassphrase(const QString & pass);
-
-
-    bool saveKnownHosts(const QString &file) const;
+    bool saveKnownHosts(const QString &file);
     bool addKnownHost  (const QString &hostname, const SshKey &key);
+/* >>>SshInterface<<< */
 
-    quint16 sshSocketLocalPort();
 
-    QString hostName() const;
-    SshKey hostKey() const;
+
 
     LIBSSH2_SESSION *session();
-
     bool channelReady();
-
     bool waitForBytesWritten(int msecs);
 
 
 signals:
-    void sshConnected();
-    void sshDisconnected();
+    void connected();
+    void disconnected();
     void sshError(SshClient::Error error);
     void sshAuthenticationRequired(QList<SshClient::AuthenticationMethod> availableMethods);
     void xfer_rate(qint64 tx, qint64 rx);
@@ -152,39 +147,42 @@ signals:
     void sFtpIsFileTerminate(bool);
     void sFtpMkpathTerminate(int);
     void sFtpUnlinkTerminate(bool);
+    void setPassphraseTerminate();
+    void saveKnownHostsTerminate(bool);
+    void addKnownHostTerminate(bool);
     void sFtpXfer();
+
+
+
+
+
+
+
 
 public slots:
     void tx_data(qint64 len);
     void rx_data(qint64 len);
-    void setKeys(const QString &publicKey, const QString &privateKey);
-    bool loadKnownHosts(const QString &file);
-    int connectSshToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
-    QString runCommand(QString command);
-    void disconnectSshFromHost();
-    quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
-    quint16 openRemotePortForwarding(QString servicename, quint16 port);
-    void closePortForwarding(QString servicename);
+    void askDisconnect();
 
-    QString sendFile(QString src, QString dst);
 
-    /* SFTP Methode wrapper */
-    void enableSftp();
-    QString sFtpSend(QString source, QString dest);
-    bool sFtpGet(QString source, QString dest, bool override = false);
-    int sFtpMkdir(QString dest);
-    QStringList sFtpDir(QString d);
-    bool sFtpIsDir(QString d);
-    bool sFtpIsFile(QString d);
-    int sFtpMkpath(QString dest);
-    bool sFtpUnlink(QString d);
+    /* <<<SshFsInterface>>> */
+public slots:
+    void enableSFTP();
+    QString send(QString source, QString dest);
+    bool get(QString source, QString dest, bool override = false);
+    int mkdir(QString dest);
+    QStringList readdir(QString d);
+    bool isDir(QString d);
+    bool isFile(QString d);
+    int mkpath(QString dest);
+    bool unlink(QString d);
+    /* >>>SshFsInterface<<< */
 
 private slots:
     void _readyRead();
     void _connected();
     void _disconnected();
     void _delaydErrorEmit();
-    void _reset();
     void _getLastError();
     void _tcperror(QAbstractSocket::SocketError err);
     void _cntRate();

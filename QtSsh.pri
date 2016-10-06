@@ -10,8 +10,8 @@ HEADERS += \
     $$PWD/private/sshscpsend.h \
     $$PWD/private/sshsftp.h \
     $$PWD/sshworker.h \
-    $$PWD/sshfs.h \
-    $$PWD/sshaccess.h
+    $$PWD/sshinterface.h \
+    $$PWD/sshfsinterface.h
 
 SOURCES += \
     $$PWD/private/sshtunnelout.cpp \
