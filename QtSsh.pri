@@ -11,7 +11,9 @@ HEADERS += \
     $$PWD/private/sshsftp.h \
     $$PWD/sshworker.h \
     $$PWD/sshinterface.h \
-    $$PWD/sshfsinterface.h
+    $$PWD/sshfsinterface.h \
+    $$PWD/sshfilesystemmodel.h \
+    $$PWD/private/sshfilesystemnode.h
 
 SOURCES += \
     $$PWD/private/sshtunnelout.cpp \
@@ -22,6 +24,8 @@ SOURCES += \
     $$PWD/private/sshtunneloutsrv.cpp \
     $$PWD/private/sshscpsend.cpp \
     $$PWD/private/sshsftp.cpp \
-    $$PWD/private/sshworker.cpp
+    $$PWD/private/sshworker.cpp \
+    $$PWD/private/sshfilesystemmodel.cpp \
+    $$PWD/private/sshfilesystemnode.cpp
 
 INCLUDEPATH += $$PWD/ $$PWD/private/
