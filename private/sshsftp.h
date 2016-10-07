@@ -6,6 +6,7 @@
 #include <QEventLoop>
 #include <QTimer>
 #include <QStringList>
+#include <QHash>
 #include "sshfsinterface.h"
 
 class SshSFtp : public SshChannel, public SshFsInterface
@@ -17,7 +18,9 @@ private:
     QString _mkdir;
 
     bool _waitData(int timeout);
+    QHash<QString,  LIBSSH2_SFTP_HANDLE *> _dirhandler;
 
+    LIBSSH2_SFTP_HANDLE *getDirHandler(QString path);
 public:
     SshSFtp(SshClient * client);
     ~SshSFtp();
