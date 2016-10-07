@@ -15,9 +15,9 @@ SshFilesystemNode::SshFilesystemNode(SshFsInterface *provider, SshFilesystemNode
     _filename(path),
     _expended(false)
 {
-    QTime myTimer;
-    myTimer.start();
+#if defined(DEBUG_SSHFILESYSTEMNODE)
     qDebug() << "Create FileSystemNode " << this << " with path = " << this->path();
+#endif
     _isdir = _provider->isDir(this->path());
     if(_isdir)
     {
@@ -25,7 +25,6 @@ SshFilesystemNode::SshFilesystemNode(SshFsInterface *provider, SshFilesystemNode
         _readdir.removeAll(".");
         _readdir.removeAll("..");
     }
-    qDebug() << __FUNCTION__ << " in " << myTimer.elapsed();
 }
 
 SshFilesystemNode *SshFilesystemNode::child(int row)

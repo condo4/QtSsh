@@ -71,12 +71,9 @@ QVariant SshFilesystemModel::data(const QModelIndex &index, int role) const
     if (!index.isValid())
         return QVariant();
 
-    if (role != Qt::DisplayRole)
-        return QVariant();
-
     SshFilesystemNode *item = static_cast<SshFilesystemNode*>(index.internalPointer());
 
-    return item->data(index.column());
+    return item->data(role);
 }
 
 QHash<int, QByteArray> SshFilesystemModel::roleNames() const
