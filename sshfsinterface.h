@@ -14,6 +14,7 @@ public slots:
     virtual bool isFile(QString d) = 0;
     virtual int mkpath(QString dest) = 0;
     virtual bool unlink(QString d) = 0;
+    virtual quint64 filesize(QString d) = 0;
 };
 
 #endif // SSHFS_H

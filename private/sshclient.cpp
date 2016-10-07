@@ -264,6 +264,15 @@ bool SshClient::unlink(QString d)
     return res;
 }
 
+quint64 SshClient::filesize(QString d)
+{
+    quint64 res;
+    enableSFTP();
+    res = _sftp->filesize(d);
+    emit sFtpFileSizeTerminate(res);
+    return res;
+}
+
 int SshClient::connectToHost(const QString & user, const QString & host, quint16 port, bool lock, bool checkHostKey, unsigned int retry )
 {
     if(_sshConnected) {

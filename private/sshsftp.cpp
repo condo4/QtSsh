@@ -293,6 +293,11 @@ bool SshSFtp::unlink(QString d)
     return res;
 }
 
+quint64 SshSFtp::filesize(QString d)
+{
+    return getFileInfo(d).filesize;
+}
+
 void SshSFtp::sshDataReceived()
 {
     emit sshData();
@@ -334,6 +339,24 @@ LIBSSH2_SFTP_HANDLE *SshSFtp::getDirHandler(QString path)
         _dirhandler[path] = sftpdir;
     }
     return _dirhandler[path];
+}
+
+LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(QString path)
+{
+    if(!_fileinfo.contains(path))
+    {
+        LIBSSH2_SFTP_ATTRIBUTES fileinfo;
+        int status = LIBSSH2_ERROR_EAGAIN;
+        while(status == LIBSSH2_ERROR_EAGAIN)
+        {
+            status = libssh2_sftp_stat(_sftpSession,qPrintable(path),&fileinfo);
+            if(status == LIBSSH2_ERROR_EAGAIN) _waitData(2000);
+            else {
+                _fileinfo[path] = fileinfo;
+            }
+        }
+    }
+    return _fileinfo[path];
 }
 
 SshSFtp::SshSFtp(SshClient *client):

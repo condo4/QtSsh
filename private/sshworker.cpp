@@ -287,6 +287,20 @@ bool SshWorker::unlink(QString d)
     return ret;
 }
 
+quint64 SshWorker::filesize(QString d)
+{
+    QEventLoop wait;
+    quint64 ret;
+    QMetaObject::Connection con = QObject::connect(_client, &SshClient::sFtpFileSizeTerminate, this, [&wait, &ret](quint64 res) {
+        ret = res;
+        wait.quit();
+    },Qt::QueuedConnection);
+    QMetaObject::invokeMethod( _client, "filesize", Qt::QueuedConnection,  Q_ARG( QString, d ) );
+    wait.exec();
+    QObject::disconnect(con);
+    return ret;
+}
+
 void SshWorker::xferRate(qint64 tx, qint64 rx)
 {
     emit xfer_rate(tx, rx);

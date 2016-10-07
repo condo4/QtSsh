@@ -17,6 +17,7 @@ class SshFilesystemNode : public QObject
     bool _expended;
     mutable QStringList _readdir;
     bool _isdir;
+    int _filesize;
 
 public:
     explicit SshFilesystemNode(SshFsInterface *provider, SshFilesystemNode *parent, QString path);

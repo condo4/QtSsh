@@ -24,6 +24,11 @@ SshFilesystemNode::SshFilesystemNode(SshFsInterface *provider, SshFilesystemNode
         _readdir.append(_provider->readdir(this->path()));
         _readdir.removeAll(".");
         _readdir.removeAll("..");
+        _filesize = 0;
+    }
+    else
+    {
+        _filesize = _provider->filesize(this->path());
     }
 }
 
@@ -68,11 +73,10 @@ int SshFilesystemNode::columnCount() const
 
 QVariant SshFilesystemNode::data(int column) const
 {
-    qDebug() << "Ask data for column " << column;
     if(column == 0) return _filename;
     if(column == 1) {
-        if(isdir()) return QString("%1").arg(childCount());
-        else return "0kb";
+        if(isdir()) return childCount();
+        else return _filesize;
     }
     return QVariant();
 }

@@ -103,6 +103,7 @@ public slots:
     bool isFile(QString d);
     int mkpath(QString dest);
     bool unlink(QString d);
+    quint64 filesize(QString d);
 /* >>>SshFsInterface<<< */
 
 
@@ -140,6 +141,7 @@ signals:
     void sFtpIsFileTerminate(bool);
     void sFtpMkpathTerminate(int);
     void sFtpUnlinkTerminate(bool);
+    void sFtpFileSizeTerminate(quint64);
     void setPassphraseTerminate();
     void saveKnownHostsTerminate(bool);
     void addKnownHostTerminate(bool);

@@ -44,6 +44,7 @@ public slots:
     bool isFile(QString d);
     int mkpath(QString dest);
     bool unlink(QString d);
+    quint64 filesize(QString d);
 /* >>>SshFsInterface<<< */
 
 private slots:

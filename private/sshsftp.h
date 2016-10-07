@@ -19,8 +19,12 @@ private:
 
     bool _waitData(int timeout);
     QHash<QString,  LIBSSH2_SFTP_HANDLE *> _dirhandler;
+    QHash<QString,  LIBSSH2_SFTP_ATTRIBUTES> _fileinfo;
 
     LIBSSH2_SFTP_HANDLE *getDirHandler(QString path);
+    LIBSSH2_SFTP_ATTRIBUTES getFileInfo(QString path);
+
+
 public:
     SshSFtp(SshClient * client);
     ~SshSFtp();
@@ -36,6 +40,7 @@ public:
     bool isFile(QString d);
     int mkpath(QString dest);
     bool unlink(QString d);
+    quint64 filesize(QString d);
     /* >>>SshFsInterface<<< */
 
 protected slots:
