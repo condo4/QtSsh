@@ -6,8 +6,8 @@
 class SshServicePort
 {
 public:
-    SshServicePort() {};
-    virtual ~SshServicePort(){};
+    SshServicePort() {}
+    virtual ~SshServicePort() {}
 
     virtual quint16 localPort() = 0;
 };

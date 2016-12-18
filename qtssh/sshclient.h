@@ -8,7 +8,6 @@
 #include "sshserviceport.h"
 #include "sshfsinterface.h"
 #include "sshinterface.h"
-#include "debug.h"
 
 extern "C" {
 #include <libssh2.h>

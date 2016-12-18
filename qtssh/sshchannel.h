@@ -3,7 +3,6 @@
 
 #include <QObject>
 #include "libssh2.h"
-#include "debug.h"
 
 class SshClient;
 
