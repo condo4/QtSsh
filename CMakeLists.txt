@@ -25,7 +25,7 @@ include(FindPkgConfig)
 pkg_search_module(SSH2 REQUIRED libssh2)
 
 add_subdirectory(qtssh)
-
+add_subdirectory(examples)
 
 # create Config.cmake
 configure_file(config.cmake.in "${CMAKE_BINARY_DIR}/${PROJECT_NAME}Config.cmake" @ONLY)
