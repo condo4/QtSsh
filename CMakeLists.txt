@@ -21,9 +21,6 @@ else()
 	set(QT_VERSION ${Qt4_VERSION})
 endif()
 
-include(FindPkgConfig)
-pkg_search_module(SSH2 REQUIRED libssh2)
-
 add_subdirectory(qtssh)
 add_subdirectory(examples)
 

@@ -19,8 +19,9 @@ else()
 	set(QT_VERSION ${Qt4_VERSION})
 endif()
 
-include(FindPkgConfig)
+find_package(PkgConfig REQUIRED)
 pkg_search_module(SSH2 REQUIRED libssh2)
+link_directories(${SSH2_LIBRARY_DIRS})
 
 set(SOURCES
 	sshtunnelout.cpp
@@ -45,11 +46,12 @@ set(HEADERS
 	sshserviceport.h
 )
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
-target_link_libraries(${PROJECT_NAME} PUBLIC ${SSH2_LIBRARIES} ${QT_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${SSH2_LIBRARIES} ${QT_LIBRARIES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
 	$<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+target_include_directories(${PROJECT_NAME} PUBLIC ${SSH2_INCLUDE_DIRS})
 set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${HEADERS}")
 target_compile_definitions(${PROJECT_NAME} PUBLIC DEBUG_SSHCLIENT)
 
