@@ -1,31 +1,31 @@
 # QtSsh
 HEADERS += \
-    $$PWD/qtsshsshtunnelout.h \
-    $$PWD/qtsshsshtunnelin.h \
-    $$PWD/qtsshsshprocess.h \
-    $$PWD/qtsshsshchannel.h \
-    $$PWD/qtsshsshclient.h \
-    $$PWD/qtsshsshtunneloutsrv.h \
-    $$PWD/qtsshsshserviceport.h \
-    $$PWD/qtsshsshscpsend.h \
-    $$PWD/qtsshsshsftp.h \
-    $$PWD/qtsshsshworker.h \
-    $$PWD/qtsshsshinterface.h \
-    $$PWD/qtsshsshfsinterface.h \
-    $$PWD/qtsshsshfilesystemmodel.h \
-    $$PWD/qtsshsshfilesystemnode.h
+    $$PWD/qtssh/sshtunnelout.h \
+    $$PWD/qtssh/sshtunnelin.h \
+    $$PWD/qtssh/sshprocess.h \
+    $$PWD/qtssh/sshchannel.h \
+    $$PWD/qtssh/sshclient.h \
+    $$PWD/qtssh/sshtunneloutsrv.h \
+    $$PWD/qtssh/sshserviceport.h \
+    $$PWD/qtssh/sshscpsend.h \
+    $$PWD/qtssh/sshsftp.h \
+    $$PWD/qtssh/sshworker.h \
+    $$PWD/qtssh/sshinterface.h \
+    $$PWD/qtssh/sshfsinterface.h \
+    $$PWD/qtssh/sshfilesystemmodel.h \
+    $$PWD/qtssh/sshfilesystemnode.h
 
 SOURCES += \
-    $$PWD/qtsshsshtunnelout.cpp \
-    $$PWD/qtsshsshtunnelin.cpp \
-    $$PWD/qtsshsshprocess.cpp \
-    $$PWD/qtsshsshchannel.cpp \
-    $$PWD/qtsshsshclient.cpp \
-    $$PWD/qtsshsshtunneloutsrv.cpp \
-    $$PWD/qtsshsshscpsend.cpp \
-    $$PWD/qtsshsshsftp.cpp \
-    $$PWD/qtsshsshworker.cpp \
-    $$PWD/qtsshsshfilesystemmodel.cpp \
-    $$PWD/qtsshsshfilesystemnode.cpp
+    $$PWD/qtssh/sshtunnelout.cpp \
+    $$PWD/qtssh/sshtunnelin.cpp \
+    $$PWD/qtssh/sshprocess.cpp \
+    $$PWD/qtssh/sshchannel.cpp \
+    $$PWD/qtssh/sshclient.cpp \
+    $$PWD/qtssh/sshtunneloutsrv.cpp \
+    $$PWD/qtssh/sshscpsend.cpp \
+    $$PWD/qtssh/sshsftp.cpp \
+    $$PWD/qtssh/sshworker.cpp \
+    $$PWD/qtssh/sshfilesystemmodel.cpp \
+    $$PWD/qtssh/sshfilesystemnode.cpp
 
 INCLUDEPATH += $$PWD/qtssh
