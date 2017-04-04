@@ -231,6 +231,7 @@ QStringList SshSFtp::readdir(QString d)
         }
 
     } while (1);
+    closeDirHandler(qPrintable(d));
     return result;
 }
 
@@ -339,6 +340,16 @@ LIBSSH2_SFTP_HANDLE *SshSFtp::getDirHandler(QString path)
         _dirhandler[path] = sftpdir;
     }
     return _dirhandler[path];
+}
+
+LIBSSH2_SFTP_HANDLE *SshSFtp::closeDirHandler(QString path)
+{
+    if(_dirhandler.contains(path))
+    {
+        LIBSSH2_SFTP_HANDLE *sftpdir = _dirhandler[path];
+        libssh2_sftp_closedir(sftpdir);
+        _dirhandler.remove(path);
+    }
 }
 
 LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(QString path)

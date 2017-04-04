@@ -22,6 +22,7 @@ private:
     QHash<QString,  LIBSSH2_SFTP_ATTRIBUTES> _fileinfo;
 
     LIBSSH2_SFTP_HANDLE *getDirHandler(QString path);
+    LIBSSH2_SFTP_HANDLE *closeDirHandler(QString path);
     LIBSSH2_SFTP_ATTRIBUTES getFileInfo(QString path);
 
 
