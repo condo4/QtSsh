@@ -197,7 +197,7 @@ bool SshWorker::get(QString source, QString dest, bool override)
         ret = res;
         wait.quit();
     },Qt::QueuedConnection);
-    QMetaObject::invokeMethod( _client, "send", Qt::QueuedConnection, Q_ARG( QString, source ), Q_ARG( QString, dest ), Q_ARG( bool, override ) );
+    QMetaObject::invokeMethod( _client, "get", Qt::QueuedConnection, Q_ARG( QString, source ), Q_ARG( QString, dest ), Q_ARG( bool, override ) );
     wait.exec();
     QObject::disconnect(con);
     return ret;
