@@ -350,6 +350,7 @@ LIBSSH2_SFTP_HANDLE *SshSFtp::closeDirHandler(QString path)
         libssh2_sftp_closedir(sftpdir);
         _dirhandler.remove(path);
     }
+    return NULL;
 }
 
 LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(QString path)
