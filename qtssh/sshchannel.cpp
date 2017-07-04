@@ -21,10 +21,6 @@ SshChannel::~SshChannel()
 {
 }
 
-void SshChannel::sshDataReceived()
-{
-}
-
 void SshChannel::stopChannel()
 {
     if (sshChannel != NULL)

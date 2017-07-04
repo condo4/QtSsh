@@ -24,7 +24,7 @@ signals:
     void data_tx(qint64 cnt);
     
 protected slots:
-    virtual void sshDataReceived();
+    virtual void sshDataReceived() = 0;
     virtual void stopChannel();
 };
 
