@@ -308,14 +308,14 @@ void SshWorker::xferRate(qint64 tx, qint64 rx)
 
 void SshWorker::run()
 {
-    QEventLoop loop;
-    connect(this, &SshWorker::askQuit, &loop, &QEventLoop::quit, Qt::QueuedConnection);
+    connect(this, &SshWorker::askQuit, this, &SshWorker::quit, Qt::QueuedConnection);
     _client = new SshClient();
     QObject::connect(_client, &SshClient::xfer_rate,                   this,    &SshWorker::xferRate);
     QObject::connect(_client, &SshClient::sFtpXfer,                    this,    &SshWorker::sFtpXfer);
 
     emit threadReady();
-    loop.exec();
+    exec();
+
 #if defined(DEBUG_SSHWORKER)
     qDebug() << "DEBUG : SshWorker thread terminated " << " in Thread " << QThread::currentThread();
 #endif
