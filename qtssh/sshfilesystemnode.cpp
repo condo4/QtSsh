@@ -1,5 +1,5 @@
 #include "sshfilesystemnode.h"
-#include "qdebug.h"
+#include <qdebug.h>
 #include <QTime>
 
 

@@ -1,6 +1,6 @@
 #include "sshfilesystemmodel.h"
 #include "sshfilesystemnode.h"
-#include "qdebug.h"
+#include <qdebug.h>
 
 SshFilesystemModel::SshFilesystemModel(SshFsInterface *provider):
     QAbstractItemModel(),
