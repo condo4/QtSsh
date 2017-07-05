@@ -37,6 +37,11 @@ static ssize_t qt_callback_libssh_send(int socket,const void * buffer, size_t le
     return r;
 }
 
+bool SshClient::getSshConnected() const
+{
+    return _sshConnected;
+}
+
 SshClient::SshClient(QObject * parent):
     QObject(parent),
     _session(NULL),

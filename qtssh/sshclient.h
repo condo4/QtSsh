@@ -109,6 +109,7 @@ public slots:
     LIBSSH2_SESSION *session();
     bool channelReady();
     bool waitForBytesWritten(int msecs);
+    bool getSshConnected() const;
 
 
 signals:
