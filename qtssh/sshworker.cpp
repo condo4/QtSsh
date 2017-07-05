@@ -4,6 +4,7 @@
 
 SshWorker::SshWorker(QObject *parent, bool detached) : QThread(parent)
 {
+    _prepared = false;
     if(detached)
     {
         _contype = Qt::BlockingQueuedConnection;
@@ -33,6 +34,13 @@ SshWorker::~SshWorker()
     }
 }
 
+bool SshWorker::getSshConnected() const
+{
+    bool ret;
+    QMetaObject::invokeMethod( _client, "getSshConnected", _contype, Q_RETURN_ARG(bool, ret));
+    return ret;
+}
+
 void SshWorker::setKeys(const QString &publicKey, const QString &privateKey)
 {
     QMetaObject::invokeMethod( _client, "setKeys", _contype, Q_ARG( const QString, publicKey ), Q_ARG( const QString, privateKey ) );
@@ -50,6 +58,23 @@ int SshWorker::connectToHost(const QString &username, const QString &hostname, q
     int ret;
     QMetaObject::invokeMethod( _client, "connectToHost", _contype, Q_RETURN_ARG(int, ret), Q_ARG(QString, username), Q_ARG(QString, hostname), Q_ARG(quint16, port), Q_ARG(bool, lock), Q_ARG(bool, checkHostKey), Q_ARG(unsigned int, retry) );
     return ret;
+}
+
+void SshWorker::prepareConnectToHost(const QString &username, const QString &hostname, quint16 port, bool lock, bool checkHostKey, unsigned int retry)
+{
+    _username = username;
+    _hostname = hostname;
+    _port = port;
+    _lock = lock;
+    _checkHostKey = checkHostKey;
+    _retry = retry;
+    _prepared = true;
+}
+
+int SshWorker::connectToHost()
+{
+    if(_prepared) return connectToHost(_username, _hostname, _port, _lock, _checkHostKey, _retry);
+    else return -1;
 }
 
 void SshWorker::disconnectFromHost()

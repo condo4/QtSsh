@@ -13,13 +13,24 @@ class SshWorker : public QThread, public SshFsInterface, public SshInterface
     SshClient *_client;
     Qt::ConnectionType _contype;
 
+    QString _username;
+    QString _hostname;
+    quint16 _port;
+    bool _lock;
+    bool _checkHostKey;
+    unsigned int _retry;
+    bool _prepared;
+
 public:
     explicit SshWorker(QObject *parent = 0, bool detached = true);
     virtual ~SshWorker();
+    bool getSshConnected() const;
 
 /* <<<SshInterface>>> */
 public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
+    void prepareConnectToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
+    int connectToHost();
     void disconnectFromHost();
     QString runCommand(QString command);
     quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
