@@ -1,5 +1,5 @@
-#ifndef SSHSERVICE_H
-#define SSHSERVICE_H
+#ifndef SSHSERVICEPORT_H
+#define SSHSERVICEPORT_H
 
 #include <QtGlobal>
 
