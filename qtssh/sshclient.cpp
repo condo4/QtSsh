@@ -51,7 +51,7 @@ SshClient::SshClient(QObject * parent):
     _cntRxData(0)
 {
 #if defined(DEBUG_SSHCLIENT)
-    qDebug() << "DEBUG : SshClient : Enter in constructor, @" << this << " in " << QThread::currentThread();
+    qDebug() << "DEBUG : SshClient : Enter in constructor, @" << this << " in " << QThread::currentThread() << " (" << QThread::currentThreadId() << ")";
 #endif
 
     connect(&_socket,   SIGNAL(connected()),                         this, SLOT(_connected()));
@@ -637,6 +637,9 @@ void SshClient::_readyRead()
             {
                 _state = ActivatingChannels;
                 _errorcode = LIBSSH2_ERROR_NONE;
+#if defined(DEBUG_SSHCLIENT)
+    qDebug() << "DEBUG : SshClient : Connected, @" << this << " in " << QThread::currentThread() << " (" << QThread::currentThreadId() << ")";
+#endif
                 emit connected();
                 emit _connectionTerminate();
             }

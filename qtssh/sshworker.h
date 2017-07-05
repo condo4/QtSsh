@@ -11,9 +11,10 @@ class SshWorker : public QThread, public SshFsInterface, public SshInterface
 {
     Q_OBJECT
     SshClient *_client;
+    Qt::ConnectionType _contype;
 
 public:
-    explicit SshWorker(QObject *parent = 0);
+    explicit SshWorker(QObject *parent = 0, bool detached = true);
     virtual ~SshWorker();
 
 /* <<<SshInterface>>> */
