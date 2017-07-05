@@ -54,7 +54,7 @@ SshClient::SshClient(QObject * parent):
     qDebug() << "DEBUG : SshClient : Enter in constructor, @" << this << " in " << QThread::currentThread() << " (" << QThread::currentThreadId() << ")";
 #endif
 
-    connect(&_socket,   SIGNAL(connected()),                         this, SLOT(_connected()));
+    connect(&_socket,   SIGNAL(connected()),                         this, SLOT(_setStateConnected()));
     connect(&_socket,   SIGNAL(disconnected()),                      this, SLOT(_disconnected()));
     connect(&_socket,   SIGNAL(readyRead()),                         this, SLOT(_readyRead()));
     connect(&_socket,   SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(_tcperror(QAbstractSocket::SocketError)));
@@ -431,7 +431,7 @@ bool SshClient::addKnownHost(const QString & hostname,const SshKey & key)
 }
 
 
-void SshClient::_connected()
+void SshClient::_setStateConnected()
 {
 #if defined(DEBUG_SSHCLIENT)
     qDebug("DEBUG : SshClient : ssh socket connected");
@@ -547,7 +547,7 @@ void SshClient::_readyRead()
                 if (libssh2_userauth_authenticated(_session))
                 {
                     //null auth ok
-                    _connected();
+                    _setStateConnected();
                     _state = TryingAuthentication;
                     return;
                 }

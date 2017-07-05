@@ -155,7 +155,7 @@ public slots:
 
 private slots:
     void _readyRead();
-    void _connected();
+    void _setStateConnected();
     void _disconnected();
     void _getLastError();
     void _tcperror(QAbstractSocket::SocketError err);
