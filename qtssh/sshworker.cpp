@@ -4,6 +4,9 @@
 
 SshWorker::SshWorker(QObject *parent, bool detached) : QThread(parent)
 {
+#if defined(DISABLE_MULTITHREAD_SSH_WORKER)
+    detached = false;
+#endif
     _prepared = false;
     if(detached)
     {
