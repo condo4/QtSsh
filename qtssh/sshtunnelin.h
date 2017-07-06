@@ -1,12 +1,11 @@
 #ifndef SSHTUNNELIN_H
 #define SSHTUNNELIN_H
 
-#include "sshserviceport.h"
 #include "sshchannel.h"
 #include <QAbstractSocket>
 class QTcpSocket;
 
-class SshTunnelIn : public SshChannel, public SshServicePort
+class SshTunnelIn : public SshChannel
 {
     Q_OBJECT
 
