@@ -3,7 +3,7 @@
 #include "sshclient.h"
 
 SshTunnelOutSrv::SshTunnelOutSrv(SshClient *client, QString port_identifier, quint16 port):
-    QObject(client),
+    SshChannel(client),
     _sshclient(client),
     _identifier(port_identifier),
     _port(port)
@@ -46,4 +46,9 @@ void SshTunnelOutSrv::connectionDisconnected()
 quint16 SshTunnelOutSrv::localPort()
 {
     return _tcpserver->serverPort();
+}
+
+void SshTunnelOutSrv::sshDataReceived()
+{
+
 }

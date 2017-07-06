@@ -6,7 +6,6 @@ HEADERS += \
     $$PWD/qtssh/sshchannel.h \
     $$PWD/qtssh/sshclient.h \
     $$PWD/qtssh/sshtunneloutsrv.h \
-    $$PWD/qtssh/sshserviceport.h \
     $$PWD/qtssh/sshscpsend.h \
     $$PWD/qtssh/sshsftp.h \
     $$PWD/qtssh/sshworker.h \

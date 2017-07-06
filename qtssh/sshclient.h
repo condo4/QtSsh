@@ -5,7 +5,7 @@
 #include <QList>
 #include <QTcpSocket>
 #include <QTimer>
-#include "sshserviceport.h"
+#include "sshchannel.h"
 #include "sshfsinterface.h"
 #include "sshinterface.h"
 
@@ -42,7 +42,7 @@ private:
     LIBSSH2_SESSION    * _session;
     LIBSSH2_KNOWNHOSTS * _knownHosts;
     SshSFtp            *_sftp;
-    QMap<QString,SshServicePort*>   _channels;
+    QMap<QString,SshChannel*>   _channels;
     QTcpSocket _socket;
 
     SshState _state;

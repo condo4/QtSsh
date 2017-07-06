@@ -26,6 +26,9 @@ signals:
 protected slots:
     virtual void sshDataReceived() = 0;
     virtual void stopChannel();
+
+public slots:
+    virtual quint16 localPort() { return 0; }
 };
 
 #endif // SSHCHANNEL_H

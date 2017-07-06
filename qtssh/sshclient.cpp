@@ -116,7 +116,7 @@ quint16 SshClient::openLocalPortForwarding(QString servicename, quint16 port, qu
         return _channels.value(servicename)->localPort();
     }
 
-    SshServicePort *tunnel = new SshTunnelIn(this, servicename, port, bind);
+    SshChannel *tunnel = new SshTunnelIn(this, servicename, port, bind);
     _channels.insert(servicename, tunnel);
     emit portForwardingOpened(servicename);
     emit openLocalPortForwardingTerminate(tunnel->localPort());
@@ -130,7 +130,7 @@ quint16 SshClient::openRemotePortForwarding(QString servicename, quint16 port)
         return _channels.value(servicename)->localPort();
     }
 
-    SshServicePort *tunnel = new SshTunnelOutSrv(this, servicename, port);
+    SshChannel *tunnel = new SshTunnelOutSrv(this, servicename, port);
     _channels.insert(servicename, tunnel);
     emit portForwardingOpened(servicename);
     emit openRemotePortForwardingTerminate(tunnel->localPort());
@@ -141,7 +141,7 @@ void SshClient::closePortForwarding(QString servicename)
 {
     if(_channels.contains(servicename))
     {
-        SshServicePort *tunnel = _channels.value(servicename);
+        SshChannel *tunnel = _channels.value(servicename);
         _channels.remove(servicename);
         delete tunnel;
         emit portForwardingClosed(servicename);
