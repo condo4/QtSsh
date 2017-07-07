@@ -9,7 +9,7 @@ class QTcpSocket;
 class SshClient;
 
 
-class SshTunnelOut: public SshChannel
+class SshTunnelOut: public QObject
 {
     Q_OBJECT
 
@@ -18,12 +18,12 @@ private:
     quint16 _port;
     QString _name;
     QTcpSocket *_tcpsocket;
+    SshClient *_client;
+    LIBSSH2_CHANNEL *_sshChannel;
 
 public:
     explicit SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString port_identifier, quint16 port);
     void close(QString reason);
-
-protected slots:
     void sshDataReceived();
 
 private slots:

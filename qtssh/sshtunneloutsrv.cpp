@@ -50,5 +50,7 @@ quint16 SshTunnelOutSrv::localPort()
 
 void SshTunnelOutSrv::sshDataReceived()
 {
-
+    foreach (SshTunnelOut *tunnel, _connections) {
+        tunnel->sshDataReceived();
+    }
 }

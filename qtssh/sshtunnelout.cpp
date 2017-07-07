@@ -5,17 +5,18 @@
 #include <QEventLoop>
 
 SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString port_identifier, quint16 port):
-    SshChannel(client),
+    QObject(client),
     _opened(true),
     _port(port),
     _name(port_identifier),
-    _tcpsocket(tcpSocket)
+    _tcpsocket(tcpSocket),
+    _client(client),
+    _sshChannel(NULL)
 {
-    sshChannel = libssh2_channel_direct_tcpip(this->sshClient->session(), "127.0.0.1", _port);
-    if(sshChannel) emit channelReady();
+    _sshChannel = libssh2_channel_direct_tcpip(_client->session(), "127.0.0.1", _port);
+    if(_sshChannel) emit channelReady();
     QObject::connect(_tcpsocket, &QTcpSocket::readyRead,      this, &SshTunnelOut::tcpDataReceived);
     QObject::connect(_tcpsocket, &QTcpSocket::disconnected,   this, &SshTunnelOut::tcpDisconnected);
-    QObject::connect(client,     &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
     QObject::connect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
 
 #if defined(DEBUG_SSHCLIENT)
@@ -29,13 +30,12 @@ void SshTunnelOut::close(QString reason)
     _opened = false;
     QObject::disconnect(_tcpsocket, &QTcpSocket::readyRead, this,  &SshTunnelOut::tcpDataReceived);
     QObject::disconnect(_tcpsocket, SIGNAL(disconnected()),                        this, SLOT(tcpDisconnected()));
-    QObject::disconnect(sshClient,SIGNAL(sshDataReceived()), this, SLOT(sshDataReceived()));
     QObject::disconnect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
     if(_tcpsocket->state() == QAbstractSocket::ConnectedState)
         _tcpsocket->disconnectFromHost();
     _tcpsocket->deleteLater();
     _tcpsocket = NULL;
-    if(sshChannel) libssh2_channel_free(sshChannel);
+    if(_sshChannel) libssh2_channel_free(_sshChannel);
 #if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : Connection" << _name << "closed (" << reason << ")";
 #else
@@ -50,28 +50,28 @@ void SshTunnelOut::sshDataReceived()
     ssize_t len = 0,wr = 0;
     int i;
 
-    while (this->sshChannel == NULL)
+    while (_sshChannel == NULL)
     {
-        this->sshChannel = libssh2_channel_direct_tcpip(this->sshClient->session(), "127.0.0.1", _port);
-        if (this->sshChannel == NULL)
+        _sshChannel = libssh2_channel_direct_tcpip(_client->session(), "127.0.0.1", _port);
+        if (_sshChannel == NULL)
         {
             char *errmsg;
             int errlen;
-            int err = libssh2_session_last_error(this->sshClient->session(), &errmsg, &errlen, 0);
+            int err = libssh2_session_last_error(_client->session(), &errmsg, &errlen, 0);
 
             if(err == LIBSSH2_ERROR_EAGAIN)
             {
                 return;
             }
             qDebug() << "ERROR : SshTunnelOut(" << _name << ") : direct_tcpip failed :" << err << QString::fromLocal8Bit(errmsg, errlen);
-            if(this->sshChannel) emit channelReady();
+            if(_sshChannel) emit channelReady();
         }
     }
 
     do
     {
         /* Read data from SSH */
-        len = libssh2_channel_read(this->sshChannel, buf, sizeof(buf));
+        len = libssh2_channel_read(_sshChannel, buf, sizeof(buf));
         if (LIBSSH2_ERROR_EAGAIN == len)
         {
             break;
@@ -103,11 +103,10 @@ void SshTunnelOut::sshDataReceived()
         }
 
 
-        if (libssh2_channel_eof(this->sshChannel) && _opened)
+        if (libssh2_channel_eof(_sshChannel) && _opened)
         {
             close("channel_eof");
         }
-        emit data_rx(len);
     }
     while(len > 0);
 }
@@ -120,7 +119,7 @@ void SshTunnelOut::tcpDataReceived()
     ssize_t i = 0;
     unsigned retry = 100;
 
-    while(!sshChannel && retry--)
+    while(!_sshChannel && retry--)
     {
         QEventLoop loop;
         QTimer timer;
@@ -130,7 +129,7 @@ void SshTunnelOut::tcpDataReceived()
         loop.exec();
     }
 
-    if (_tcpsocket == NULL || this->sshChannel == NULL)
+    if (_tcpsocket == NULL || _sshChannel == NULL)
     {
         qDebug() << "ERROR : SshTunnelOut(" << _name << ") : received TCP data but not seems to be a valid Tcp socket or channel not ready";
         return;
@@ -152,7 +151,7 @@ void SshTunnelOut::tcpDataReceived()
 
         do
         {
-            i = libssh2_channel_write(this->sshChannel, buf, len);
+            i = libssh2_channel_write(_sshChannel, buf, len);
             if (i == LIBSSH2_ERROR_EAGAIN)
             {
                 QTimer timer;
@@ -171,7 +170,6 @@ void SshTunnelOut::tcpDataReceived()
                 wr += i;
             }
         } while(i > 0 && wr < len);
-        emit data_tx(len);
     }
     while(len > 0);
 }
