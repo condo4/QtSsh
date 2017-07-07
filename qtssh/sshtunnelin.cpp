@@ -268,7 +268,6 @@ void SshTunnelIn::readSshData()
                 i = _tcpsocket->write(buf + wr, len - wr);
                 if (i == -EAGAIN)
                 {
-                    i = 1;
                     continue;
                 }
                 if (i <= 0)
@@ -297,8 +296,11 @@ void SshTunnelIn::readSshData()
         qDebug() << "DEBUG : Disconnect channel";
 #endif
         _currentState = TunnelAcceptChannel;
-        _tcpsocket->disconnectFromHost();
-        _tcpsocket->close();
+        if(_tcpsocket)
+        {
+            _tcpsocket->disconnectFromHost();
+            _tcpsocket->close();
+        }
     }
 }
 
