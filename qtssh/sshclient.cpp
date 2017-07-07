@@ -116,7 +116,7 @@ quint16 SshClient::openLocalPortForwarding(QString servicename, quint16 port, qu
         return _channels.value(servicename)->localPort();
     }
 
-    SshChannel *tunnel = new SshTunnelIn(this, servicename, port, bind);
+    SshChannel *tunnel = qobject_cast<SshChannel *>(new SshTunnelIn(this, servicename, port, bind));
     _channels.insert(servicename, tunnel);
     emit portForwardingOpened(servicename);
     emit openLocalPortForwardingTerminate(tunnel->localPort());
@@ -130,7 +130,7 @@ quint16 SshClient::openRemotePortForwarding(QString servicename, quint16 port)
         return _channels.value(servicename)->localPort();
     }
 
-    SshChannel *tunnel = new SshTunnelOutSrv(this, servicename, port);
+    SshChannel *tunnel = qobject_cast<SshChannel *>(new SshTunnelOutSrv(this, servicename, port));
     _channels.insert(servicename, tunnel);
     emit portForwardingOpened(servicename);
     emit openRemotePortForwardingTerminate(tunnel->localPort());
