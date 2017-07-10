@@ -21,6 +21,8 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString por
         QObject::connect(_tcpsocket, &QTcpSocket::disconnected,   this, &SshTunnelOut::tcpDisconnected);
         QObject::connect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
     }
+    _dataSsh.reserve(16384);
+    _dataSocket.reserve(16384);
 
 #if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : SshTunnelOut : Connection" << port_identifier << "created";
@@ -52,7 +54,7 @@ void SshTunnelOut::close(QString reason)
 
 void SshTunnelOut::sshDataReceived()
 {
-    char buf[16384];
+    char *buf = _dataSsh.data();
     ssize_t len = 0,wr = 0;
     int i;
 
@@ -119,7 +121,7 @@ void SshTunnelOut::sshDataReceived()
 
 void SshTunnelOut::tcpDataReceived()
 {
-    char buf[16384];
+    char *buf = _dataSocket.data();
     qint64 len = 0;
     ssize_t wr = 0;
     ssize_t i = 0;
