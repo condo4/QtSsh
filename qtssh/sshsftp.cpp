@@ -9,13 +9,14 @@ QString SshSFtp::send(QString source, QString dest)
 {
     QFile s(source);
     QFileInfo src(source);
-    char mem[1024 * 100];
+    QByteArray buffer(1024 * 100, 0);
     size_t nread;
     char *ptr;
     long total = 0;
     FILE *local;
     int rc;
     LIBSSH2_SFTP_HANDLE *sftpfile;
+
     if(dest.endsWith("/"))
     {
         if(!isDir(dest))
@@ -53,12 +54,12 @@ QString SshSFtp::send(QString source, QString dest)
     } while (!sftpfile);
 
     do {
-         nread = fread(mem, 1, sizeof(mem), local);
+         nread = fread(buffer.data(), 1, buffer.size(), local);
          if (nread <= 0) {
              /* end of file */
              break;
          }
-         ptr = mem;
+         ptr = buffer.data();
 
          total += nread;
 
@@ -88,7 +89,7 @@ bool SshSFtp::get(QString source, QString dest, bool override)
 {
     QFileInfo src(source);
     LIBSSH2_SFTP_HANDLE *sftpfile;
-    char mem[1024 * 100];
+    QByteArray buffer(1024 * 100, 0);
     FILE *tempstorage;
     int rc;
 
@@ -142,11 +143,11 @@ bool SshSFtp::get(QString source, QString dest, bool override)
         do {
             /* read in a loop until we block */
             xfer();
-            rc = libssh2_sftp_read(sftpfile, mem, sizeof(mem));
+            rc = libssh2_sftp_read(sftpfile, buffer.data(), buffer.size());
 
             if(rc > 0) {
                 /* write to temporary storage area */
-                fwrite(mem, rc, 1, tempstorage);
+                fwrite(buffer.data(), rc, 1, tempstorage);
             }
         } while (rc > 0);
 
@@ -213,18 +214,18 @@ QStringList SshSFtp::readdir(QString d)
     int rc;
     QStringList result;
     LIBSSH2_SFTP_HANDLE *sftpdir = getDirHandler(qPrintable(d));
+    QByteArray buffer(512,0);
 
     do {
-        char mem[512];
         LIBSSH2_SFTP_ATTRIBUTES attrs;
 
         /* loop until we fail */
-        while ((rc = libssh2_sftp_readdir(sftpdir, mem, sizeof(mem), &attrs)) == LIBSSH2_ERROR_EAGAIN)
+        while ((rc = libssh2_sftp_readdir(sftpdir, buffer.data(), buffer.size(), &attrs)) == LIBSSH2_ERROR_EAGAIN)
         {
             _waitData(2000);
         }
         if(rc > 0) {
-            result.append(QString(mem));
+            result.append(QString(buffer));
         }
         else if (rc != LIBSSH2_ERROR_EAGAIN) {
             break;

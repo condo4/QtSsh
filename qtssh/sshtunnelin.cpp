@@ -62,7 +62,7 @@ void SshTunnelIn::onLocalSocketError(QAbstractSocket::SocketError error)
 
 void SshTunnelIn::onLocalSocketDataReceived()
 {
-    char buf[BUFFER_LEN];
+    QByteArray buffer(BUFFER_LEN, 0);
     qint64 len = 0;
     qint64 wr  = 0;
     qint64 i   = 0;
@@ -76,7 +76,7 @@ void SshTunnelIn::onLocalSocketDataReceived()
     do
     {
         /* Read data from local socket */
-        len = _tcpsocket->read(buf, sizeof(buf));
+        len = _tcpsocket->read(buffer.data(), buffer.size());
         if (-EAGAIN == len)
         {
             break;
@@ -89,7 +89,7 @@ void SshTunnelIn::onLocalSocketDataReceived()
 
         do
         {
-            i = libssh2_channel_write(sshChannel, buf, len);
+            i = libssh2_channel_write(sshChannel, buffer.data(), len);
             if (i == LIBSSH2_ERROR_EAGAIN)
             {
                 QTimer timer;
@@ -228,7 +228,7 @@ void SshTunnelIn::sshDataReceived()
 
 void SshTunnelIn::readSshData()
 {
-    char buf[BUFFER_LEN];
+    QByteArray buffer(BUFFER_LEN, 0);
     ssize_t len,wr;
     int i;
 
@@ -241,7 +241,7 @@ void SshTunnelIn::readSshData()
     do
     {
         /* Read data from SSH */
-        len = libssh2_channel_read(sshChannel, buf, sizeof(buf));
+        len = libssh2_channel_read(sshChannel, buffer.data(), buffer.size());
 
         if (LIBSSH2_ERROR_EAGAIN == len)
         {
@@ -265,7 +265,7 @@ void SshTunnelIn::readSshData()
         {
             if (_tcpsocket->isValid() && _tcpsocket->state() == QAbstractSocket::ConnectedState)
             {
-                i = _tcpsocket->write(buf + wr, len - wr);
+                i = _tcpsocket->write(buffer.data() + wr, len - wr);
                 if (i == -EAGAIN)
                 {
                     continue;
