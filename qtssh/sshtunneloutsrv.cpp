@@ -15,6 +15,9 @@ SshTunnelOutSrv::SshTunnelOutSrv(SshClient *client, QString port_identifier, qui
 
 SshTunnelOutSrv::~SshTunnelOutSrv()
 {
+    foreach (SshTunnelOut *tunnel, _connections) {
+        tunnel->deleteLater();
+    }
     _tcpserver->close();
     _tcpserver->deleteLater();
 }
