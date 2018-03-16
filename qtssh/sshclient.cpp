@@ -297,7 +297,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     qDebug() << "DEBUG : SshClient : trying to connect to host (" << _hostname << ":" << _port << ")";
 #endif
 
-    timeout.setInterval(10*1000);
+    timeout.setInterval(60*1000);
     connect(this, SIGNAL(_connectionTerminate()), &wait, SLOT(quit()));
     connect(&timeout, &QTimer::timeout, [&wait, this](){
         _errorcode = LIBSSH2_ERROR_TIMEOUT;
