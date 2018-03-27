@@ -719,6 +719,7 @@ void SshClient::_disconnected()
     if (_state != NoState)
     {
         qWarning("WARNING : SshClient : unexpected shutdown");
+        emit unexpectedDisconnection();
         askDisconnect();
     }
 

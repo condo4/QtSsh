@@ -22,6 +22,9 @@ SshWorker::SshWorker(QObject *parent, bool detached) : QThread(parent)
         _client = new SshClient();
         QObject::connect(_client, &SshClient::xfer_rate,                   this,    &SshWorker::xferRate);
         QObject::connect(_client, &SshClient::sFtpXfer,                    this,    &SshWorker::sFtpXfer);
+        QObject::connect(_client, &SshClient::unexpectedDisconnection,     this,    [this](){
+            emit unexpectedDisconnection();
+        });
         emit threadReady();
     }
 }
@@ -216,6 +219,9 @@ void SshWorker::run()
     _client = new SshClient();
     QObject::connect(_client, &SshClient::xfer_rate,                   this,    &SshWorker::xferRate);
     QObject::connect(_client, &SshClient::sFtpXfer,                    this,    &SshWorker::sFtpXfer);
+    QObject::connect(_client, &SshClient::unexpectedDisconnection,     this,    [this](){
+        emit unexpectedDisconnection();
+    });
 
     emit threadReady();
     exec();

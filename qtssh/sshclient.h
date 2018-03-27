@@ -114,6 +114,7 @@ public slots:
 
 signals:
     void connected();
+    void unexpectedDisconnection();
     void disconnected();
     void sshAuthenticationRequired(QList<SshClient::AuthenticationMethod> availableMethods);
     void xfer_rate(qint64 tx, qint64 rx);
