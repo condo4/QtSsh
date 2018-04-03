@@ -116,7 +116,6 @@ signals:
     void connected();
     void unexpectedDisconnection();
     void disconnected();
-    void sshAuthenticationRequired(QList<SshClient::AuthenticationMethod> availableMethods);
     void xfer_rate(qint64 tx, qint64 rx);
     void sshDataReceived();
     void sshReset();
@@ -126,7 +125,6 @@ signals:
 
     void setKeysTerminate();
     void loadKnownHostsTerminate(bool res);
-    void connectSshToHostTerminate(int res);
     void runCommandTerminate(QString res);
     void disconnectSshFromHostTerminate();
     void openLocalPortForwardingTerminate(quint16);

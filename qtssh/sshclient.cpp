@@ -282,7 +282,6 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 {
     if(_sshConnected) {
         qDebug() << "ERROR : Allways connected";
-        emit connectSshToHostTerminate(0);
         return 0;
     }
     QEventLoop wait;
@@ -328,7 +327,6 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     _keepalive.setInterval(10000);
     _keepalive.start();
     libssh2_keepalive_config(_session, 1, 5);
-    emit connectSshToHostTerminate(_errorcode);
     return _errorcode;
 }
 
@@ -602,7 +600,6 @@ void SshClient::_readyRead()
                 return;
             }
             _errorcode = LIBSSH2_ERROR_AUTHENTICATION_FAILED;
-            emit sshAuthenticationRequired(_availableMethods);
             emit _connectionTerminate();
             break;
         }
