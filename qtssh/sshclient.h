@@ -121,30 +121,6 @@ signals:
     void sshDataReceived();
     void sshReset();
     void _connectionTerminate();
-    void portForwardingOpened(QString name);
-    void portForwardingClosed(QString name);
-
-    void setKeysTerminate();
-    void loadKnownHostsTerminate(bool res);
-    void runCommandTerminate(QString res);
-    void disconnectSshFromHostTerminate();
-    void openLocalPortForwardingTerminate(quint16);
-    void openRemotePortForwardingTerminate(quint16);
-    void closePortForwardingTerminate();
-    void enableSftpTerminate();
-    void sendFileTerminate(QString);
-    void sFtpSendTerminate(QString);
-    void sFtpGetTerminate(bool);
-    void sFtpMkdirTerminate(int);
-    void sFtpDirTerminate(QStringList);
-    void sFtpIsDirTerminate(bool);
-    void sFtpIsFileTerminate(bool);
-    void sFtpMkpathTerminate(int);
-    void sFtpUnlinkTerminate(bool);
-    void sFtpFileSizeTerminate(quint64);
-    void setPassphraseTerminate();
-    void saveKnownHostsTerminate(bool);
-    void addKnownHostTerminate(bool);
     void sFtpXfer();
 
 

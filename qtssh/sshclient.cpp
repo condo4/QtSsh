@@ -119,8 +119,6 @@ quint16 SshClient::openLocalPortForwarding(QString servicename, quint16 port, qu
 
     SshChannel *tunnel = qobject_cast<SshChannel *>(new SshTunnelIn(this, servicename, port, bind));
     _channels.insert(servicename, tunnel);
-    emit portForwardingOpened(servicename);
-    emit openLocalPortForwardingTerminate(tunnel->localPort());
     return tunnel->localPort();
 }
 
@@ -133,8 +131,6 @@ quint16 SshClient::openRemotePortForwarding(QString servicename, quint16 port)
 
     SshChannel *tunnel = qobject_cast<SshChannel *>(new SshTunnelOutSrv(this, servicename, port));
     _channels.insert(servicename, tunnel);
-    emit portForwardingOpened(servicename);
-    emit openRemotePortForwardingTerminate(tunnel->localPort());
     return tunnel->localPort();
 }
 
@@ -145,9 +141,7 @@ void SshClient::closePortForwarding(QString servicename)
         SshChannel *tunnel = _channels.value(servicename);
         _channels.remove(servicename);
         delete tunnel;
-        emit portForwardingClosed(servicename);
     }
-    emit closePortForwardingTerminate();
 }
 
 QString SshClient::runCommand(QString command)
@@ -160,7 +154,6 @@ QString SshClient::runCommand(QString command)
         sshProcess->start(command);
         res = sshProcess->result();
     }
-    emit runCommandTerminate(res);
     return res;
 }
 
@@ -175,7 +168,6 @@ QString SshClient::sendFile(QString src, QString dst)
     qDebug() << "DEBUG : Transfert file satus: " << sender->state();
 #endif
     sender->deleteLater();
-    emit sendFileTerminate(d);
     return d;
 }
 
@@ -191,7 +183,6 @@ void SshClient::enableSFTP()
             emit sFtpXfer();
         });
     }
-    emit enableSftpTerminate();
 }
 
 QString SshClient::send(QString source, QString dest)
@@ -202,7 +193,6 @@ QString SshClient::send(QString source, QString dest)
 #endif
     enableSFTP();
     res = _sftp->send(source, dest);
-    emit sFtpSendTerminate(res);
     return res;
 }
 
@@ -211,7 +201,6 @@ bool SshClient::get(QString source, QString dest, bool override)
     bool res;
     enableSFTP();
     res = _sftp->get(source, dest, override);
-    emit sFtpGetTerminate(res);
     return res;
 }
 
@@ -221,7 +210,6 @@ int SshClient::mkdir(QString dest)
     enableSFTP();
     res = _sftp->mkdir(dest);
     qDebug() << "DEBUG : SshClient::sFtpMkdir " << dest << " = " << res;
-    emit sFtpMkdirTerminate(res);
     return res;
 }
 
@@ -230,7 +218,6 @@ QStringList SshClient::readdir(QString d)
     QStringList res;
     enableSFTP();
     res = _sftp->readdir(d);
-    emit sFtpDirTerminate(res);
     return res;
 }
 
@@ -239,7 +226,6 @@ bool SshClient::isDir(QString d)
     bool res;
     enableSFTP();
     res = _sftp->isDir(d);
-    emit sFtpIsDirTerminate(res);
     return res;
 }
 
@@ -248,7 +234,6 @@ bool SshClient::isFile(QString d)
     bool res;
     enableSFTP();
     res = _sftp->isFile(d);
-    emit sFtpIsFileTerminate(res);
     return res;
 }
 
@@ -257,7 +242,6 @@ int SshClient::mkpath(QString dest)
     int res;
     enableSFTP();
     res = _sftp->mkpath(dest);
-    emit sFtpMkpathTerminate(res);
     return res;
 }
 
@@ -266,7 +250,6 @@ bool SshClient::unlink(QString d)
     bool res;
     enableSFTP();
     res = _sftp->unlink(d);
-    emit sFtpUnlinkTerminate(res);
     return res;
 }
 
@@ -275,7 +258,6 @@ quint64 SshClient::filesize(QString d)
     quint64 res;
     enableSFTP();
     res = _sftp->filesize(d);
-    emit sFtpFileSizeTerminate(res);
     return res;
 }
 
@@ -373,7 +355,6 @@ void SshClient::disconnectFromHost()
     _socket.disconnectFromHost();
     wait.exec();
     _socket.close();
-    emit disconnectSshFromHostTerminate();
 }
 
 void SshClient::setPassphrase(const QString & pass)
@@ -385,7 +366,6 @@ void SshClient::setPassphrase(const QString & pass)
     {
         QTimer::singleShot(0, this, SLOT(_readyRead()));
     }
-    emit setPassphraseTerminate();
 }
 
 void SshClient::setKeys(const QString &publicKey, const QString &privateKey)
@@ -397,20 +377,17 @@ void SshClient::setKeys(const QString &publicKey, const QString &privateKey)
     {
         QTimer::singleShot(0, this, SLOT(_readyRead()));
     }
-    emit setKeysTerminate();
 }
 
 bool SshClient::loadKnownHosts(const QString & file)
 {
     bool res = (libssh2_knownhost_readfile(_knownHosts, qPrintable(file), LIBSSH2_KNOWNHOST_FILE_OPENSSH) == 0);
-    emit loadKnownHostsTerminate(res);
     return (res);
 }
 
 bool SshClient::saveKnownHosts(const QString & file)
 {
     bool res = (libssh2_knownhost_writefile(_knownHosts, qPrintable(file), LIBSSH2_KNOWNHOST_FILE_OPENSSH) == 0);
-    emit saveKnownHostsTerminate(res);
     return res;
 }
 
@@ -430,7 +407,6 @@ bool SshClient::addKnownHost(const QString & hostname,const SshKey & key)
             return false;
     };
     ret = (libssh2_knownhost_add(_knownHosts, qPrintable(hostname), NULL, key.key.data(), key.key.size(), typemask, NULL));
-    emit addKnownHostTerminate(ret);
     return ret;
 }
 
