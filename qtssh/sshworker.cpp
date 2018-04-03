@@ -38,10 +38,13 @@ SshWorker::~SshWorker()
 {
     if(_contype == Qt::BlockingQueuedConnection)
     {
-        QEventLoop wait;
-        QObject::connect(this, &SshWorker::finished, &wait, &QEventLoop::quit);
-        emit askQuit();
-        wait.exec();
+        if(!this->isFinished())
+        {
+            QEventLoop wait;
+            QObject::connect(this, &SshWorker::finished, &wait, &QEventLoop::quit);
+            emit askQuit();
+            wait.exec();
+        }
     }
 }
 
