@@ -38,6 +38,7 @@ private:
     };
 
 
+    QString _name;
     // libssh2 stuff
     LIBSSH2_SESSION    * _session;
     LIBSSH2_KNOWNHOSTS * _knownHosts;
@@ -72,7 +73,7 @@ private:
     QTimer _keepalive;
 
 public:
-    SshClient(QObject * parent = NULL);
+    SshClient(QString name = "noname", QObject * parent = NULL);
     virtual ~SshClient();
 
 /* <<<SshInterface>>> */

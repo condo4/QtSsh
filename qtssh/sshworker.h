@@ -13,6 +13,7 @@ class SshWorker : public QThread, public SshFsInterface, public SshInterface
     SshClient *_client;
     Qt::ConnectionType _contype;
 
+    QString _name;
     QString _username;
     QString _hostname;
     quint16 _port;
@@ -22,7 +23,7 @@ class SshWorker : public QThread, public SshFsInterface, public SshInterface
     bool _prepared;
 
 public:
-    explicit SshWorker(QObject *parent = 0, bool detached = true);
+    explicit SshWorker(QString name = "noname", QObject *parent = 0, bool detached = true);
     virtual ~SshWorker();
     bool getSshConnected() const;
 

@@ -42,8 +42,9 @@ bool SshClient::getSshConnected() const
     return _sshConnected;
 }
 
-SshClient::SshClient(QObject * parent):
+SshClient::SshClient(QString name, QObject * parent):
     QObject(parent),
+    _name(name),
     _session(NULL),
     _knownHosts(0),
     _sftp(NULL),
@@ -56,7 +57,7 @@ SshClient::SshClient(QObject * parent):
     _cntRxData(0)
 {
 #if defined(DEBUG_SSHCLIENT) || defined(DEBUG_THREAD)
-    qDebug() << "DEBUG : SshClient : Enter in constructor, @" << this << " in " << QThread::currentThread() << " (" << QThread::currentThreadId() << ")";
+    qDebug() << "DEBUG : SshClient("<< _name << ") : Enter in constructor, @" << this << " in " << QThread::currentThread() << " (" << QThread::currentThreadId() << ")";
 #endif
 
     connect(&_socket,   SIGNAL(connected()),                         this, SLOT(_setStateConnected()));
@@ -83,13 +84,13 @@ SshClient::SshClient(QObject * parent):
 SshClient::~SshClient()
 {
 #if defined(DEBUG_SSHCLIENT)
-    qDebug() << "DEBUG : SshClient : Enter in destructor, @"<< this << " state is " << _state;
+    qDebug() << "DEBUG : SshClient("<< _name << ") : Enter in destructor, @"<< this << " state is " << _state;
 #endif
 
     disconnectFromHost();
 
 #if defined(DEBUG_SSHCLIENT)
-    qDebug() << "DEBUG : SshClient : Quit destructor";
+    qDebug() << "DEBUG : SshClient("<< _name << ") : Quit destructor";
 #endif
 }
 
@@ -293,7 +294,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     _errorcode = 0;
 
 #if defined(DEBUG_SSHCLIENT)
-    qDebug() << "DEBUG : SshClient : trying to connect to host (" << _hostname << ":" << _port << ")";
+    qDebug() << "DEBUG : SshClient("<< _name << ") : trying to connect to host (" << _hostname << ":" << _port << ")";
 #endif
 
     timeout.setInterval(60*1000);
@@ -321,7 +322,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     }
     while(_errorcode && retry--);
 #if defined(DEBUG_SSHCLIENT)
-    qDebug() << "DEBUG : SshClient : SSH client connected (" << _hostname << ":" << _port << " @" << user << ")";
+    qDebug() << "DEBUG : SshClient("<< _name << ") : SSH client connected (" << _hostname << ":" << _port << " @" << user << ")";
 #endif
 
     _keepalive.setInterval(10000);
@@ -437,7 +438,7 @@ bool SshClient::addKnownHost(const QString & hostname,const SshKey & key)
 void SshClient::_setStateConnected()
 {
 #if defined(DEBUG_SSHCLIENT)
-    qDebug("DEBUG : SshClient : ssh socket connected");
+    qDebug() << "DEBUG : SshClient("<< _name << ") : ssh socket connected";
 #endif
     _state = InitializeSession;
     _readyRead();
@@ -449,12 +450,12 @@ void SshClient::_tcperror(QAbstractSocket::SocketError err)
     if(err == QAbstractSocket::ConnectionRefusedError)
     {
         _errorcode = LIBSSH2_ERROR_BAD_SOCKET;
-        qDebug() << "ERROR : SshClient : ConnectionRefusedError";
+        qDebug() << "ERROR : SshClient("<< _name << ") : ConnectionRefusedError";
         emit _connectionTerminate();
     }
     else
     {
-        qDebug() << "ERROR : SshClient : failed to connect session tcp socket, err=" << err;
+        qDebug() << "ERROR : SshClient("<< _name << ") : failed to connect session tcp socket, err=" << err;
     }
 }
 
@@ -496,7 +497,7 @@ void SshClient::_readyRead()
             }
             if (ret)
             {
-                qWarning() << "WARNING : SshClient : Failure establishing SSH session :" << ret;
+                qWarning() << "WARNING : SshClient("<< _name << ") : Failure establishing SSH session :" << ret;
                 _getLastError();
                 emit _connectionTerminate();
                 askDisconnect();
@@ -640,7 +641,7 @@ void SshClient::_readyRead()
                 _state = ActivatingChannels;
                 _errorcode = LIBSSH2_ERROR_NONE;
 #if defined(DEBUG_SSHCLIENT) || defined(DEBUG_THREAD)
-    qDebug() << "DEBUG : SshClient : Connected, @" << this << " in " << QThread::currentThread() << " (" << QThread::currentThreadId() << ")";
+    qDebug() << "DEBUG : SshClient("<< _name << ") : Connected, @" << this << " in " << QThread::currentThread() << " (" << QThread::currentThreadId() << ")";
 #endif
                 emit connected();
                 emit _connectionTerminate();
@@ -677,7 +678,7 @@ void SshClient::askDisconnect()
     }
 
 #if defined(DEBUG_SSHCLIENT)
-    qDebug("DEBUG : SshClient : reset");
+    qDebug() << "DEBUG : SshClient("<< _name << ") : reset";
 #endif
     _keepalive.stop();
     emit sshReset();
@@ -708,6 +709,9 @@ void SshClient::askDisconnect()
     Q_ASSERT(_knownHosts);
     libssh2_session_set_blocking(_session, 0);
     _socket.disconnectFromHost();
+#if defined(DEBUG_SSHCLIENT)
+    qDebug() << "DEBUG : SshClient("<< _name << ") : reset disconnected";
+#endif
 }
 
 void SshClient::_disconnected()
@@ -715,7 +719,7 @@ void SshClient::_disconnected()
     _keepalive.stop();
     if (_state != NoState)
     {
-        qWarning("WARNING : SshClient : unexpected shutdown");
+        qWarning() << "WARNING : SshClient("<< _name << ") : unexpected shutdown";
         emit unexpectedDisconnection();
         askDisconnect();
     }

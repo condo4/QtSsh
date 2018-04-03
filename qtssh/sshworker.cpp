@@ -2,7 +2,9 @@
 #include "sshclient.h"
 #include <QEventLoop>
 
-SshWorker::SshWorker(QObject *parent, bool detached) : QThread(parent)
+SshWorker::SshWorker(QString name, QObject *parent, bool detached):
+    QThread(parent),
+    _name(name)
 {
 #if defined(DISABLE_MULTITHREAD_SSH_WORKER)
     detached = false;
@@ -19,7 +21,7 @@ SshWorker::SshWorker(QObject *parent, bool detached) : QThread(parent)
     else
     {
         _contype = Qt::DirectConnection;
-        _client = new SshClient();
+        _client = new SshClient(_name);
         QObject::connect(_client, &SshClient::xfer_rate,                   this,    &SshWorker::xferRate);
         QObject::connect(_client, &SshClient::sFtpXfer,                    this,    &SshWorker::sFtpXfer);
         QObject::connect(_client, &SshClient::unexpectedDisconnection,     this,    [this](){
@@ -216,7 +218,7 @@ void SshWorker::xferRate(qint64 tx, qint64 rx)
 void SshWorker::run()
 {
     connect(this, &SshWorker::askQuit, this, &SshWorker::quit, Qt::QueuedConnection);
-    _client = new SshClient();
+    _client = new SshClient("thread_" + _name);
     QObject::connect(_client, &SshClient::xfer_rate,                   this,    &SshWorker::xferRate);
     QObject::connect(_client, &SshClient::sFtpXfer,                    this,    &SshWorker::sFtpXfer);
     QObject::connect(_client, &SshClient::unexpectedDisconnection,     this,    [this](){
