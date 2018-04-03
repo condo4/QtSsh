@@ -27,6 +27,9 @@ SshWorker::SshWorker(QString name, QObject *parent, bool detached):
         QObject::connect(_client, &SshClient::unexpectedDisconnection,     this,    [this](){
             emit unexpectedDisconnection();
         });
+        QObject::connect(_client, &SshClient::disconnected,     this,    [this](){
+            emit disconnected();
+        });
         emit threadReady();
     }
 }
@@ -223,6 +226,13 @@ void SshWorker::run()
     QObject::connect(_client, &SshClient::sFtpXfer,                    this,    &SshWorker::sFtpXfer);
     QObject::connect(_client, &SshClient::unexpectedDisconnection,     this,    [this](){
         emit unexpectedDisconnection();
+    });
+    QObject::connect(_client, &SshClient::disconnected,     this,    [this](){
+        QEventLoop wait;
+        QObject::connect(this, &SshWorker::finished, &wait, &QEventLoop::quit);
+        emit askQuit();
+        wait.exec();
+        emit disconnected();
     });
 
     emit threadReady();

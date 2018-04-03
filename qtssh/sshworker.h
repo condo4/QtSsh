@@ -71,6 +71,7 @@ signals:
     void xfer_rate(qint64 tx, qint64 rx);
     void askQuit();
     void unexpectedDisconnection();
+    void disconnected();
 
 
     void askEnableSftp();
