@@ -136,6 +136,7 @@ void SshTunnelOut::tcpDataReceived()
         connect(this,SIGNAL(channelReady()),&loop,SLOT(quit()));
         loop.exec();
     }
+    if(!_tcpsocket) return;
 
     if (_tcpsocket == NULL || _sshChannel == NULL)
     {
