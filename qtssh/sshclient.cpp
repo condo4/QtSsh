@@ -267,6 +267,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         qDebug() << "ERROR : Allways connected";
         return 0;
     }
+    bool failed = false;
     QEventLoop wait;
     QTimer timeout;
     _hostname = host;
@@ -281,6 +282,14 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 
     timeout.setInterval(60*1000);
     connect(this, SIGNAL(_connectionTerminate()), &wait, SLOT(quit()));
+    connect(&_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), [this, &wait, &failed](QAbstractSocket::SocketError err){
+        if(err == QAbstractSocket::RemoteHostClosedError)
+        {
+            _errorcode = QAbstractSocket::RemoteHostClosedError;
+            failed = true;
+            wait.quit();
+        }
+    });
     connect(&timeout, &QTimer::timeout, [&wait, this](){
         _errorcode = LIBSSH2_ERROR_TIMEOUT;
         wait.quit();
@@ -292,6 +301,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         {
             wait.exec();
             if(_errorcode == LIBSSH2_ERROR_TIMEOUT) break;
+            if(_errorcode == QAbstractSocket::RemoteHostClosedError) break;
         }
         /*
         if(!checkHostKey && _errorcode == HostKeyUnknownError)
@@ -303,6 +313,12 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
             Q_UNUSED(checkHostKey);
     }
     while(_errorcode && retry--);
+    if(_errorcode || failed)
+    {
+        qDebug() << "WARNING : SshClient("<< _name << ") : SSH client NOT connected (" << _hostname << ":" << _port << " @" << user << ") -> " << _errorcode;
+        if(failed) return -1;
+        return _errorcode;
+    }
 #if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : SshClient("<< _name << ") : SSH client connected (" << _hostname << ":" << _port << " @" << user << ")";
 #endif
