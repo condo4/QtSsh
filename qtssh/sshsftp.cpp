@@ -380,7 +380,19 @@ SshSFtp::SshSFtp(SshClient *client):
 
     while(!(_sftpSession = libssh2_sftp_init(sshClient->session())))
     {
-        _waitData(2000);
+        if(libssh2_session_last_errno(sshClient->session()) == LIBSSH2_ERROR_EAGAIN)
+        {
+            _waitData(2000);
+            qDebug() << "DEBUG : SFTP try again";
+        }
+        else
+        {
+            break;
+        }
+    }
+    if(!_sftpSession)
+    {
+        qDebug() << "LAST ERROR IS : " << libssh2_session_last_errno(sshClient->session());
     }
 #ifdef DEBUG_SFTP
     qDebug() << "DEBUG : SFTP connected";
