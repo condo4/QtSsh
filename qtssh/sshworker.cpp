@@ -148,6 +148,13 @@ bool SshWorker::addKnownHost(const QString &hostname, const SshKey &key)
     return ret;
 }
 
+QString SshWorker::banner()
+{
+    QString ret;
+    QMetaObject::invokeMethod( _client, "banner", _contype, Q_RETURN_ARG(QString, ret) );
+    return ret;
+}
+
 void SshWorker::enableSFTP()
 {
     QMetaObject::invokeMethod( _client, "enableSFTP", _contype );

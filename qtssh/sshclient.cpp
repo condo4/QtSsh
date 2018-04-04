@@ -426,6 +426,11 @@ bool SshClient::addKnownHost(const QString & hostname,const SshKey & key)
     return ret;
 }
 
+QString SshClient::banner()
+{
+    return QString(libssh2_session_banner_get(_session));
+}
+
 
 void SshClient::_setStateConnected()
 {

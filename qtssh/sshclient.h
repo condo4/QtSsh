@@ -90,6 +90,7 @@ public slots:
     void setPassphrase(const QString & pass);
     bool saveKnownHosts(const QString &file);
     bool addKnownHost  (const QString &hostname, const SshKey &key);
+    QString banner();
 /* >>>SshInterface<<< */
 
 /* <<<SshFsInterface>>> */
