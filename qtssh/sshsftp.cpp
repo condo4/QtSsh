@@ -383,7 +383,9 @@ SshSFtp::SshSFtp(SshClient *client):
         if(libssh2_session_last_errno(sshClient->session()) == LIBSSH2_ERROR_EAGAIN)
         {
             _waitData(2000);
+#ifdef DEBUG_SFTP
             qDebug() << "DEBUG : SFTP try again";
+#endif
         }
         else
         {
