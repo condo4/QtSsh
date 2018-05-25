@@ -12,7 +12,8 @@ HEADERS += \
     $$PWD/qtssh/sshinterface.h \
     $$PWD/qtssh/sshfsinterface.h \
     $$PWD/qtssh/sshfilesystemmodel.h \
-    $$PWD/qtssh/sshfilesystemnode.h
+    $$PWD/qtssh/sshfilesystemnode.h \
+    $$PWD/qtssh/async_libssh2.h
 
 SOURCES += \
     $$PWD/qtssh/sshtunnelout.cpp \
