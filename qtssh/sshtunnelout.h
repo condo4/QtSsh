@@ -23,8 +23,14 @@ private:
     QByteArray _dataSsh;
     QByteArray _dataSocket;
 
+    unsigned int _callDepth;
+
+    void _stopChannel();
+    void _stopSocket();
+
 public:
     explicit SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString port_identifier, quint16 port);
+    virtual ~SshTunnelOut();
     void close(QString reason);
     bool ready() const;
     QString name() const;

@@ -26,6 +26,10 @@ SshTunnelOutSrv::~SshTunnelOutSrv()
 
 void SshTunnelOutSrv::createConnection()
 {
+#if defined(DEBUG_SSHCHANNEL)
+    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOutSrv::createConnection()";
+#endif
+
     if(!_sshclient->channelReady())
     {
         qDebug() << "WARNING : SshTunnelOut cannot open channel before connected()";
@@ -39,24 +43,34 @@ void SshTunnelOutSrv::createConnection()
     if(!tunnel->ready())
     {
         sock->close();
-        delete tunnel;
+        tunnel->deleteLater();
         return;
     }
-    QObject::connect(sshClient, &SshClient::sshDataReceived, tunnel, &SshTunnelOut::sshDataReceived, Qt::QueuedConnection);
     QObject::connect(tunnel,    &SshTunnelOut::disconnected, this,   &SshTunnelOutSrv::connectionDisconnected);
+#if defined(DEBUG_SSHCHANNEL)
+    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOutSrv::createConnection() OK";
+#endif
     _connections.append(tunnel);
 }
 
 void SshTunnelOutSrv::connectionDisconnected()
 {
+#if defined(DEBUG_SSHCHANNEL)
+    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOutSrv::connectionDisconnected()";
+#endif
     SshTunnelOut *tunnel = qobject_cast<SshTunnelOut *>(QObject::sender());
     if(tunnel == nullptr)
         return;
     _connections.removeAll(tunnel);
-    QObject::disconnect(sshClient, &SshClient::sshDataReceived, tunnel, &SshTunnelOut::sshDataReceived);
     QObject::disconnect(tunnel,    &SshTunnelOut::disconnected, this,   &SshTunnelOutSrv::connectionDisconnected);
-    tunnel->deleteLater();
+    delete tunnel;
+
+#if defined(DEBUG_SSHCHANNEL)
+    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOutSrv::connectionDisconnected() OK";
+#endif
+
 }
+
 
 quint16 SshTunnelOutSrv::localPort()
 {
