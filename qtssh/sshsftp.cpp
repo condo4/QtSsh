@@ -376,8 +376,6 @@ SshSFtp::SshSFtp(SshClient *client):
     SshChannel(client)
 
 {
-    QObject::connect(client, &SshClient::sshDataReceived, this, &SshSFtp::sshDataReceived);
-
     while(!(_sftpSession = libssh2_sftp_init(sshClient->session())))
     {
         if(libssh2_session_last_errno(sshClient->session()) == LIBSSH2_ERROR_EAGAIN)
@@ -396,6 +394,8 @@ SshSFtp::SshSFtp(SshClient *client):
     {
         qDebug() << "LAST ERROR IS : " << libssh2_session_last_errno(sshClient->session());
     }
+    QObject::connect(client, &SshClient::sshDataReceived, this, &SshSFtp::sshDataReceived, Qt::QueuedConnection);
+
 #ifdef DEBUG_SFTP
     qDebug() << "DEBUG : SFTP connected";
 #endif

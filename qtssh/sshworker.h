@@ -7,6 +7,10 @@
 #include "sshinterface.h"
 #include "sshclient.h"
 
+#ifdef DISABLE_SSH_WORKER_THREAD
+#define SshWorker SshClient
+#else
+
 class SshWorker : public QThread, public SshFsInterface, public SshInterface
 {
     Q_OBJECT
@@ -23,13 +27,13 @@ class SshWorker : public QThread, public SshFsInterface, public SshInterface
     bool _prepared;
 
 public:
-    explicit SshWorker(QString name = "noname", QObject *parent = 0, bool detached = true);
+    explicit SshWorker(QString name = "noname", QObject *parent = nullptr, bool detached = true);
     virtual ~SshWorker();
     bool getSshConnected() const;
 
 /* <<<SshInterface>>> */
 public slots:
-    int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
+    int connectToHost(const QString & username, const QString & hostname, quint16 port = 22);
     void prepareConnectToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
     int connectToHost();
     void disconnectFromHost();
@@ -86,5 +90,7 @@ signals:
     bool askSFtpUnlink(QString d);
     void sFtpXfer();
 };
+#endif
+
 
 #endif // SSHWORKER_H

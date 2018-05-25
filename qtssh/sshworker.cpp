@@ -2,6 +2,8 @@
 #include "sshclient.h"
 #include <QEventLoop>
 
+#ifndef DISABLE_SSH_WORKER_THREAD
+
 SshWorker::SshWorker(QString name, QObject *parent, bool detached):
     QThread(parent),
     _name(name)
@@ -36,6 +38,7 @@ SshWorker::SshWorker(QString name, QObject *parent, bool detached):
 
 SshWorker::~SshWorker()
 {
+    disconnectFromHost();
     if(_contype == Qt::BlockingQueuedConnection)
     {
         if(!this->isFinished())
@@ -67,10 +70,10 @@ bool SshWorker::loadKnownHosts(const QString &file)
     return ret;
 }
 
-int SshWorker::connectToHost(const QString &username, const QString &hostname, quint16 port, bool lock, bool checkHostKey, unsigned int retry)
+int SshWorker::connectToHost(const QString &username, const QString &hostname, quint16 port)
 {
     int ret;
-    QMetaObject::invokeMethod( _client, "connectToHost", _contype, Q_RETURN_ARG(int, ret), Q_ARG(QString, username), Q_ARG(QString, hostname), Q_ARG(quint16, port), Q_ARG(bool, lock), Q_ARG(bool, checkHostKey), Q_ARG(unsigned int, retry) );
+    QMetaObject::invokeMethod( _client, "connectToHost", _contype, Q_RETURN_ARG(int, ret), Q_ARG(QString, username), Q_ARG(QString, hostname), Q_ARG(quint16, port));
     return ret;
 }
 
@@ -87,7 +90,7 @@ void SshWorker::prepareConnectToHost(const QString &username, const QString &hos
 
 int SshWorker::connectToHost()
 {
-    if(_prepared) return connectToHost(_username, _hostname, _port, _lock, _checkHostKey, _retry);
+    if(_prepared) return connectToHost(_username, _hostname, _port);
     else return -1;
 }
 
@@ -252,3 +255,5 @@ void SshWorker::run()
     qDebug() << "DEBUG : SshWorker thread terminated " << " in Thread " << QThread::currentThread();
 #endif
 }
+
+#endif

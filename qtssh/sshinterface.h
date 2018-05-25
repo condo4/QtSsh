@@ -18,7 +18,7 @@ class SshInterface
 public slots:
     virtual ~SshInterface() {}
     virtual void disconnectFromHost() = 0;
-    virtual int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5) = 0;
+    virtual int connectToHost(const QString & username, const QString & hostname, quint16 port = 22) = 0;
     virtual QString runCommand(QString command) = 0;
     virtual quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind) = 0;
     virtual quint16 openRemotePortForwarding(QString servicename, quint16 port) = 0;

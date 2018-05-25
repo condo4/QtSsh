@@ -26,6 +26,10 @@ private:
 public:
     explicit SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString port_identifier, quint16 port);
     void close(QString reason);
+    bool ready() const;
+    QString name() const;
+
+public slots:
     void sshDataReceived();
 
 private slots:

@@ -2,7 +2,7 @@
 #define SSHCHANNEL_H
 
 #include <QObject>
-#include "libssh2.h"
+#include "async_libssh2.h"
 
 class SshClient;
 
@@ -18,13 +18,9 @@ public:
     explicit SshChannel(QObject *client);
     explicit SshChannel(SshClient *client);
     virtual ~SshChannel();
-    
-signals:
-    void data_rx(qint64 cnt);
-    void data_tx(qint64 cnt);
-    
+
 protected slots:
-    virtual void sshDataReceived() = 0;
+    virtual void sshDataReceived() {}
     virtual void stopChannel();
 
 public slots:

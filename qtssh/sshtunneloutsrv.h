@@ -12,17 +12,17 @@ class SshTunnelOutSrv : public SshChannel
 {
     Q_OBJECT
 
-    QTcpServer              *_tcpserver;
+    QTcpServer              _tcpserver;
     QList<SshTunnelOut*>    _connections;
     SshClient               *_sshclient;
     QString                 _identifier;
     quint16                 _port;
+    int                     _count;
 
 public:
     explicit SshTunnelOutSrv(SshClient * client, QString port_identifier, quint16 port);
     ~SshTunnelOutSrv();
     quint16 localPort();
-    void sshDataReceived();
 
 signals:
 

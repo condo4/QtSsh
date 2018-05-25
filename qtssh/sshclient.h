@@ -10,7 +10,6 @@
 #include "sshinterface.h"
 
 extern "C" {
-#include <libssh2.h>
 #include <errno.h>
 }
 
@@ -22,23 +21,8 @@ class  SshClient : public QObject, public SshFsInterface, public SshInterface {
     Q_OBJECT
 
 private:
-    enum SshState {
-        NoState = 0,
-        TcpHostConnected = 1,
-        InitializeSession = 2,
-        RequestAuthTypes = 3,
-        LookingAuthOptions = 4,
-        TryingAuthentication = 5,
-        ActivatingChannels = 6
-    };
-
-    enum AuthenticationMethod {
-        PasswordAuthentication,
-        PublicKeyAuthentication
-    };
-
-
     QString _name;
+
     // libssh2 stuff
     LIBSSH2_SESSION    * _session;
     LIBSSH2_KNOWNHOSTS * _knownHosts;
@@ -46,9 +30,7 @@ private:
     QMap<QString,SshChannel*>   _channels;
     QTcpSocket _socket;
 
-    SshState _state;
-
-    int _port;
+    quint16 _port;
     int _errorcode;
     bool _sshConnected;
 
@@ -62,10 +44,6 @@ private:
 
     SshKey  _hostKey;
 
-    // authentication methods
-    SshClient::AuthenticationMethod        _currentAuthTry;
-    QList<SshClient::AuthenticationMethod> _availableMethods;
-    QList<SshClient::AuthenticationMethod> _failedMethods;
 
     qint64 _cntTxData;
     qint64 _cntRxData;
@@ -73,12 +51,14 @@ private:
     QTimer _keepalive;
 
 public:
-    SshClient(QString name = "noname", QObject * parent = NULL);
+    SshClient(QString name = "noname", QObject * parent = nullptr);
     virtual ~SshClient();
 
 /* <<<SshInterface>>> */
+    QString getName() const;
+
 public slots:
-    int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, bool lock = true, bool checkHostKey = false, unsigned int retry = 5);
+    int connectToHost(const QString & username, const QString & hostname, quint16 port = 22);
     void disconnectFromHost();
     QString runCommand(QString command);
     quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
@@ -110,7 +90,7 @@ public slots:
 
     LIBSSH2_SESSION *session();
     bool channelReady();
-    bool waitForBytesWritten(int msecs);
+    bool loopWhileBytesWritten(int msecs);
     bool getSshConnected() const;
 
 
@@ -122,18 +102,16 @@ signals:
     void sshDataReceived();
     void sshReset();
     void _connectionTerminate();
+    void _connectionFailed();
     void sFtpXfer();
 
 
 public slots:
-    void tx_data(qint64 len);
-    void rx_data(qint64 len);
     void askDisconnect();
 
 
 private slots:
     void _readyRead();
-    void _setStateConnected();
     void _disconnected();
     void _getLastError();
     void _tcperror(QAbstractSocket::SocketError err);
