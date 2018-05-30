@@ -118,7 +118,7 @@ bool SshClient::loopWhileBytesWritten(int msecs)
     bool written;
     auto con1 = QObject::connect(&_socket, &QTcpSocket::bytesWritten, [&written, &wait]()
     {
-#if defined(DEBUG_SSHCHANNEL)
+#if defined(DEBUG_SSHCLIENT)
     qDebug() << "DEBUG : SshClient() : BytesWritten";
 #endif
         written = true;
@@ -174,6 +174,10 @@ quint16 SshClient::openRemotePortForwarding(QString servicename, quint16 port)
 
 void SshClient::closePortForwarding(QString servicename)
 {
+#if defined(DEBUG_SSHCLIENT)
+    qDebug() << "DEBUG : SshClient::closePortForwarding(" << servicename << ")";
+#endif
+
     if(_channels.contains(servicename))
     {
         SshChannel *tunnel = _channels.value(servicename);
@@ -580,7 +584,6 @@ void SshClient::_tcperror(QAbstractSocket::SocketError err)
     {
         _errorcode = LIBSSH2_ERROR_BAD_SOCKET;
         qDebug() << "ERROR : "<< _name << " : ConnectionRefusedError";
-        emit _connectionTerminate();
     }
     else
     {

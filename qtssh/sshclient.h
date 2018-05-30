@@ -101,7 +101,6 @@ signals:
     void xfer_rate(qint64 tx, qint64 rx);
     void sshDataReceived();
     void sshReset();
-    void _connectionTerminate();
     void _connectionFailed();
     void sFtpXfer();
 
