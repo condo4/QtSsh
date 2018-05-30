@@ -18,7 +18,7 @@ SshTunnelOutSrv::~SshTunnelOutSrv()
     foreach (SshTunnelOut *tunnel, _connections) {
         QObject::disconnect(sshClient, &SshClient::sshDataReceived, tunnel, &SshTunnelOut::sshDataReceived);
         QObject::disconnect(tunnel,    &SshTunnelOut::disconnected, this,   &SshTunnelOutSrv::connectionDisconnected);
-        tunnel->deleteLater();
+        delete tunnel;
     }
     _tcpserver.close();
     _tcpserver.deleteLater();
@@ -39,7 +39,7 @@ void SshTunnelOutSrv::createConnection()
     QTcpSocket *sock = _tcpserver.nextPendingConnection();
     if(!sock) return;
 
-    SshTunnelOut *tunnel = new SshTunnelOut(_sshclient, sock, QString("%1_%2").arg(_identifier).arg(++_count), _port);
+    SshTunnelOut *tunnel = new SshTunnelOut(_sshclient, sock, QString("%1_%2").arg(_identifier).arg(++_count), _port, this);
     if(!tunnel->ready())
     {
         sock->close();

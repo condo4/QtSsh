@@ -4,8 +4,8 @@
 #include <QTcpSocket>
 #include <QEventLoop>
 
-SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString port_identifier, quint16 port):
-    QObject(client),
+SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString port_identifier, quint16 port, QObject *parent):
+    QObject(parent),
     _opened(false),
     _port(port),
     _name(port_identifier),
