@@ -64,7 +64,6 @@ void SshTunnelIn::onLocalSocketDataReceived()
 {
     QByteArray buffer(BUFFER_LEN, 0);
     qint64 len = 0;
-    qint64 wr  = 0;
     qint64 i   = 0;
     int ret = 0;
 
