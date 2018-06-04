@@ -1,5 +1,4 @@
-#ifndef SSHTUNNELOUT_H
-#define SSHTUNNELOUT_H
+#pragma once
 
 #include <QAbstractSocket>
 #include "sshchannel.h"
@@ -49,5 +48,3 @@ signals:
     void channelReady();
     
 };
-
-#endif // SSHTUNNELOUT_H

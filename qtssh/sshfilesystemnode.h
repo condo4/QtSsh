@@ -1,5 +1,4 @@
-#ifndef SSHFILESYSTEMNODE_H
-#define SSHFILESYSTEMNODE_H
+#pragma once
 
 #include <QObject>
 #include <QModelIndex>
@@ -41,5 +40,3 @@ public slots:
 private:
     void _expend();
 };
-
-#endif // SSHFILESYSTEMNODE_H

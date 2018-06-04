@@ -1,5 +1,4 @@
-#ifndef QT_SSH_CLIENT_H
-#define QT_SSH_CLIENT_H
+#pragma once
 
 #include <QObject>
 #include <QList>
@@ -117,5 +116,3 @@ private slots:
     void _cntRate();
     void _sendKeepAlive();
 };
-
-#endif

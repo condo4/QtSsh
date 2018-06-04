@@ -1,5 +1,4 @@
-#ifndef SSHTUNNELIN_H
-#define SSHTUNNELIN_H
+#pragma once
 
 #include "sshchannel.h"
 #include <QAbstractSocket>
@@ -31,5 +30,3 @@ private slots:
 
     virtual void sshDataReceived();
 };
-
-#endif // SSHTUNNELIN_H

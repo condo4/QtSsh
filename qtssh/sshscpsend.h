@@ -1,6 +1,4 @@
-#ifndef SSHSCPSEND_H
-#define SSHSCPSEND_H
-
+#pragma once
 
 #include "sshchannel.h"
 
@@ -12,5 +10,3 @@ public:
     SshScpSend(SshClient * client);
     QString send(QString source, QString dest);
 };
-
-#endif // SSHSCPSEND_H

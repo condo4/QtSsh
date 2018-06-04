@@ -1,5 +1,5 @@
-#ifndef SSHPROCESS_H
-#define SSHPROCESS_H
+#pragma once
+
 #include "sshchannel.h"
 #include <QSemaphore>
 
@@ -15,5 +15,3 @@ public slots:
     QByteArray runCommand(QString cmd);
 
 };
-
-#endif // SSHPROCESS_H

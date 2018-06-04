@@ -1,5 +1,4 @@
-#ifndef SSHSFTP_H
-#define SSHSFTP_H
+#pragma once
 
 #include "sshchannel.h"
 #include <libssh2_sftp.h>
@@ -51,5 +50,3 @@ signals:
     void sshData();
     void xfer();
 };
-
-#endif // SSHSFTP_H

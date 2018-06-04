@@ -1,5 +1,4 @@
-#ifndef SSHTUNNELOUTSRV_H
-#define SSHTUNNELOUTSRV_H
+#pragma once
 
 #include <QObject>
 #include "sshchannel.h"
@@ -30,5 +29,3 @@ public slots:
     void createConnection();
     void connectionDisconnected();
 };
-
-#endif // SSHTUNNELOUTSRV_H

@@ -1,5 +1,4 @@
-#ifndef SSHFILESYSTEMMODEL_H
-#define SSHFILESYSTEMMODEL_H
+#pragma once
 
 #include <QObject>
 #include <QAbstractItemModel>
@@ -35,5 +34,3 @@ public:
 
     void setRootPath(QString root = "/");
 };
-
-#endif // SSHFILESYSTEMMODEL_H

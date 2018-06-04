@@ -1,9 +1,9 @@
-#ifndef ASYNC_LIBSSH2_H
-#define ASYNC_LIBSSH2_H
+#pragma once
 
 extern "C" {
 #include <libssh2.h>
 }
+
 #include <QCoreApplication>
 
 /* Safe ASYNC function */
@@ -413,6 +413,3 @@ inline LIBSSH2_LISTENER * qssh2_channel_forward_listen_ex(LIBSSH2_SESSION *sessi
     }
     return cret;
 }
-
-
-#endif // ASYNC_LIBSSH2_H

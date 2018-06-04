@@ -1,5 +1,13 @@
-#ifndef SSHCHANNEL_H
-#define SSHCHANNEL_H
+/**
+ * \file sshchannel.h
+ * \brief Generic Channel SSH class
+ * \author Fabien Proriol
+ * \version 1.0
+ * \date 2018/03/22
+ * \details This class is a Generic class for all Ssh Channel
+ */
+
+#pragma once
 
 #include <QObject>
 #include "async_libssh2.h"
@@ -26,5 +34,3 @@ protected slots:
 public slots:
     virtual quint16 localPort() { return 0; }
 };
-
-#endif // SSHCHANNEL_H
