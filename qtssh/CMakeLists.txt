@@ -32,14 +32,12 @@ set(SOURCES
 	sshtunneloutsrv.cpp
 	sshscpsend.cpp
 	sshsftp.cpp
-	sshworker.cpp
 	sshfilesystemmodel.cpp
 	sshfilesystemnode.cpp
 )
 
 set(HEADERS
 	sshclient.h
-	sshworker.h
 	sshinterface.h
 	sshfsinterface.h
 	sshfilesystemmodel.h

@@ -8,9 +8,6 @@ HEADERS += \
     $$PWD/qtssh/sshtunneloutsrv.h \
     $$PWD/qtssh/sshscpsend.h \
     $$PWD/qtssh/sshsftp.h \
-    $$PWD/qtssh/sshworker.h \
-    $$PWD/qtssh/sshinterface.h \
-    $$PWD/qtssh/sshfsinterface.h \
     $$PWD/qtssh/sshfilesystemmodel.h \
     $$PWD/qtssh/sshfilesystemnode.h \
     $$PWD/qtssh/async_libssh2.h
@@ -24,7 +21,6 @@ SOURCES += \
     $$PWD/qtssh/sshtunneloutsrv.cpp \
     $$PWD/qtssh/sshscpsend.cpp \
     $$PWD/qtssh/sshsftp.cpp \
-    $$PWD/qtssh/sshworker.cpp \
     $$PWD/qtssh/sshfilesystemmodel.cpp \
     $$PWD/qtssh/sshfilesystemnode.cpp
 
