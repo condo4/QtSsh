@@ -66,6 +66,7 @@ void SshTunnelIn::onLocalSocketDataReceived()
     qint64 len = 0;
     qint64 wr  = 0;
     qint64 i   = 0;
+    int ret = 0;
 
     if (_tcpsocket == NULL)
     {
@@ -87,29 +88,52 @@ void SshTunnelIn::onLocalSocketDataReceived()
             return;
         }
 
-        do
+        qint64 written = 0;
+        while(written != len)
         {
-            i = libssh2_channel_write(sshChannel, buffer.data(), len);
-            if (i == LIBSSH2_ERROR_EAGAIN)
+            i = LIBSSH2_ERROR_EAGAIN;
+            while(i == LIBSSH2_ERROR_EAGAIN)
             {
-                QTimer timer;
-                QEventLoop loop;
-                connect(&timer,SIGNAL(timeout()),&loop,SLOT(quit()));
-                timer.start(1000);
-                loop.exec();
-            }
-            else
-            {
-                if (i < 0)
+                i = libssh2_channel_write(sshChannel, buffer.data() + written, len - written);
+                if (i == LIBSSH2_ERROR_EAGAIN)
                 {
-                    qDebug() << "ERROR : " << _name << " remote failed to write (" << i << ")";
-                    return;
+                    QTimer timer;
+                    QEventLoop loop;
+                    QObject::disconnect(_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
+                    QObject::connect(sshClient, &SshClient::sshDataReceived,    &loop, &QEventLoop::quit);
+                    connect(&timer,SIGNAL(timeout()),&loop,SLOT(quit()));
+                    timer.start(1000);
+                    loop.exec();
+                    QObject::disconnect(sshClient, &SshClient::sshDataReceived,    &loop, &QEventLoop::quit);
+                    QObject::connect(_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
                 }
-                libssh2_channel_flush(sshChannel);
-                sshClient->waitForBytesWritten(1000000);
-                wr += i;
             }
-        } while(wr < len);
+
+            if (i < 0)
+            {
+                qDebug() << "ERROR : " << _name << " remote failed to write (" << i << ")";
+                return;
+            }
+
+            written += i;
+            ret = LIBSSH2_ERROR_EAGAIN;
+            while(ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                ret = libssh2_channel_flush(sshChannel);
+                if (ret == LIBSSH2_ERROR_EAGAIN)
+                {
+                    QTimer timer;
+                    QEventLoop loop;
+                    QObject::disconnect(_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
+                    QObject::connect(sshClient, &SshClient::sshDataReceived,    &loop, &QEventLoop::quit);
+                    connect(&timer,SIGNAL(timeout()),&loop,SLOT(quit()));
+                    timer.start(1000);
+                    loop.exec();
+                    QObject::disconnect(sshClient, &SshClient::sshDataReceived,    &loop, &QEventLoop::quit);
+                    QObject::connect(_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
+                }
+            }
+        }
         if(len > 0) emit data_tx(len);
     }
     while(_tcpsocket->bytesAvailable() > 0);
