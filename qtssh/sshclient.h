@@ -5,55 +5,51 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include "sshchannel.h"
-#include "sshfsinterface.h"
-#include "sshinterface.h"
 
-extern "C" {
-#include <errno.h>
-}
+Q_DECLARE_LOGGING_CATEGORY(sshclient)
 
-class SshSFtp;
+class SshKey {
+    public:
+        enum Type {
+            UnknownType,
+            Rsa,
+            Dss
+        };
+        QByteArray hash;
+        QByteArray key;
+        Type       type;
+};
 
-
-
-class  SshClient : public QObject, public SshFsInterface, public SshInterface {
+class  SshClient : public QObject {
     Q_OBJECT
 
 private:
-    QString _name;
+    LIBSSH2_SESSION    * m_session;
+    LIBSSH2_KNOWNHOSTS * m_knownHosts;
+    QString m_name;
+    QMap<QString, SshChannel *> m_channels;
+    QTcpSocket m_socket;
 
-    // libssh2 stuff
-    LIBSSH2_SESSION    * _session;
-    LIBSSH2_KNOWNHOSTS * _knownHosts;
-    SshSFtp            *_sftp;
-    QMap<QString,SshChannel*>   _channels;
-    QTcpSocket _socket;
+    quint16 m_port;
+    int m_errorcode;
+    bool m_sshConnected;
 
-    quint16 _port;
-    int _errorcode;
-    bool _sshConnected;
-
-    QString _hostname;
-    QString _username;
-    QString _passphrase;
-    QString _privateKey;
-    QString _publicKey;
-
-    QString _errorMessage;
-
-    SshKey  _hostKey;
-
-
-    qint64 _cntTxData;
-    qint64 _cntRxData;
-    QTimer _cntTimer;
-    QTimer _keepalive;
+    QString m_hostname;
+    QString m_username;
+    QString m_passphrase;
+    QString m_privateKey;
+    QString m_publicKey;
+    QString m_errorMessage;
+    SshKey  m_hostKey;
+    qint64 m_cntTxData;
+    qint64 m_cntRxData;
+    QTimer m_cntTimer;
+    QTimer m_keepalive;
 
 public:
     SshClient(QString name = "noname", QObject * parent = nullptr);
     virtual ~SshClient();
 
-/* <<<SshInterface>>> */
     QString getName() const;
 
 public slots:
@@ -70,22 +66,8 @@ public slots:
     bool saveKnownHosts(const QString &file);
     bool addKnownHost  (const QString &hostname, const SshKey &key);
     QString banner();
-/* >>>SshInterface<<< */
 
-/* <<<SshFsInterface>>> */
 public slots:
-    void enableSFTP();
-    QString send(QString source, QString dest);
-    bool get(QString source, QString dest, bool override = false);
-    int mkdir(QString dest);
-    QStringList readdir(QString d);
-    bool isDir(QString d);
-    bool isFile(QString d);
-    int mkpath(QString dest);
-    bool unlink(QString d);
-    quint64 filesize(QString d);
-/* >>>SshFsInterface<<< */
-
 
     LIBSSH2_SESSION *session();
     bool channelReady();

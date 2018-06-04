@@ -3,16 +3,16 @@
 #include <QObject>
 #include <QAbstractItemModel>
 #include <QHash>
-#include "sshfsinterface.h"
 
+class SshSFtp;
 class SshFilesystemNode;
 
 class SshFilesystemModel : public QAbstractItemModel
 {
-    SshFsInterface *_provider;
-    SshFilesystemNode *_rootItem;
-    QModelIndex _root;
-    QHash<int, QByteArray> _roles;
+    SshSFtp *m_provider;
+    SshFilesystemNode *m_rootItem;
+    QModelIndex m_root;
+    QHash<int, QByteArray> m_roles;
 
 public:
     enum Roles {
@@ -22,7 +22,7 @@ public:
         FilePermissions = Qt::UserRole + 3
     };
 
-    SshFilesystemModel(SshFsInterface *provider);
+    SshFilesystemModel(SshSFtp *provider);
 
     // Basic functionality:
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const;

@@ -1,14 +1,16 @@
 #include "sshfilesystemmodel.h"
 #include "sshfilesystemnode.h"
 #include <qdebug.h>
+#include "sshsftp.h"
+#include "sshfilesystemnode.h"
 
-SshFilesystemModel::SshFilesystemModel(SshFsInterface *provider):
+SshFilesystemModel::SshFilesystemModel(SshSFtp *provider):
     QAbstractItemModel(),
-    _provider(provider)
+    m_provider(provider)
 {
-    _rootItem = new SshFilesystemNode(_provider, nullptr, "/");
-    _roles.insert(0, "fileName");
-    _roles.insert(1, "fileSize");
+    m_rootItem = new SshFilesystemNode(m_provider, nullptr, "/");
+    m_roles.insert(0, "fileName");
+    m_roles.insert(1, "fileSize");
 }
 
 QModelIndex SshFilesystemModel::index(int row, int column, const QModelIndex &parent) const
@@ -19,7 +21,7 @@ QModelIndex SshFilesystemModel::index(int row, int column, const QModelIndex &pa
     SshFilesystemNode *parentItem;
 
     if (!parent.isValid())
-        parentItem = _rootItem;
+        parentItem = m_rootItem;
     else
         parentItem = static_cast<SshFilesystemNode*>(parent.internalPointer());
 
@@ -38,7 +40,7 @@ QModelIndex SshFilesystemModel::parent(const QModelIndex &index) const
     SshFilesystemNode *childItem = static_cast<SshFilesystemNode*>(index.internalPointer());
     SshFilesystemNode *parentItem = childItem->parent();
 
-    if (parentItem == _rootItem)
+    if (parentItem == m_rootItem)
         return QModelIndex();
 
     return createIndex(parentItem->row(), 0, parentItem);
@@ -51,7 +53,7 @@ int SshFilesystemModel::rowCount(const QModelIndex &parent) const
         return 0;
 
     if (!parent.isValid())
-        parentItem = _rootItem;
+        parentItem = m_rootItem;
     else
         parentItem = static_cast<SshFilesystemNode*>(parent.internalPointer());
 
@@ -63,7 +65,7 @@ int SshFilesystemModel::columnCount(const QModelIndex &parent) const
     if (parent.isValid())
         return static_cast<SshFilesystemNode*>(parent.internalPointer())->columnCount();
     else
-        return _rootItem->columnCount();
+        return m_rootItem->columnCount();
 }
 
 QVariant SshFilesystemModel::data(const QModelIndex &index, int role) const
@@ -78,5 +80,5 @@ QVariant SshFilesystemModel::data(const QModelIndex &index, int role) const
 
 QHash<int, QByteArray> SshFilesystemModel::roleNames() const
 {
-    return _roles;
+    return m_roles;
 }

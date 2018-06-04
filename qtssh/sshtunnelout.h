@@ -13,16 +13,16 @@ class SshTunnelOut: public QObject
     Q_OBJECT
 
 private:
-    bool _opened;
-    quint16 _port;
-    QString _name;
-    QTcpSocket *_tcpsocket;
-    SshClient *_client;
-    LIBSSH2_CHANNEL *_sshChannel;
-    QByteArray _dataSsh;
-    QByteArray _dataSocket;
+    bool m_opened;
+    quint16 m_port;
+    QString m_name;
+    QTcpSocket *m_tcpsocket;
+    SshClient *m_client;
+    LIBSSH2_CHANNEL *m_sshChannel;
+    QByteArray m_dataSsh;
+    QByteArray m_dataSocket;
 
-    unsigned int _callDepth;
+    unsigned int m_callDepth;
 
     void _stopChannel();
     void _stopSocket();

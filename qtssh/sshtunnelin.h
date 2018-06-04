@@ -9,12 +9,12 @@ class SshTunnelIn : public SshChannel
     Q_OBJECT
 
 private:
-    quint16 _localTcpPort;
-    LIBSSH2_LISTENER *_sshListener;
-    quint16 _port;
-    QString _name;
-    QTcpSocket *_tcpsocket;
-    bool _valid;
+    quint16 m_localTcpPort;
+    LIBSSH2_LISTENER *m_sshListener;
+    quint16 m_port;
+    QString m_name;
+    QTcpSocket *m_tcpsocket;
+    bool m_valid;
 
 public:
     explicit SshTunnelIn(SshClient * client, QString port_identifier, quint16 port, quint16 bind);

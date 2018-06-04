@@ -10,9 +10,12 @@
 #pragma once
 
 #include <QObject>
+#include <QLoggingCategory>
 #include "async_libssh2.h"
 
 class SshClient;
+
+Q_DECLARE_LOGGING_CATEGORY(sshchannel)
 
 class SshChannel : public QObject
 {

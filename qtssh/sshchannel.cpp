@@ -2,7 +2,10 @@
 #include "sshclient.h"
 #include <QCoreApplication>
 
-SshChannel::SshChannel(QObject *client) : QObject(client)
+Q_LOGGING_CATEGORY(sshchannel, "ssh.channel", QtWarningMsg)
+
+SshChannel::SshChannel(QObject *client):
+    QObject(client)
 {
 
 }
@@ -12,11 +15,12 @@ SshChannel::SshChannel(SshClient *client) :
     sshChannel(nullptr),
     sshClient(client)
 {
-    connect(sshClient, SIGNAL(sshReset()), this, SLOT(stopChannel()));
+    connect(sshClient, &SshClient::sshReset, this, &SshChannel::stopChannel);
 }
 
 SshChannel::~SshChannel()
 {
+    disconnect(sshClient, &SshClient::sshReset, this, &SshChannel::stopChannel);
     stopChannel();
 }
 
@@ -29,27 +33,21 @@ void SshChannel::stopChannel()
 
     if(ret)
     {
-#if defined(DEBUG_SSHCLIENT)
-        qDebug() << "DEBUG : SshChannel() : Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
-#endif
+        qCDebug(sshchannel) << "SshChannel() : Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
         return;
     }
 
     ret = qssh2_channel_wait_closed(sshChannel);
     if(ret)
     {
-#if defined(DEBUG_SSHCLIENT)
-        qDebug() << "DEBUG : SshChannel() : Failed to channel_wait_closed";
-#endif
+        qCDebug(sshchannel) << "SshChannel() : Failed to channel_wait_closed";
         return;
     }
 
     ret = qssh2_channel_free(sshChannel);
     if(ret)
     {
-#if defined(DEBUG_SSHCLIENT)
-        qDebug() << "DEBUG : SshChannel() : Failed to channel_free";
-#endif
+        qCDebug(sshchannel) << "SshChannel() : Failed to channel_free";
         return;
     }
     sshChannel = nullptr;

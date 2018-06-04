@@ -6,27 +6,27 @@
 
 SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString port_identifier, quint16 port, QObject *parent):
     QObject(parent),
-    _opened(false),
-    _port(port),
-    _name(port_identifier),
-    _tcpsocket(tcpSocket),
-    _client(client),
-    _sshChannel(nullptr),
-    _dataSsh(16384, 0),
-    _dataSocket(16384, 0),
-    _callDepth(0)
+    m_opened(false),
+    m_port(port),
+    m_name(port_identifier),
+    m_tcpsocket(tcpSocket),
+    m_client(client),
+    m_sshChannel(nullptr),
+    m_dataSsh(16384, 0),
+    m_dataSocket(16384, 0),
+    m_callDepth(0)
 {
 #if defined(DEBUG_SSHCHANNEL)
     qDebug() << "DEBUG : SshTunnelOut : SshTunnelOut::SshTunnelOut() " << _name;
 #endif
 
-    _sshChannel = qssh2_channel_direct_tcpip(_client->session(), "127.0.0.1", _port);
-    if(_sshChannel == nullptr)
+    m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(), "127.0.0.1", m_port);
+    if(m_sshChannel == nullptr)
     {
-        int ret = qssh2_session_last_error(_client->session(), nullptr, nullptr, 0);
+        int ret = qssh2_session_last_error(m_client->session(), nullptr, nullptr, 0);
         if(ret != LIBSSH2_ERROR_CHANNEL_FAILURE)
         {
-            qDebug() << "ERROR: Can't connect direct tcpip " << ret << " for port " << _port;
+            qDebug() << "ERROR: Can't connect direct tcpip " << ret << " for port " << m_port;
         }
 #if defined(DEBUG_SSHCHANNEL)
         else
@@ -37,12 +37,12 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString por
         return;
     }
 
-    QObject::connect(_client,    &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived, Qt::QueuedConnection);
-    QObject::connect(_tcpsocket, &QTcpSocket::readyRead,      this, &SshTunnelOut::tcpDataReceived);
-    QObject::connect(_tcpsocket, &QTcpSocket::disconnected,   this, &SshTunnelOut::tcpDisconnected);
-    QObject::connect(_tcpsocket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), this, &SshTunnelOut::displayError);
+    QObject::connect(m_client,    &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived, Qt::QueuedConnection);
+    QObject::connect(m_tcpsocket, &QTcpSocket::readyRead,      this, &SshTunnelOut::tcpDataReceived);
+    QObject::connect(m_tcpsocket, &QTcpSocket::disconnected,   this, &SshTunnelOut::tcpDisconnected);
+    QObject::connect(m_tcpsocket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), this, &SshTunnelOut::displayError);
 
-    _opened = true;
+    m_opened = true;
 
 #if defined(DEBUG_SSHCHANNEL)
     qDebug() << "DEBUG : SshTunnelOut : SshTunnelOut::SshTunnelOut() OK " << _name;
@@ -61,7 +61,7 @@ SshTunnelOut::~SshTunnelOut()
 
 QString SshTunnelOut::name() const
 {
-    return _name;
+    return m_name;
 }
 
 void SshTunnelOut::sshDataReceived()
@@ -77,14 +77,14 @@ void SshTunnelOut::sshDataReceived()
          * beacause we don't need to ProcessEvent to be locked
          * We can return, we will be recall at the next sshDataReceived
          */
-        len = libssh2_channel_read(_sshChannel, _dataSsh.data(), _dataSsh.size());
+        len = libssh2_channel_read(m_sshChannel, m_dataSsh.data(), m_dataSsh.size());
         if(len == LIBSSH2_ERROR_EAGAIN)
         {
             return;
         }
         if (len < 0)
         {
-            qDebug() << "ERROR : " << _name << " remote failed to read (" << len << ")";
+            qDebug() << "ERROR : " << m_name << " remote failed to read (" << len << ")";
             return;
         }
         if(len == 0)
@@ -92,14 +92,14 @@ void SshTunnelOut::sshDataReceived()
 
         /* Write data into output local socket */
         wr = 0;
-        if(_tcpsocket != nullptr)
+        if(m_tcpsocket != nullptr)
         {
             while (wr < len)
             {
-                i = _tcpsocket->write( _dataSsh.mid(wr, len));
+                i = m_tcpsocket->write( m_dataSsh.mid(wr, len));
                 if (i <= 0)
                 {
-                    qDebug() << "ERROR : " << _name << " local failed to write (" << i << ")";
+                    qDebug() << "ERROR : " << m_name << " local failed to write (" << i << ")";
                     return;
                 }
                 wr += i;
@@ -107,10 +107,10 @@ void SshTunnelOut::sshDataReceived()
         }
         else
         {
-            if(_opened) qDebug() << "ERROR : Data loose";
+            if(m_opened) qDebug() << "ERROR : Data loose";
         }
 
-        if (qssh2_channel_eof(_sshChannel) && _opened)
+        if (qssh2_channel_eof(m_sshChannel) && m_opened)
         {
 #if defined(DEBUG_SSHCHANNEL)
     qDebug() << "DEBUG : SshTunnelOut : Disconnected from ssh";
@@ -118,7 +118,7 @@ void SshTunnelOut::sshDataReceived()
             emit disconnected();
         }
     }
-    while(len == _dataSsh.size());
+    while(len == m_dataSsh.size());
 }
 
 void SshTunnelOut::tcpDataReceived()
@@ -127,32 +127,35 @@ void SshTunnelOut::tcpDataReceived()
     ssize_t wr = 0;
     ssize_t i = 0;
 
-    if (_tcpsocket == nullptr || _sshChannel == nullptr)
+    if (m_tcpsocket == nullptr || m_sshChannel == nullptr)
     {
-        qDebug() << "ERROR : SshTunnelOut(" << _name << ") : received TCP data but not seems to be a valid Tcp socket or channel not ready";
+        qDebug() << "ERROR : SshTunnelOut(" << m_name << ") : received TCP data but not seems to be a valid Tcp socket or channel not ready";
         return;
     }
 
     do
     {
         /* Read data from local socket */
-        len = _tcpsocket->read(_dataSocket.data(), _dataSocket.size());
+        len = m_tcpsocket->read(m_dataSocket.data(), m_dataSocket.size());
+#ifndef ANDROID
         if (-EAGAIN == len)
         {
             break;
         }
-        else if (len < 0)
+        else
+#endif
+        if (len < 0)
         {
-            qDebug() << "ERROR : " << _name << " local failed to read (" << len << ")";
+            qDebug() << "ERROR : " << m_name << " local failed to read (" << len << ")";
             return;
         }
 
         do
         {
-            i = qssh2_channel_write(_sshChannel, _dataSocket.data(), static_cast<quint64>(len));
+            i = qssh2_channel_write(m_sshChannel, m_dataSocket.data(), static_cast<quint64>(len));
             if (i < 0)
             {
-                qDebug() << "ERROR : " << _name << " remote failed to write (" << i << ")";
+                qDebug() << "ERROR : " << m_name << " remote failed to write (" << i << ")";
                 return;
             }
             wr += i;
@@ -171,22 +174,22 @@ void SshTunnelOut::tcpDisconnected()
 
 bool SshTunnelOut::ready() const
 {
-    return _opened;
+    return m_opened;
 }
 
 void SshTunnelOut::displayError(QAbstractSocket::SocketError error)
 {
     if(error != QAbstractSocket::RemoteHostClosedError)
-    qDebug() << "ERROR : SshTunnelOut(" << _name << ") : redirection socket error=" << error;
+    qDebug() << "ERROR : SshTunnelOut(" << m_name << ") : redirection socket error=" << error;
 }
 void SshTunnelOut::_stopChannel()
 {
-    if (_sshChannel == nullptr)
+    if (m_sshChannel == nullptr)
         return;
 
-    QObject::disconnect(_client,    &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
+    QObject::disconnect(m_client,    &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
 
-    int ret = qssh2_channel_close(_sshChannel);
+    int ret = qssh2_channel_close(m_sshChannel);
 
     if(ret)
     {
@@ -196,7 +199,7 @@ void SshTunnelOut::_stopChannel()
         return;
     }
 
-    ret = qssh2_channel_wait_closed(_sshChannel);
+    ret = qssh2_channel_wait_closed(m_sshChannel);
     if(ret)
     {
 #if defined(DEBUG_SSHCLIENT)
@@ -205,7 +208,7 @@ void SshTunnelOut::_stopChannel()
         return;
     }
 
-    ret = qssh2_channel_free(_sshChannel);
+    ret = qssh2_channel_free(m_sshChannel);
     if(ret)
     {
 #if defined(DEBUG_SSHCLIENT)
@@ -213,21 +216,21 @@ void SshTunnelOut::_stopChannel()
 #endif
         return;
     }
-    _sshChannel = nullptr;
+    m_sshChannel = nullptr;
 }
 
 void SshTunnelOut::_stopSocket()
 {
-    if(_tcpsocket)
+    if(m_tcpsocket)
     {
-        QObject::disconnect(_tcpsocket, &QTcpSocket::readyRead, this,  &SshTunnelOut::tcpDataReceived);
-        QObject::disconnect(_tcpsocket, SIGNAL(disconnected()),                        this, SLOT(tcpDisconnected()));
-        QObject::disconnect(_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
-        if(_tcpsocket->state() == QAbstractSocket::ConnectedState)
+        QObject::disconnect(m_tcpsocket, &QTcpSocket::readyRead, this,  &SshTunnelOut::tcpDataReceived);
+        QObject::disconnect(m_tcpsocket, SIGNAL(disconnected()),                        this, SLOT(tcpDisconnected()));
+        QObject::disconnect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
+        if(m_tcpsocket->state() == QAbstractSocket::ConnectedState)
         {
-            _tcpsocket->disconnectFromHost();
+            m_tcpsocket->disconnectFromHost();
         }
-        _tcpsocket->deleteLater();
-        _tcpsocket = nullptr;
+        m_tcpsocket->deleteLater();
+        m_tcpsocket = nullptr;
     }
 }

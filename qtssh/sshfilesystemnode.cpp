@@ -1,49 +1,50 @@
 #include "sshfilesystemnode.h"
 #include <qdebug.h>
 #include <QTime>
+#include "sshsftp.h"
 
 
 bool SshFilesystemNode::isdir() const
 {
-    return _isdir;
+    return m_isdir;
 }
 
-SshFilesystemNode::SshFilesystemNode(SshFsInterface *provider, SshFilesystemNode *parent, QString path):
+SshFilesystemNode::SshFilesystemNode(SshSFtp *provider, SshFilesystemNode *parent, QString path):
     QObject(parent),
-    _provider(provider),
-    _parent(parent),
-    _filename(path),
-    _expended(false)
+    m_provider(provider),
+    m_parent(parent),
+    m_filename(path),
+    m_expended(false)
 {
 #if defined(DEBUG_SSHFILESYSTEMNODE)
     qDebug() << "Create FileSystemNode " << this << " with path = " << this->path();
 #endif
-    _isdir = _provider->isDir(this->path());
-    if(_isdir)
+    m_isdir = m_provider->isDir(this->path());
+    if(m_isdir)
     {
-        _readdir.append(_provider->readdir(this->path()));
-        _readdir.removeAll(".");
-        _readdir.removeAll("..");
-        _filesize = 0;
+        m_readdir.append(m_provider->readdir(this->path()));
+        m_readdir.removeAll(".");
+        m_readdir.removeAll("..");
+        m_filesize = 0;
     }
     else
     {
-        _filesize = _provider->filesize(this->path());
+        m_filesize = m_provider->filesize(this->path());
     }
 }
 
 SshFilesystemNode *SshFilesystemNode::child(int row)
 {
-    if(!_expended) _expend();
-    if(row >= (_dirchildren.count() + _filechildren.count()) ) return nullptr;
+    if(!m_expended) _expend();
+    if(row >= (m_dirchildren.count() + m_filechildren.count()) ) return nullptr;
 
-    if(row < _dirchildren.count())
+    if(row < m_dirchildren.count())
     {
-        return _dirchildren[row];
+        return m_dirchildren[row];
     }
     else
     {
-        return _filechildren[row - _dirchildren.count()];
+        return m_filechildren[row - m_dirchildren.count()];
     }
 
 
@@ -51,19 +52,19 @@ SshFilesystemNode *SshFilesystemNode::child(int row)
 
 SshFilesystemNode *SshFilesystemNode::parent() const
 {
-    return _parent;
+    return m_parent;
 }
 
 QString SshFilesystemNode::path() const
 {
-    if(_parent) return _parent->path() + "/" + _filename;
-    else return (_filename.isEmpty())?("/"):(_filename);
+    if(m_parent) return m_parent->path() + "/" + m_filename;
+    else return (m_filename.isEmpty())?("/"):(m_filename);
 }
 
 int SshFilesystemNode::childCount() const
 {
-    if(!_isdir) return 0;
-    return _readdir.count();
+    if(!m_isdir) return 0;
+    return m_readdir.count();
 }
 
 int SshFilesystemNode::columnCount() const
@@ -73,43 +74,43 @@ int SshFilesystemNode::columnCount() const
 
 QVariant SshFilesystemNode::data(int column) const
 {
-    if(column == 0) return _filename;
+    if(column == 0) return m_filename;
     if(column == 1) {
         if(isdir()) return childCount();
-        else return _filesize;
+        else return m_filesize;
     }
     return QVariant();
 }
 
 int SshFilesystemNode::childId(const SshFilesystemNode *node) const
 {
-    if(node->isdir()) return _dirchildren.indexOf((SshFilesystemNode*)node);
-    else return _filechildren.indexOf((SshFilesystemNode*)node) + _dirchildren.count();
+    if(node->isdir()) return m_dirchildren.indexOf((SshFilesystemNode*)node);
+    else return m_filechildren.indexOf((SshFilesystemNode*)node) + m_dirchildren.count();
 }
 
 int SshFilesystemNode::row() const
 {
-    if(!_parent) return 0;
-    else return _parent->childId(this);
+    if(!m_parent) return 0;
+    else return m_parent->childId(this);
 }
 
 void SshFilesystemNode::_expend()
 {
-    if(_expended) return;
-    if(!_isdir) return;
+    if(m_expended) return;
+    if(!m_isdir) return;
 #if DEBUG_SSHFILESYSTEMNODE
     qDebug() <<  "START EXPEND " + _filename;
 #endif
-    foreach(QString item, _readdir)
+    foreach(QString item, m_readdir)
     {
-        SshFilesystemNode* child = new SshFilesystemNode(_provider, this, item);
+        SshFilesystemNode* child = new SshFilesystemNode(m_provider, this, item);
 #if DEBUG_SSHFILESYSTEMNODE
         qDebug() << "Created child " << child->path() << " is " << (child->isdir()?"dir":"file");
 #endif
-        if(child->isdir()) _dirchildren.append(child);
-        else _filechildren.append(child);
+        if(child->isdir()) m_dirchildren.append(child);
+        else m_filechildren.append(child);
     }
-    _expended = true;
+    m_expended = true;
 #if DEBUG_SSHFILESYSTEMNODE
     qDebug() <<  "END EXPEND " + _filename;
 #endif
