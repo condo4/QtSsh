@@ -281,8 +281,8 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 #endif
 
     timeout.setInterval(60*1000);
-    connect(this, SIGNAL(_connectionTerminate()), &wait, SLOT(quit()));
-    connect(&_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), [this, &wait, &failed](QAbstractSocket::SocketError err){
+    auto c1 = connect(this, SIGNAL(_connectionTerminate()), &wait, SLOT(quit()));
+    auto c2 = connect(&_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), [this, &wait, &failed](QAbstractSocket::SocketError err){
         if(err == QAbstractSocket::RemoteHostClosedError)
         {
             _errorcode = QAbstractSocket::RemoteHostClosedError;
@@ -290,7 +290,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
             wait.quit();
         }
     });
-    connect(&timeout, &QTimer::timeout, [&wait, this](){
+    auto c3 = connect(&timeout, &QTimer::timeout, [&wait, this](){
         _errorcode = LIBSSH2_ERROR_TIMEOUT;
         wait.quit();
     });
@@ -313,6 +313,9 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
             Q_UNUSED(checkHostKey);
     }
     while(_errorcode && retry--);
+    disconnect(c1);
+    disconnect(c2);
+    disconnect(c3);
     if(_errorcode || failed)
     {
         qDebug() << "WARNING : SshClient("<< _name << ") : SSH client NOT connected (" << _hostname << ":" << _port << " @" << user << ") -> " << _errorcode;
