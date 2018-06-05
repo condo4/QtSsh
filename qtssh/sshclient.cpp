@@ -282,7 +282,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 
     timeout.setInterval(60*1000);
     auto c1 = connect(this, SIGNAL(_connectionTerminate()), &wait, SLOT(quit()));
-    auto c2 = connect(&_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), [this, &wait, &failed](QAbstractSocket::SocketError err){
+    auto c2 = connect(&_socket, static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError err)>(&QAbstractSocket::error), [this, &wait, &failed](QAbstractSocket::SocketError err){
         if(err == QAbstractSocket::RemoteHostClosedError)
         {
             _errorcode = QAbstractSocket::RemoteHostClosedError;
