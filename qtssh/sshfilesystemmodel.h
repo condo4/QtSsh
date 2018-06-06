@@ -16,10 +16,15 @@ class SshFilesystemModel : public QAbstractItemModel
 
 public:
     enum Roles {
-        FileIconRole = Qt::DecorationRole,
-        FilePathRole = Qt::UserRole + 1,
-        FileNameRole = Qt::UserRole + 2,
-        FilePermissions = Qt::UserRole + 3
+        FileNameRole = Qt::UserRole + 1,
+        FilePathRole = Qt::UserRole + 2,
+        FileBaseNameRole = Qt::UserRole + 3,
+        FileSuffixRole = Qt::UserRole + 4,
+        FileSizeRole = Qt::UserRole + 5,
+        FileLastModifiedRole = Qt::UserRole + 6,
+        FileLastReadRole = Qt::UserRole +7,
+        FileIsDirRole = Qt::UserRole + 8,
+        FileUrlRole = Qt::UserRole + 9
     };
 
     SshFilesystemModel(SshSFtp *provider);
