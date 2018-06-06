@@ -164,9 +164,11 @@ void SshTunnelIn::onLocalSocketDataReceived()
     do
     {
         /* Read data from local socket */
+        wr = 0;
         len = m_tcpsocket->read(buffer.data(), buffer.size());
         if (-EAGAIN == len)
         {
+            QCoreApplication::processEvents();
             break;
         }
         else if (len < 0)
@@ -177,14 +179,13 @@ void SshTunnelIn::onLocalSocketDataReceived()
 
         do
         {
-            i = qssh2_channel_write(sshChannel, buffer.data(), static_cast<size_t>(len));
+            i = qssh2_channel_write(sshChannel, buffer.data() + wr, static_cast<size_t>(len - wr));
             if (i < 0)
             {
                 qDebug() << "ERROR : " << m_name << " remote failed to write (" << i << ")";
                 return;
             }
             qssh2_channel_flush(sshChannel);
-            sshClient->loopWhileBytesWritten(1000000);
             wr += i;
         } while(wr < len);
     }
