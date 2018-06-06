@@ -5,20 +5,9 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include "sshchannel.h"
+#include "sshkey.h"
 
 Q_DECLARE_LOGGING_CATEGORY(sshclient)
-
-class SshKey {
-    public:
-        enum Type {
-            UnknownType,
-            Rsa,
-            Dss
-        };
-        QByteArray hash;
-        QByteArray key;
-        Type       type;
-};
 
 class  SshClient : public QObject {
     Q_OBJECT
