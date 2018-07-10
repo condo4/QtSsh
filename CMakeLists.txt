@@ -22,7 +22,10 @@ else()
 endif()
 
 add_subdirectory(qtssh)
+
+if (WithExamples)
 add_subdirectory(examples)
+endif()
 
 # create Config.cmake
 configure_file(config.cmake.in "${CMAKE_BINARY_DIR}/${PROJECT_NAME}Config.cmake" @ONLY)
