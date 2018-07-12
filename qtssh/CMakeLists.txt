@@ -29,6 +29,7 @@ set(SOURCES
 	sshprocess.cpp
 	sshchannel.cpp
 	sshclient.cpp
+	sshkey.cpp
 	sshtunneloutsrv.cpp
 	sshscpsend.cpp
 	sshsftp.cpp
