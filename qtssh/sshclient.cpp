@@ -197,7 +197,7 @@ QString SshClient::sendFile(QString src, QString dst)
 int SshClient::connectToHost(const QString & user, const QString & host, quint16 port)
 {
     if(m_sshConnected) {
-        qCCritical(sshclient) << m_name << ": Allways connected";
+        qCCritical(sshclient) << m_name << ": Allready connected";
         return 0;
     }
     QEventLoop wait;
