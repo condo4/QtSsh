@@ -17,7 +17,7 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString por
     m_callDepth(0)
 {
 #if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOut::SshTunnelOut() " << _name;
+    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOut::SshTunnelOut() " << m_name;
 #endif
 
     m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(), "127.0.0.1", m_port);
@@ -31,7 +31,7 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString por
 #if defined(DEBUG_SSHCHANNEL)
         else
         {
-            qDebug() << "DEBUG: Can't connect direct tcpip " << ret << " for port " << _port;
+            qDebug() << "DEBUG: Can't connect direct tcpip " << ret << " for port " << m_port;
         }
 #endif
         return;
@@ -45,7 +45,7 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString por
     m_opened = true;
 
 #if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOut::SshTunnelOut() OK " << _name;
+    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOut::SshTunnelOut() OK " << m_name;
 #endif
     tcpDataReceived();
 }
@@ -53,7 +53,7 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString por
 SshTunnelOut::~SshTunnelOut()
 {
 #if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelOut : ~SshTunnelOut() " << _name;
+    qDebug() << "DEBUG : SshTunnelOut : ~SshTunnelOut() " << m_name;
 #endif
     _stopSocket();
     _stopChannel();

@@ -31,7 +31,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, QString port_identifier, quint16 por
     }
 
 #if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelIn(" << _name << ") : try reverse forwarding port " << _port << " from " << bind;
+    qDebug() << "DEBUG : SshTunnelIn(" << m_name << ") : try reverse forwarding port " << m_port << " from " << bind;
 #endif
 
     int bindport = m_localTcpPort;
@@ -56,7 +56,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, QString port_identifier, quint16 por
 
 
 #if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelIn(" << _name << ":" << _port << " @" << this <<") : onReverseChannelAccepted()";
+    qDebug() << "DEBUG : SshTunnelIn(" << m_name << ":" << m_port << " @" << this <<") : onReverseChannelAccepted()";
 #endif
 
     m_tcpsocket = new QTcpSocket(this);
@@ -99,7 +99,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, QString port_identifier, quint16 por
         QObject::connect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onLocalSocketError(QAbstractSocket::SocketError)));
 
     #if defined(DEBUG_SSHCHANNEL)
-        qDebug() << "DEBUG : SshTunnelIn(" << _name << ") : onReverseChannelAccepted( 4)" << _tcpsocket;
+        qDebug() << "DEBUG : SshTunnelIn(" << m_name << ") : onReverseChannelAccepted( 4)" << m_tcpsocket;
     #endif
         m_valid = true;
     }
@@ -130,7 +130,7 @@ void SshTunnelIn::onLocalSocketDisconnected()
             qssh2_channel_send_eof(sshChannel);
         }
 #if defined(DEBUG_SSHCHANNEL)
-        qDebug() << "DEBUG : SshTunnelIn(" << _name << ") : tcp reverse socket disconnected !";
+        qDebug() << "DEBUG : SshTunnelIn(" << m_name << ") : tcp reverse socket disconnected !";
 #endif
     }
 }
