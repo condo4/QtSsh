@@ -2,7 +2,11 @@
 
 #include "sshchannel.h"
 #include <QAbstractSocket>
+#include <QLoggingCategory>
+
 class QTcpSocket;
+
+Q_DECLARE_LOGGING_CATEGORY(logsshtunnelin)
 
 class SshTunnelIn : public SshChannel
 {
