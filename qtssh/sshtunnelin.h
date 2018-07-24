@@ -31,6 +31,7 @@ private slots:
     void onLocalSocketDisconnected();
     void onLocalSocketError(QAbstractSocket::SocketError error);
     void onLocalSocketDataReceived();
+    void onLocalDisconnection();
 
     virtual void sshDataReceived();
 };

@@ -78,7 +78,7 @@ void SshTunnelIn::onLocalSocketError(QAbstractSocket::SocketError error)
     {
         if (m_tcpsocket != nullptr)
         {
-            m_tcpsocket->disconnectFromHost();
+            onLocalDisconnection();
         }
        return;
     }
@@ -128,6 +128,50 @@ void SshTunnelIn::onLocalSocketDataReceived()
         } while(wr < len);
     }
     while(m_tcpsocket->bytesAvailable() > 0);
+}
+
+void SshTunnelIn::onLocalDisconnection()
+{
+    qCDebug(logsshtunnelin, "SshTunnelIn::onLocalDisconnection()");
+    QObject::disconnect(m_tcpsocket, &QTcpSocket::disconnected, this, &SshTunnelIn::onLocalSocketDisconnected);
+    QObject::disconnect(m_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
+    QObject::disconnect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onLocalSocketError(QAbstractSocket::SocketError)));
+
+    QEventLoop wait;
+    QTimer timeout;
+    bool disconnected = false;
+    m_tcpsocket->flush();
+    auto con1 = QObject::connect(m_tcpsocket, &QTcpSocket::disconnected, [&disconnected, &wait]()
+    {
+        qCDebug(logsshtunnelin, "Socket Disconnected");
+        disconnected = true;
+        wait.quit();
+    });
+    auto con2 = QObject::connect(&timeout, &QTimer::timeout, [&disconnected, &wait]()
+    {
+        qCWarning(logsshtunnelin, "WARNING : TunnelIn() : Socket Disconnection Timeout");
+        disconnected = false;
+        wait.quit();
+    });
+    auto con3 = QObject::connect(m_tcpsocket, static_cast<void (QTcpSocket::*)(QAbstractSocket::SocketError)>(&QTcpSocket::error), [&disconnected, &wait]()
+    {
+        qCWarning(logsshtunnelin, "WARNING : TunnelIn() : Socket Disconnection Error");
+        disconnected = false;
+        wait.quit();
+    });
+    timeout.start(10000); /* Timeout 10s */
+    m_tcpsocket->disconnectFromHost();
+    if(!disconnected)
+        wait.exec();
+    QObject::disconnect(con1);
+    QObject::disconnect(con2);
+    QObject::disconnect(con3);
+    m_tcpsocket->close();
+    m_tcpsocket->deleteLater();
+    m_tcpsocket = nullptr;
+
+    libssh2_channel_free(sshChannel);
+    sshChannel = nullptr;
 }
 
 void SshTunnelIn::sshDataReceived()
@@ -195,8 +239,7 @@ void SshTunnelIn::sshDataReceived()
         else
         {
             qCWarning(logsshtunnelin, "Something wrong on connection");
-            delete m_tcpsocket;
-            m_tcpsocket = nullptr;
+            onLocalDisconnection();
             goto exit;
         }
     }
@@ -237,42 +280,7 @@ void SshTunnelIn::sshDataReceived()
         qCDebug(logsshtunnelin, "Disconnect channel");
         if(m_tcpsocket)
         {
-            QObject::disconnect(m_tcpsocket, &QTcpSocket::disconnected, this, &SshTunnelIn::onLocalSocketDisconnected);
-            QEventLoop wait;
-            QTimer timeout;
-            bool disconnected = false;
-            m_tcpsocket->flush();
-            auto con1 = QObject::connect(m_tcpsocket, &QTcpSocket::disconnected, [&disconnected, &wait]()
-            {
-                qCDebug(logsshtunnelin) << "Socket Disconnected";
-                disconnected = true;
-                wait.quit();
-            });
-            auto con2 = QObject::connect(&timeout, &QTimer::timeout, [&disconnected, &wait]()
-            {
-                qCWarning(logsshtunnelin) << "WARNING : TunnelIn() : Socket Disconnection Timeout";
-                disconnected = false;
-                wait.quit();
-            });
-            auto con3 = QObject::connect(m_tcpsocket, static_cast<void (QTcpSocket::*)(QAbstractSocket::SocketError)>(&QTcpSocket::error), [&disconnected, &wait]()
-            {
-                qCWarning(logsshtunnelin) << "WARNING : TunnelIn() : Socket Disconnection Error";
-                disconnected = false;
-                wait.quit();
-            });
-            timeout.start(10000); /* Timeout 10s */
-            m_tcpsocket->disconnectFromHost();
-            if(!disconnected)
-                wait.exec();
-            QObject::disconnect(con1);
-            QObject::disconnect(con2);
-            QObject::disconnect(con3);
-            m_tcpsocket->close();
-            delete m_tcpsocket;
-            m_tcpsocket = nullptr;
-
-            libssh2_channel_free(sshChannel);
-            sshChannel = nullptr;
+            onLocalDisconnection();
         }
     }
 
