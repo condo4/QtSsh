@@ -144,6 +144,7 @@ quint16 SshClient::openLocalPortForwarding(QString servicename, quint16 port, qu
     SshTunnelIn *tunnel = new SshTunnelIn(this, servicename, port, bind);
     if(!tunnel->valid())
     {
+        qCWarning(sshclient) << "SshTunnelIn creation failed";
         return 0;
     }
     m_channels.insert(servicename, tunnel);
