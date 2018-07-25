@@ -11,14 +11,17 @@ Q_LOGGING_CATEGORY(logsshtunnelin, "ssh.tunnelin", QtWarningMsg)
 #define BUFFER_LEN (16384)
 
 
-SshTunnelIn::SshTunnelIn(SshClient *client, QString port_identifier, quint16 port, quint16 bind):
-    SshChannel(client),
-    m_localTcpPort(bind),
-    m_sshListener(nullptr),
-    m_port(port),
-    m_name(port_identifier),
-    m_tcpsocket(nullptr),
-    m_valid(false)
+SshTunnelIn::SshTunnelIn(SshClient *client, QString port_identifier, quint16 port, quint16 bind)
+    : SshChannel(client)
+    , m_localTcpPort(bind)
+    , m_sshListener(nullptr)
+    , m_port(port)
+    , m_name(port_identifier)
+    , m_tcpsocket(nullptr)
+    , m_valid(false)
+    , m_workinprogress(false)
+    , m_needToDisconnect(false)
+    , m_needToSendEOF(false)
 {
     if(bind == 0)
     {
@@ -61,44 +64,65 @@ quint16 SshTunnelIn::localPort()
 
 void SshTunnelIn::onLocalSocketDisconnected()
 {
-    qCDebug(logsshtunnelin, "SshTunnelIn::onLocalSocketDisconnected()");
+    if(m_workinprogress) {
+        qCDebug(logsshtunnelin, "SshTunnelIn::onLocalSocketDisconnected() postponed");
+        m_needToDisconnect = true;
+        return;
+    }
+
+    qCDebug(logsshtunnelin, "SshTunnelIn::onLocalSocketDisconnected() Do Work");
+    m_needToDisconnect = false;
     if (m_tcpsocket != nullptr)
     {
+        QObject::connect(m_tcpsocket, &QObject::destroyed, [this](){ m_tcpsocket = nullptr; });
+        m_tcpsocket->deleteLater();
+
         if (sshChannel != nullptr)
         {
-            qssh2_channel_send_eof(sshChannel);
+            qCDebug(logsshtunnelin, "SshTunnelIn::onLocalSocketDisconnected() Free Channel");
+            qssh2_channel_flush(sshChannel);
+            qssh2_channel_free(sshChannel);
+            sshChannel = nullptr;
         }
-        qCDebug(logsshtunnelin, "Tcp reverse socket disconnected ! (%s)", qPrintable(m_name));
     }
+}
+
+void SshTunnelIn::onLocalSocketConnected()
+{
+    qCDebug(logsshtunnelin, "-> forward socket connected and ready");
+    QObject::connect(m_tcpsocket, &QTcpSocket::disconnected, this, &SshTunnelIn::onLocalSocketDisconnected, Qt::QueuedConnection);
+    QObject::connect(m_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
+    QObject::connect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onLocalSocketError(QAbstractSocket::SocketError)));
+
+    sshDataReceived();
 }
 
 void SshTunnelIn::onLocalSocketError(QAbstractSocket::SocketError error)
 {
     if (error == QAbstractSocket::RemoteHostClosedError)
     {
-        if (m_tcpsocket != nullptr)
+        if(m_workinprogress)
         {
-            onLocalDisconnection();
+            m_needToSendEOF = true;
         }
-       return;
+        else
+        {
+            qCDebug(logsshtunnelin, "SshTunnelIn::onLocalSocketError() SEND EOF");
+            qssh2_channel_send_eof(sshChannel);
+        }
+        return;
     }
     qCWarning(logsshtunnelin, "ERROR : SshTunnelIn(%s) : redirection reverse socket error=%i", qPrintable(m_name), error);
 }
 
 void SshTunnelIn::onLocalSocketDataReceived()
 {
-    qCDebug(logsshtunnelin, "SshTunnelIn::onLocalSocketDataReceived()");
+    QObject::disconnect(m_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
     QByteArray buffer(BUFFER_LEN, 0);
     qint64 len = 0;
     qint64 wr  = 0;
     qint64 i   = 0;
-
-    if (m_tcpsocket == nullptr)
-    {
-        qCWarning(logsshtunnelin, "WARNING : Channel %s : received data when busy",qPrintable(m_name));
-        return;
-    }
-
+    m_workinprogress = true;
     do
     {
         /* Read data from local socket */
@@ -112,7 +136,7 @@ void SshTunnelIn::onLocalSocketDataReceived()
         else if (len < 0)
         {
             qCWarning(logsshtunnelin, "ERROR : %s local failed to read (%lli)", qPrintable(m_name), len);
-            return;
+            goto exit2;
         }
 
         do
@@ -121,62 +145,29 @@ void SshTunnelIn::onLocalSocketDataReceived()
             if (i < 0)
             {
                 qCWarning(logsshtunnelin, "ERROR : %s  remote failed to write (%lli)", qPrintable(m_name), i);
-                return;
+                goto exit2;
             }
-            qssh2_channel_flush(sshChannel);
             wr += i;
         } while(wr < len);
     }
     while(m_tcpsocket->bytesAvailable() > 0);
+
+exit2:
+    m_workinprogress = false;
+    if(m_needToSendEOF) {
+        qssh2_channel_send_eof(sshChannel);
+        m_needToSendEOF = false;
+    }
+    if(m_needToDisconnect) onLocalSocketDisconnected();
+    QObject::connect(m_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
 }
 
-void SshTunnelIn::onLocalDisconnection()
-{
-    qCDebug(logsshtunnelin, "SshTunnelIn::onLocalDisconnection()");
-    QObject::disconnect(m_tcpsocket, &QTcpSocket::disconnected, this, &SshTunnelIn::onLocalSocketDisconnected);
-    QObject::disconnect(m_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
-    QObject::disconnect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onLocalSocketError(QAbstractSocket::SocketError)));
 
-    QEventLoop wait;
-    QTimer timeout;
-    bool disconnected = false;
-    m_tcpsocket->flush();
-    auto con1 = QObject::connect(m_tcpsocket, &QTcpSocket::disconnected, [&disconnected, &wait]()
-    {
-        qCDebug(logsshtunnelin, "Socket Disconnected");
-        disconnected = true;
-        wait.quit();
-    });
-    auto con2 = QObject::connect(&timeout, &QTimer::timeout, [&disconnected, &wait]()
-    {
-        qCWarning(logsshtunnelin, "WARNING : TunnelIn() : Socket Disconnection Timeout");
-        disconnected = false;
-        wait.quit();
-    });
-    auto con3 = QObject::connect(m_tcpsocket, static_cast<void (QTcpSocket::*)(QAbstractSocket::SocketError)>(&QTcpSocket::error), [&disconnected, &wait]()
-    {
-        qCWarning(logsshtunnelin, "WARNING : TunnelIn() : Socket Disconnection Error");
-        disconnected = false;
-        wait.quit();
-    });
-    timeout.start(10000); /* Timeout 10s */
-    m_tcpsocket->disconnectFromHost();
-    if(!disconnected)
-        wait.exec();
-    QObject::disconnect(con1);
-    QObject::disconnect(con2);
-    QObject::disconnect(con3);
-    m_tcpsocket->close();
-    m_tcpsocket->deleteLater();
-    m_tcpsocket = nullptr;
-
-    libssh2_channel_free(sshChannel);
-    sshChannel = nullptr;
-}
 
 void SshTunnelIn::sshDataReceived()
 {
     QObject::disconnect(sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived);
+    m_workinprogress = true;
     QByteArray buffer(BUFFER_LEN, 0);
     ssize_t len,wr;
     qint64 i;
@@ -184,6 +175,8 @@ void SshTunnelIn::sshDataReceived()
 
     if (sshChannel == nullptr)
     {
+        if(m_tcpsocket) qCWarning(logsshtunnelin, "ERROR: tcpsocet allready here");
+
         sshChannel = libssh2_channel_forward_accept(m_sshListener);
         if(sshChannel == nullptr)
         {
@@ -193,55 +186,16 @@ void SshTunnelIn::sshDataReceived()
                 goto exit;
             }
         }
-        qCDebug(logsshtunnelin, "Accept forward connection");
-    }
+        qCDebug(logsshtunnelin, "sshDataReceived() NEW CONNECTION Create channel");
+        qCDebug(logsshtunnelin, "-> forward connection accepted, now create forward socket");
 
-    if(m_tcpsocket == nullptr)
-    {
-        qCDebug(logsshtunnelin, "Create forward socket");
         m_tcpsocket = new QTcpSocket(this);
         m_tcpsocket->setReadBufferSize(16384);
+        QObject::connect(m_tcpsocket, &QTcpSocket::connected, this, &SshTunnelIn::onLocalSocketConnected);
 
-        QEventLoop wait;
-        QTimer timeout;
-        bool connected;
-        auto con1 = QObject::connect(m_tcpsocket, &QTcpSocket::connected, [&connected, &wait]()
-        {
-            qCDebug(logsshtunnelin, "Forward socket Connected");
-            connected = true;
-            wait.quit();
-        });
-        auto con2 = QObject::connect(&timeout, &QTimer::timeout, [&connected, &wait]()
-        {
-            qCWarning(logsshtunnelin, "Forward socket Connection Timeout");
-            connected = false;
-            wait.quit();
-        });
-        auto con3 = QObject::connect(m_tcpsocket, static_cast<void (QTcpSocket::*)(QAbstractSocket::SocketError)>(&QTcpSocket::error), [&connected, &wait]()
-        {
-            qCWarning(logsshtunnelin, "Forward socket Connection Error");
-            connected = false;
-            wait.quit();
-        });
-        timeout.start(10000); /* Timeout 10s */
+        qCDebug(logsshtunnelin, "-> try to connect forward socket");
         m_tcpsocket->connectToHost(QHostAddress("127.0.0.1"), m_localTcpPort, QIODevice::ReadWrite);
-        wait.exec();
-        QObject::disconnect(con1);
-        QObject::disconnect(con2);
-        QObject::disconnect(con3);
-
-        if(connected)
-        {
-            QObject::connect(m_tcpsocket, &QTcpSocket::disconnected, this, &SshTunnelIn::onLocalSocketDisconnected);
-            QObject::connect(m_tcpsocket, &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
-            QObject::connect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onLocalSocketError(QAbstractSocket::SocketError)));
-        }
-        else
-        {
-            qCWarning(logsshtunnelin, "Something wrong on connection");
-            onLocalDisconnection();
-            goto exit;
-        }
+        goto exit;
     }
 
     do
@@ -270,6 +224,7 @@ void SshTunnelIn::sshDataReceived()
                     goto exit;
                 }
                 wr += i;
+                m_tcpsocket->flush();
             }
         }
     }
@@ -277,13 +232,12 @@ void SshTunnelIn::sshDataReceived()
 
     if (qssh2_channel_eof(sshChannel))
     {
-        qCDebug(logsshtunnelin, "Disconnect channel");
-        if(m_tcpsocket)
-        {
-            onLocalDisconnection();
-        }
+        qCDebug(logsshtunnelin, "-> Received EOF");
+        m_tcpsocket->disconnectFromHost();
     }
 
 exit:
+    m_workinprogress = false;
+    if(m_needToDisconnect) onLocalSocketDisconnected();
     QObject::connect(sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived, Qt::QueuedConnection);
 }

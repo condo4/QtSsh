@@ -19,6 +19,9 @@ private:
     QString m_name;
     QTcpSocket *m_tcpsocket;
     bool m_valid;
+    bool m_workinprogress;
+    bool m_needToDisconnect;
+    bool m_needToSendEOF;
 
 public:
     explicit SshTunnelIn(SshClient * client, QString port_identifier, quint16 port, quint16 bind);
@@ -29,9 +32,9 @@ public:
 
 private slots:
     void onLocalSocketDisconnected();
+    void onLocalSocketConnected();
     void onLocalSocketError(QAbstractSocket::SocketError error);
     void onLocalSocketDataReceived();
-    void onLocalDisconnection();
 
     virtual void sshDataReceived();
 };
