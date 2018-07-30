@@ -41,7 +41,7 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, QString por
     QObject::connect(m_client,    &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived, Qt::QueuedConnection);
     QObject::connect(m_tcpsocket, &QTcpSocket::readyRead,      this, &SshTunnelOut::tcpDataReceived);
     QObject::connect(m_tcpsocket, &QTcpSocket::disconnected,   this, &SshTunnelOut::tcpDisconnected);
-    QObject::connect(m_tcpsocket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), this, &SshTunnelOut::displayError);
+    QObject::connect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
 
     m_opened = true;
 
