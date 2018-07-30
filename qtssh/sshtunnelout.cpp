@@ -1,5 +1,6 @@
 #include "sshtunnelout.h"
 #include "sshclient.h"
+#include <errno.h>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QEventLoop>
@@ -137,14 +138,11 @@ void SshTunnelOut::tcpDataReceived()
     {
         /* Read data from local socket */
         len = m_tcpsocket->read(m_dataSocket.data(), m_dataSocket.size());
-#ifndef ANDROID
         if (-EAGAIN == len)
         {
             break;
         }
-        else
-#endif
-        if (len < 0)
+        else if (len < 0)
         {
             qDebug() << "ERROR : " << m_name << " local failed to read (" << len << ")";
             return;
