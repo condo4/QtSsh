@@ -68,7 +68,7 @@ QString SshTunnelOut::name() const
 void SshTunnelOut::sshDataReceived()
 {
     ssize_t len = 0,wr = 0;
-    int i;
+    qint64 i;
 
     do
     {
@@ -78,7 +78,7 @@ void SshTunnelOut::sshDataReceived()
          * beacause we don't need to ProcessEvent to be locked
          * We can return, we will be recall at the next sshDataReceived
          */
-        len = libssh2_channel_read(m_sshChannel, m_dataSsh.data(), m_dataSsh.size());
+        len = static_cast<ssize_t>(libssh2_channel_read(m_sshChannel, m_dataSsh.data(), static_cast<unsigned int>(m_dataSsh.size())));
         if(len == LIBSSH2_ERROR_EAGAIN)
         {
             return;
@@ -150,7 +150,7 @@ void SshTunnelOut::tcpDataReceived()
 
         do
         {
-            i = qssh2_channel_write(m_sshChannel, m_dataSocket.data(), static_cast<quint64>(len));
+            i = qssh2_channel_write(m_sshChannel, m_dataSocket.data(), static_cast<size_t>(len));
             if (i < 0)
             {
                 qDebug() << "ERROR : " << m_name << " remote failed to write (" << i << ")";

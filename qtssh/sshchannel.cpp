@@ -33,21 +33,21 @@ void SshChannel::stopChannel()
 
     if(ret)
     {
-        qCDebug(sshchannel) << "SshChannel() : Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
+        qCDebug(sshchannel, "Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND");
         return;
     }
 
     ret = qssh2_channel_wait_closed(sshChannel);
     if(ret)
     {
-        qCDebug(sshchannel) << "SshChannel() : Failed to channel_wait_closed";
+        qCDebug(sshchannel, "Failed to channel_wait_closed");
         return;
     }
 
     ret = qssh2_channel_free(sshChannel);
     if(ret)
     {
-        qCDebug(sshchannel) << "SshChannel() : Failed to channel_free";
+        qCDebug(sshchannel, "Failed to channel_free");
         return;
     }
     sshChannel = nullptr;

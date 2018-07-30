@@ -9,7 +9,10 @@ SshScpSend::SshScpSend(SshClient *client):
 
 }
 
+#if !defined(PAGE_SIZE)
 #define PAGE_SIZE (4*1024)
+#endif
+
 QString SshScpSend::send(QString source, QString dest)
 {
     struct stat fileinfo;
