@@ -66,6 +66,7 @@ inline int qssh2_session_handshake(LIBSSH2_SESSION *session, libssh2_socket_t so
     return ret;
 }
 
+/* Non-Blocking async functions */
 inline char * qssh2_userauth_list(LIBSSH2_SESSION *session, const char *username, unsigned int username_len)
 {
     char *cret = nullptr;
@@ -247,6 +248,31 @@ inline LIBSSH2_CHANNEL * qssh2_channel_open(LIBSSH2_SESSION *session)
     }
     return cret;
 }
+
+#include <qdebug.h>
+inline LIBSSH2_CHANNEL * qssh2_scp_recv2(LIBSSH2_SESSION *session, const char *path, struct stat *sb)
+{
+    LIBSSH2_CHANNEL *cret = nullptr;
+
+    while(cret == nullptr)
+    {
+        int ret;
+
+        cret = libssh2_scp_recv2(session, path, sb);
+        if(cret == nullptr)
+        {
+            ret = libssh2_session_last_error(session, nullptr, nullptr, 0);
+            if(ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                QCoreApplication::processEvents();
+                continue;
+            }
+        }
+        break;
+    }
+    return cret;
+}
+
 
 inline LIBSSH2_CHANNEL * qssh2_scp_send64(LIBSSH2_SESSION *session, const char *path, int mode, libssh2_int64_t size, time_t mtime, time_t atime)
 {

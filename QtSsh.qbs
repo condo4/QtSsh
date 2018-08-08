@@ -32,7 +32,9 @@ Product {
         "qtssh/sshsftp.cpp",
         "qtssh/sshfilesystemmodel.cpp",
         "qtssh/sshfilesystemnode.cpp",
-        "qtssh/sshkey.cpp"
+        "qtssh/sshkey.cpp",
+        "qtssh/sshscpget.cpp",
+        "qtssh/sshscpget.h"
     ]
 
     Export {

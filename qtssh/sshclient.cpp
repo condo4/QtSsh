@@ -447,6 +447,11 @@ QString SshClient::banner()
     return QString(qssh2_session_banner_get(m_session));
 }
 
+void SshClient::waitSocket()
+{
+    m_socket.waitForReadyRead();
+}
+
 
 void SshClient::_tcperror(QAbstractSocket::SocketError err)
 {

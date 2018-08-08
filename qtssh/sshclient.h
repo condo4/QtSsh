@@ -55,6 +55,7 @@ public slots:
     bool saveKnownHosts(const QString &file);
     bool addKnownHost  (const QString &hostname, const SshKey &key);
     QString banner();
+    void waitSocket();
 
 public slots:
 
