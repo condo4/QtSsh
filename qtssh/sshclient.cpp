@@ -57,6 +57,7 @@ SshClient::SshClient(QString name, QObject * parent):
     m_knownHosts(nullptr),
     m_name(name),
     m_socket(this),
+    m_port(0),
     m_errorcode(0),
     m_sshConnected(false),
     m_errorMessage(QString()),
@@ -179,10 +180,7 @@ QString SshClient::runCommand(QString command)
 {
     QString res;
     SshProcess *sshProcess = new SshProcess(this);
-    if(sshProcess != nullptr)
-    {
-        res = sshProcess->runCommand(command);
-    }
+    res = sshProcess->runCommand(command);
     return res;
 }
 

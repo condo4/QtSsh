@@ -5,7 +5,9 @@
 Q_LOGGING_CATEGORY(sshchannel, "ssh.channel", QtWarningMsg)
 
 SshChannel::SshChannel(QObject *client):
-    QObject(client)
+    QObject(client),
+    sshChannel(nullptr),
+    sshClient(nullptr)
 {
 
 }

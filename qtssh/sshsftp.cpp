@@ -48,6 +48,7 @@ QString SshSFtp::send(QString source, QString dest)
             if(!sftpfile)
             {
                 qDebug() << "ERROR : SSH error " << rc;
+                fclose(local);
                 return "";
             }
         }
@@ -133,7 +134,8 @@ bool SshSFtp::get(QString source, QString dest, bool override)
             if(!sftpfile)
             {
                 qDebug() << "ERROR : SSH error " << rc;
-                return "";
+                fclose(tempstorage);
+                return false;
             }
         }
     } while (!sftpfile);
