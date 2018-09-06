@@ -90,6 +90,7 @@ bool SshSFtp::get(QString source, QString dest, bool override)
 {
     QFileInfo src(source);
     LIBSSH2_SFTP_HANDLE *sftpfile;
+    int retry = 5;
     QByteArray buffer(1024 * 100, 0);
     FILE *tempstorage;
     int rc;
@@ -133,9 +134,16 @@ bool SshSFtp::get(QString source, QString dest, bool override)
         {
             if(!sftpfile)
             {
-                qDebug() << "ERROR : SSH error " << rc;
-                fclose(tempstorage);
-                return false;
+                if(retry-- > 0)
+                {
+                    m_waitData(2000);
+                }
+                else
+                {
+                    qDebug() << "ERROR : SSH error " << rc;
+                    fclose(tempstorage);
+                    return false;
+                }
             }
         }
     } while (!sftpfile);
