@@ -9,7 +9,9 @@ SshScpGet::SshScpGet(SshClient *client):
 
 }
 
+#ifndef PAGE_SIZE
 #define PAGE_SIZE (4*1024)
+#endif
 QString SshScpGet::get(QString source, QString dest)
 {
     libssh2_struct_stat_size got = 0;
@@ -40,7 +42,7 @@ QString SshScpGet::get(QString source, QString dest)
                 qsource.write(mem, rc);
             }
             else if(rc < 0) {
-                qWarning("libssh2_channel_read() failed: %li\n", rc);
+                qWarning("libssh2_channel_read() failed: %zd\n", rc);
                 break;
             }
             got += rc;
