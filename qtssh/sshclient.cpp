@@ -304,19 +304,14 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         }
         else if(methodes.contains("password"))
         {
-            qCDebug(sshclient, "%s: Trying authentication by password", qPrintable(m_name));
-
-            const char *username = m_username.toStdString().c_str();
-            unsigned int usernameLen = static_cast<unsigned int>(m_username.length());
-            const char *passphrase = m_passphrase.toStdString().c_str();
-            unsigned int passphraseLen = static_cast<unsigned int>(m_passphrase.length());
-
+            QByteArray username = m_username.toLatin1();
+            QByteArray passphrase = m_passphrase.toLatin1();
 
             ret = qssh2_userauth_password_ex(m_session,
-                                                     username,
-                                                     usernameLen,
-                                                     passphrase,
-                                                     passphraseLen);
+                                                     username.data(),
+                                                     username.length(),
+                                                     passphrase.data(),
+                                                     passphrase.length());
             if(ret)
             {
                 qCDebug(sshclient, "%s: Failed to userauth_password: %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));
