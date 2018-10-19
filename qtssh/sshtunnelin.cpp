@@ -2,9 +2,8 @@
 #include "sshclient.h"
 #include <QHostAddress>
 #include <QTcpSocket>
-#include "errno.h"
-
 #include <QEventLoop>
+#include <cerrno>
 
 Q_LOGGING_CATEGORY(logsshtunnelin, "ssh.tunnelin", QtWarningMsg)
 

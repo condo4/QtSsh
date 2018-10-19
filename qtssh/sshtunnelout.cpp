@@ -1,9 +1,9 @@
 #include "sshtunnelout.h"
 #include "sshclient.h"
-#include <errno.h>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QEventLoop>
+#include <cerrno>
 
 SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QString &port_identifier, quint16 port, QObject *parent):
     QObject(parent),

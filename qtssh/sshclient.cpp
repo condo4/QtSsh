@@ -9,7 +9,7 @@
 #include "sshprocess.h"
 #include "sshscpsend.h"
 #include "sshsftp.h"
-#include "errno.h"
+#include "cerrno"
 
 Q_LOGGING_CATEGORY(sshclient, "ssh.client", QtWarningMsg)
 
