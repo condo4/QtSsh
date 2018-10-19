@@ -132,7 +132,7 @@ void SshTunnelIn::onLocalSocketDataReceived()
             QCoreApplication::processEvents();
             break;
         }
-        else if (len < 0)
+        if (len < 0)
         {
             qCWarning(logsshtunnelin, "ERROR : %s local failed to read (%lli)", qPrintable(m_name), len);
             goto exit2;

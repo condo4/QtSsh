@@ -6,8 +6,3 @@ SshKey::SshKey(QObject *parent)
 {
 
 }
-
-SshKey::~SshKey()
-{
-
-}

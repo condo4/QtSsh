@@ -4,9 +4,8 @@
 #include "sshsftp.h"
 #include "sshfilesystemnode.h"
 
-SshFilesystemModel::SshFilesystemModel(SshSFtp *provider):
-    QAbstractItemModel(),
-    m_provider(provider)
+SshFilesystemModel::SshFilesystemModel(SshSFtp *provider)
+    :  m_provider(provider)
 {
     m_rootItem = new SshFilesystemNode(m_provider, nullptr, "/");
     m_roles.insert(0, "fileName");
@@ -28,8 +27,8 @@ QModelIndex SshFilesystemModel::index(int row, int column, const QModelIndex &pa
     SshFilesystemNode *childItem = parentItem->child(row);
     if (childItem)
         return createIndex(row, column, childItem);
-    else
-        return QModelIndex();
+
+    return QModelIndex();
 }
 
 QModelIndex SshFilesystemModel::parent(const QModelIndex &index) const
@@ -64,8 +63,8 @@ int SshFilesystemModel::columnCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return static_cast<SshFilesystemNode*>(parent.internalPointer())->columnCount();
-    else
-        return m_rootItem->columnCount();
+
+    return m_rootItem->columnCount();
 }
 
 QVariant SshFilesystemModel::data(const QModelIndex &index, int role) const

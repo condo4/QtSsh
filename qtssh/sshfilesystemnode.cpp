@@ -13,7 +13,7 @@ SshFilesystemNode::SshFilesystemNode(SshSFtp *provider, SshFilesystemNode *paren
     QObject(parent),
     m_provider(provider),
     m_parent(parent),
-    m_filename(path),
+    m_filename(std::move(path)),
     m_expended(false)
 {
 #if defined(DEBUG_SSHFILESYSTEMNODE)
@@ -42,12 +42,7 @@ SshFilesystemNode *SshFilesystemNode::child(int row)
     {
         return m_dirchildren[row];
     }
-    else
-    {
-        return m_filechildren[row - m_dirchildren.count()];
-    }
-
-
+    return m_filechildren[row - m_dirchildren.count()];
 }
 
 SshFilesystemNode *SshFilesystemNode::parent() const
@@ -58,7 +53,7 @@ SshFilesystemNode *SshFilesystemNode::parent() const
 QString SshFilesystemNode::path() const
 {
     if(m_parent) return m_parent->path() + "/" + m_filename;
-    else return (m_filename.isEmpty())?("/"):(m_filename);
+    return (m_filename.isEmpty())?("/"):(m_filename);
 }
 
 int SshFilesystemNode::childCount() const
@@ -77,7 +72,7 @@ QVariant SshFilesystemNode::data(int column) const
     if(column == 0) return m_filename;
     if(column == 1) {
         if(isdir()) return childCount();
-        else return m_filesize;
+        return m_filesize;
     }
     return QVariant();
 }
@@ -85,13 +80,13 @@ QVariant SshFilesystemNode::data(int column) const
 int SshFilesystemNode::childId(const SshFilesystemNode *node) const
 {
     if(node->isdir()) return m_dirchildren.indexOf((SshFilesystemNode*)node);
-    else return m_filechildren.indexOf((SshFilesystemNode*)node) + m_dirchildren.count();
+    return m_filechildren.indexOf((SshFilesystemNode*)node) + m_dirchildren.count();
 }
 
 int SshFilesystemNode::row() const
 {
     if(!m_parent) return 0;
-    else return m_parent->childId(this);
+    return m_parent->childId(this);
 }
 
 void SshFilesystemNode::_expend()

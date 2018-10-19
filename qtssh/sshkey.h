@@ -9,7 +9,7 @@ class SshKey : public QObject
 
 public:
     explicit SshKey(QObject *parent = nullptr);
-    virtual ~SshKey();
+    virtual ~SshKey() = default;
 
     enum Type {
         UnknownType,

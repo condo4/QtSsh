@@ -356,9 +356,11 @@ void SshClient::disconnectFromHost()
     QEventLoop wait;
 
     /* Close all Opened Channels */
-    foreach(QString name, m_channels.keys()){
-        closePortForwarding(name);
+    for(SshChannel *ch: m_channels)
+    {
+        delete ch;
     }
+    m_channels.clear();
 
     m_keepalive.stop();
     emit sshReset();
@@ -475,9 +477,11 @@ void SshClient::_sendKeepAlive()
 void SshClient::askDisconnect()
 {
     /* Close all Opened Channels */
-    foreach(QString name, m_channels.keys()){
-        closePortForwarding(name);
+    for(SshChannel *ch: m_channels)
+    {
+        delete ch;
     }
+    m_channels.clear();
 
     qCDebug(sshclient, "%s: reset", qPrintable(m_name));
     m_keepalive.stop();

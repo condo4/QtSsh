@@ -15,7 +15,7 @@ SshScpSend::SshScpSend(SshClient *client):
 
 QString SshScpSend::send(const QString &source, QString dest)
 {
-    struct stat fileinfo;
+    struct stat fileinfo = {};
     QFileInfo src(source);
     if(dest.at(dest.length() - 1) != '/')
     {
@@ -32,7 +32,6 @@ QString SshScpSend::send(const QString &source, QString dest)
     QFile qsource(source);
     if(qsource.open(QIODevice::ReadOnly))
     {
-        QByteArray buf;
         while(qsource.atEnd())
         {
             qint64 offset = 0;
@@ -48,10 +47,7 @@ QString SshScpSend::send(const QString &source, QString dest)
                     qDebug() << "ERROR : send file return " << ret;
                     return QString();
                 }
-                else
-                {
-                    offset += ret;
-                }
+                offset += ret;
             }
         }
     }

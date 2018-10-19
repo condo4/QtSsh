@@ -16,8 +16,7 @@ QString SshScpGet::get(const QString &source, const QString &dest)
 {
     libssh2_struct_stat_size got = 0;
     ssize_t rc;
-    struct stat fileinfo;
-    QFileInfo src(source);
+    struct stat fileinfo = {};
 
     if(!sshChannel)
     {
@@ -27,7 +26,6 @@ QString SshScpGet::get(const QString &source, const QString &dest)
     QFile qsource(dest);
     if(qsource.open(QIODevice::WriteOnly))
     {
-        QByteArray buf;
         while(got < fileinfo.st_size) {
             char mem[PAGE_SIZE];
             int amount=sizeof(mem);

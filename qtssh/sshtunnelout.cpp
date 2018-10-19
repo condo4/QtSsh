@@ -142,7 +142,7 @@ void SshTunnelOut::tcpDataReceived()
         {
             break;
         }
-        else if (len < 0)
+        if (len < 0)
         {
             qDebug() << "ERROR : " << m_name << " local failed to read (" << len << ")";
             return;

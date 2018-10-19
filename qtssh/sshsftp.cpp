@@ -167,7 +167,7 @@ bool SshSFtp::get(const QString &source, QString dest, bool override)
         }
 
         m_waitData(1000);
-    } while (1);
+    } while (true);
 
     libssh2_sftp_close(sftpfile);
 
@@ -241,7 +241,7 @@ QStringList SshSFtp::readdir(const QString &d)
             break;
         }
 
-    } while (1);
+    } while (true);
     closeDirHandler(qPrintable(d));
     return result;
 }
@@ -249,7 +249,7 @@ QStringList SshSFtp::readdir(const QString &d)
 bool SshSFtp::isDir(const QString &d)
 {
     LIBSSH2_SFTP_HANDLE *sftpdir = getDirHandler(qPrintable(d));
-    return sftpdir != NULL;
+    return sftpdir != nullptr;
 }
 
 bool SshSFtp::isFile(const QString &d)
@@ -335,7 +335,7 @@ LIBSSH2_SFTP_HANDLE *SshSFtp::getDirHandler(const QString &path)
     int rc;
     if(!m_dirhandler.contains(path))
     {
-        LIBSSH2_SFTP_HANDLE *sftpdir = NULL;
+        LIBSSH2_SFTP_HANDLE *sftpdir = nullptr;
         do {
             sftpdir = libssh2_sftp_opendir(m_sftpSession, qPrintable(path));
             rc = libssh2_session_last_errno(sshClient->session());
@@ -345,7 +345,7 @@ LIBSSH2_SFTP_HANDLE *SshSFtp::getDirHandler(const QString &path)
             }
             else if(!sftpdir && (rc == LIBSSH2_ERROR_SFTP_PROTOCOL))
             {
-                    return NULL;
+                    return nullptr;
             }
         } while (!sftpdir);
         m_dirhandler[path] = sftpdir;
@@ -361,7 +361,7 @@ LIBSSH2_SFTP_HANDLE *SshSFtp::closeDirHandler(const QString &path)
         libssh2_sftp_closedir(sftpdir);
         m_dirhandler.remove(path);
     }
-    return NULL;
+    return nullptr;
 }
 
 LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(const QString &path)
@@ -412,8 +412,8 @@ SshSFtp::SshSFtp(SshClient *client):
 }
 
 SshSFtp::~SshSFtp()
-{
-    foreach(LIBSSH2_SFTP_HANDLE *sftpdir, m_dirhandler.values())
+{  
+    for(LIBSSH2_SFTP_HANDLE *sftpdir: m_dirhandler)
     {
         libssh2_sftp_closedir(sftpdir);
     }
