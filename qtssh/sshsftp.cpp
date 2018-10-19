@@ -5,7 +5,7 @@
 #include <QFileInfo>
 #include <QCryptographicHash>
 
-QString SshSFtp::send(QString source, QString dest)
+QString SshSFtp::send(const QString &source, QString dest)
 {
     QFile s(source);
     QFileInfo src(source);
@@ -86,7 +86,7 @@ QString SshSFtp::send(QString source, QString dest)
     return dest;
 }
 
-bool SshSFtp::get(QString source, QString dest, bool override)
+bool SshSFtp::get(const QString &source, QString dest, bool override)
 {
     QFileInfo src(source);
     LIBSSH2_SFTP_HANDLE *sftpfile;
@@ -196,7 +196,7 @@ bool SshSFtp::get(QString source, QString dest, bool override)
     return true;
 }
 
-int SshSFtp::mkdir(QString dest)
+int SshSFtp::mkdir(const QString &dest)
 {
     int res;
 
@@ -219,7 +219,7 @@ int SshSFtp::mkdir(QString dest)
     return res;
 }
 
-QStringList SshSFtp::readdir(QString d)
+QStringList SshSFtp::readdir(const QString &d)
 {
     int rc;
     QStringList result;
@@ -246,13 +246,13 @@ QStringList SshSFtp::readdir(QString d)
     return result;
 }
 
-bool SshSFtp::isDir(QString d)
+bool SshSFtp::isDir(const QString &d)
 {
     LIBSSH2_SFTP_HANDLE *sftpdir = getDirHandler(qPrintable(d));
     return sftpdir != NULL;
 }
 
-bool SshSFtp::isFile(QString d)
+bool SshSFtp::isFile(const QString &d)
 {
     LIBSSH2_SFTP_ATTRIBUTES fileinfo;
     int status = LIBSSH2_ERROR_EAGAIN;
@@ -267,7 +267,7 @@ bool SshSFtp::isFile(QString d)
     return (status == 0);
 }
 
-int SshSFtp::mkpath(QString dest)
+int SshSFtp::mkpath(const QString &dest)
 {
 #ifdef DEBUG_SFTP
     qDebug() << "DEBUG : mkpath " << dest;
@@ -283,7 +283,7 @@ int SshSFtp::mkpath(QString dest)
     return false;
 }
 
-bool SshSFtp::unlink(QString d)
+bool SshSFtp::unlink(const QString &d)
 {
     int res;
 
@@ -305,7 +305,7 @@ bool SshSFtp::unlink(QString d)
     return res;
 }
 
-quint64 SshSFtp::filesize(QString d)
+quint64 SshSFtp::filesize(const QString &d)
 {
     return getFileInfo(d).filesize;
 }
@@ -330,7 +330,7 @@ bool SshSFtp::m_waitData(int timeout)
     return ret;
 }
 
-LIBSSH2_SFTP_HANDLE *SshSFtp::getDirHandler(QString path)
+LIBSSH2_SFTP_HANDLE *SshSFtp::getDirHandler(const QString &path)
 {
     int rc;
     if(!m_dirhandler.contains(path))
@@ -353,7 +353,7 @@ LIBSSH2_SFTP_HANDLE *SshSFtp::getDirHandler(QString path)
     return m_dirhandler[path];
 }
 
-LIBSSH2_SFTP_HANDLE *SshSFtp::closeDirHandler(QString path)
+LIBSSH2_SFTP_HANDLE *SshSFtp::closeDirHandler(const QString &path)
 {
     if(m_dirhandler.contains(path))
     {
@@ -364,7 +364,7 @@ LIBSSH2_SFTP_HANDLE *SshSFtp::closeDirHandler(QString path)
     return NULL;
 }
 
-LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(QString path)
+LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(const QString &path)
 {
     if(!m_fileinfo.contains(path))
     {

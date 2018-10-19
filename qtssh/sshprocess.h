@@ -12,6 +12,6 @@ public:
     virtual ~SshProcess();
     
 public slots:
-    QByteArray runCommand(QString cmd);
+    QByteArray runCommand(const QString &cmd);
 
 };

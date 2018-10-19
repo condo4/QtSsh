@@ -8,5 +8,5 @@ class SshScpGet : public SshChannel
 
 public:
     SshScpGet(SshClient * client);
-    QString get(QString source, QString dest);
+    QString get(const QString &source, const QString &dest);
 };

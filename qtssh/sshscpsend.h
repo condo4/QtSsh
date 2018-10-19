@@ -8,5 +8,5 @@ class SshScpSend : public SshChannel
 
 public:
     SshScpSend(SshClient * client);
-    QString send(QString source, QString dest);
+    QString send(const QString &source, QString dest);
 };

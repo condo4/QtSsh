@@ -36,7 +36,7 @@ private:
     QTimer m_keepalive;
 
 public:
-    SshClient(QString name = "noname", QObject * parent = nullptr);
+    SshClient(const QString &name = "noname", QObject * parent = nullptr);
     virtual ~SshClient();
 
     QString getName() const;
@@ -44,13 +44,13 @@ public:
 public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22);
     void disconnectFromHost();
-    QString runCommand(QString command);
-    quint16 openLocalPortForwarding(QString servicename, quint16 port, quint16 bind);
-    quint16 openRemotePortForwarding(QString servicename, quint16 port);
-    void closePortForwarding(QString servicename);
+    QString runCommand(const QString &command);
+    quint16 openLocalPortForwarding(const QString &servicename, quint16 port, quint16 bind);
+    quint16 openRemotePortForwarding(const QString &servicename, quint16 port);
+    void closePortForwarding(const QString &servicename);
     void setKeys(const QString &publicKey, const QString &privateKey);
     bool loadKnownHosts(const QString &file);
-    QString sendFile(QString src, QString dst);
+    QString sendFile(const QString &src, const QString &dst);
     void setPassphrase(const QString & pass);
     bool saveKnownHosts(const QString &file);
     bool addKnownHost  (const QString &hostname, const SshKey &key);

@@ -11,7 +11,7 @@ Q_LOGGING_CATEGORY(logsshtunnelin, "ssh.tunnelin", QtWarningMsg)
 #define BUFFER_LEN (16384)
 
 
-SshTunnelIn::SshTunnelIn(SshClient *client, QString port_identifier, quint16 port, quint16 bind)
+SshTunnelIn::SshTunnelIn(SshClient *client, const QString &port_identifier, quint16 port, quint16 bind)
     : SshChannel(client)
     , m_localTcpPort(bind)
     , m_sshListener(nullptr)

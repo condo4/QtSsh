@@ -26,7 +26,7 @@ SshProcess::~SshProcess()
     stopChannel();
 }
 
-QByteArray SshProcess::runCommand(QString cmd)
+QByteArray SshProcess::runCommand(const QString &cmd)
 {
 #if defined(DEBUG_SSHCHANNEL)
     qDebug() << "DEBUG : QtSshChannel : runCommand(" << cmd << ")";

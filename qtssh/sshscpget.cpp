@@ -12,7 +12,7 @@ SshScpGet::SshScpGet(SshClient *client):
 #ifndef PAGE_SIZE
 #define PAGE_SIZE (4*1024)
 #endif
-QString SshScpGet::get(QString source, QString dest)
+QString SshScpGet::get(const QString &source, const QString &dest)
 {
     libssh2_struct_stat_size got = 0;
     ssize_t rc;

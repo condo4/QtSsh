@@ -19,7 +19,7 @@ class SshTunnelOutSrv : public SshChannel
     int                     m_count;
 
 public:
-    explicit SshTunnelOutSrv(SshClient * client, QString port_identifier, quint16 port);
+    explicit SshTunnelOutSrv(SshClient * client, const QString &port_identifier, quint16 port);
     ~SshTunnelOutSrv();
     quint16 localPort();
 

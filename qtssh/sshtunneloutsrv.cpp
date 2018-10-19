@@ -2,7 +2,7 @@
 #include "sshtunnelout.h"
 #include "sshclient.h"
 
-SshTunnelOutSrv::SshTunnelOutSrv(SshClient *client, QString port_identifier, quint16 port):
+SshTunnelOutSrv::SshTunnelOutSrv(SshClient *client, const QString &port_identifier, quint16 port):
     SshChannel(client),
     m_sshclient(client),
     m_identifier(port_identifier),

@@ -51,7 +51,7 @@ QString SshClient::getName() const
     return m_name;
 }
 
-SshClient::SshClient(QString name, QObject * parent):
+SshClient::SshClient(const QString &name, QObject * parent):
     QObject(parent),
     m_session(nullptr),
     m_knownHosts(nullptr),
@@ -135,7 +135,7 @@ bool SshClient::loopWhileBytesWritten(int msecs)
     return written;
 }
 
-quint16 SshClient::openLocalPortForwarding(QString servicename, quint16 port, quint16 bind)
+quint16 SshClient::openLocalPortForwarding(const QString &servicename, quint16 port, quint16 bind)
 {
     if(m_channels.contains(servicename))
     {
@@ -152,7 +152,7 @@ quint16 SshClient::openLocalPortForwarding(QString servicename, quint16 port, qu
     return tunnel->localPort();
 }
 
-quint16 SshClient::openRemotePortForwarding(QString servicename, quint16 port)
+quint16 SshClient::openRemotePortForwarding(const QString &servicename, quint16 port)
 {
     if(m_channels.contains(servicename))
     {
@@ -164,7 +164,7 @@ quint16 SshClient::openRemotePortForwarding(QString servicename, quint16 port)
     return tunnel->localPort();
 }
 
-void SshClient::closePortForwarding(QString servicename)
+void SshClient::closePortForwarding(const QString &servicename)
 {
     qCDebug(sshclient, "%s: SshClient::closePortForwarding(%s)", qPrintable(m_name), qPrintable(servicename));
 
@@ -176,7 +176,7 @@ void SshClient::closePortForwarding(QString servicename)
     }
 }
 
-QString SshClient::runCommand(QString command)
+QString SshClient::runCommand(const QString &command)
 {
     QString res;
     SshProcess *sshProcess = new SshProcess(this);
@@ -184,7 +184,7 @@ QString SshClient::runCommand(QString command)
     return res;
 }
 
-QString SshClient::sendFile(QString src, QString dst)
+QString SshClient::sendFile(const QString &src, const QString &dst)
 {
     SshScpSend *sender = new SshScpSend(this);
     QString d = sender->send(src, dst);
