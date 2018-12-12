@@ -144,16 +144,19 @@ void SshTunnelOut::tcpDataReceived()
             return;
         }
 
-        do
+        if(len > 0)
         {
-            i = qssh2_channel_write(m_sshChannel, m_dataSocket.data(), static_cast<size_t>(len));
-            if (i < 0)
+            do
             {
-                qDebug() << "ERROR : " << m_name << " remote failed to write (" << i << ")";
-                return;
-            }
-            wr += i;
-        } while(i > 0 && wr < len);
+                i = qssh2_channel_write(m_sshChannel, m_dataSocket.data(), static_cast<size_t>(len));
+                if (i < 0)
+                {
+                    qDebug() << "ERROR : " << m_name << " remote failed to write (" << i << ")";
+                    return;
+                }
+                wr += i;
+            } while(i > 0 && wr < len);
+        }
     }
     while(len > 0);
 }
