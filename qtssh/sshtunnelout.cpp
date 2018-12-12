@@ -65,6 +65,11 @@ void SshTunnelOut::sshDataReceived()
 
     do
     {
+        if(libssh2_channel_eof(m_sshChannel) == 1)
+        {
+            emit disconnected();
+            return;
+        }
         /* Read data from SSH */
         /*
          * In this case, we must not used qssh2_channel_read
@@ -104,7 +109,7 @@ void SshTunnelOut::sshDataReceived()
             if(m_opened) qDebug() << "ERROR : Data loose";
         }
 
-        if (qssh2_channel_eof(m_sshChannel) && m_opened)
+        if (libssh2_channel_eof(m_sshChannel) && m_opened)
         {
             qCDebug(logsshtunnelout) << "Disconnected from ssh";
             emit disconnected();
