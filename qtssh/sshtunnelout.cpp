@@ -5,6 +5,8 @@
 #include <QEventLoop>
 #include <cerrno>
 
+Q_LOGGING_CATEGORY(logsshtunnelout, "ssh.tunnelout", QtWarningMsg)
+
 SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QString &port_identifier, quint16 port, QObject *parent):
     QObject(parent),
     m_opened(false),
@@ -17,10 +19,7 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QStri
     m_dataSocket(16384, 0),
     m_callDepth(0)
 {
-#if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOut::SshTunnelOut() " << m_name;
-#endif
-
+    qCDebug(logsshtunnelout) << "SshTunnelOut::SshTunnelOut() " << m_name;
     m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(), "127.0.0.1", m_port);
     if(m_sshChannel == nullptr)
     {
@@ -29,12 +28,10 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QStri
         {
             qDebug() << "ERROR: Can't connect direct tcpip " << ret << " for port " << m_port;
         }
-#if defined(DEBUG_SSHCHANNEL)
         else
         {
-            qDebug() << "DEBUG: Can't connect direct tcpip " << ret << " for port " << m_port;
+            qCDebug(logsshtunnelout) << "Can't connect direct tcpip " << ret << " for port " << m_port;
         }
-#endif
         return;
     }
 
@@ -45,17 +42,13 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QStri
 
     m_opened = true;
 
-#if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelOut : SshTunnelOut::SshTunnelOut() OK " << m_name;
-#endif
+    qCDebug(logsshtunnelout) << "SshTunnelOut::SshTunnelOut() OK " << m_name;
     tcpDataReceived();
 }
 
 SshTunnelOut::~SshTunnelOut()
 {
-#if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelOut : ~SshTunnelOut() " << m_name;
-#endif
+    qCDebug(logsshtunnelout) << "~SshTunnelOut() " << m_name;
     _stopSocket();
     _stopChannel();
 }
@@ -113,9 +106,7 @@ void SshTunnelOut::sshDataReceived()
 
         if (qssh2_channel_eof(m_sshChannel) && m_opened)
         {
-#if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelOut : Disconnected from ssh";
-#endif
+            qCDebug(logsshtunnelout) << "Disconnected from ssh";
             emit disconnected();
         }
     }
@@ -164,9 +155,7 @@ void SshTunnelOut::tcpDataReceived()
 
 void SshTunnelOut::tcpDisconnected()
 {
-#if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : SshTunnelOut : Disconnected from socket";
-#endif
+    qCDebug(logsshtunnelout) << "Disconnected from socket";
     emit disconnected();
 }
 
@@ -191,27 +180,21 @@ void SshTunnelOut::_stopChannel()
 
     if(ret)
     {
-#if defined(DEBUG_SSHCLIENT)
-        qDebug() << "DEBUG : SshChannel() : Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
-#endif
+        qCDebug(logsshtunnelout) << "Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
         return;
     }
 
     ret = qssh2_channel_wait_closed(m_sshChannel);
     if(ret)
     {
-#if defined(DEBUG_SSHCLIENT)
-        qDebug() << "DEBUG : SshChannel() : Failed to channel_wait_closed";
-#endif
+        qDebug(logsshtunnelout) << "Failed to channel_wait_closed";
         return;
     }
 
     ret = qssh2_channel_free(m_sshChannel);
     if(ret)
     {
-#if defined(DEBUG_SSHCLIENT)
-        qDebug() << "DEBUG : SshChannel() : Failed to channel_free";
-#endif
+        qCDebug(logsshtunnelout) << "Failed to channel_free";
         return;
     }
     m_sshChannel = nullptr;

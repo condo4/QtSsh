@@ -7,6 +7,7 @@ class QTcpServer;
 class QTcpSocket;
 class SshClient;
 
+Q_DECLARE_LOGGING_CATEGORY(logsshtunnelout)
 
 class SshTunnelOut: public QObject
 {

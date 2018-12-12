@@ -7,6 +7,8 @@
 class SshTunnelOut;
 class SshClient;
 
+Q_DECLARE_LOGGING_CATEGORY(logsshtunneloutsrv)
+
 class SshTunnelOutSrv : public SshChannel
 {
     Q_OBJECT
