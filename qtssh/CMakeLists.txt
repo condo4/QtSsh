@@ -44,7 +44,11 @@ set(HEADERS
 	sshfilesystemmodel.h
 	sshserviceport.h
 )
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
+if(BUILD_STATIC)
+	add_library(${PROJECT_NAME} STATIC ${SOURCES})
+else(BUILD_STATIC)
+	add_library(${PROJECT_NAME} SHARED ${SOURCES})
+endif(BUILD_STATIC)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${SSH2_LIBRARIES} ${QT_LIBRARIES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
