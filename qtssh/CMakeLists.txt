@@ -19,9 +19,16 @@ else()
 	set(QT_VERSION ${Qt4_VERSION})
 endif()
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(SSH2 REQUIRED libssh2)
-link_directories(${SSH2_LIBRARY_DIRS})
+
+if(WITH_SSH_LIBRARIES)
+    message("USE External SSH Headers ${WITH_SSH_HEADERS}")
+    include_directories(${WITH_SSH_HEADERS})
+    set(SSH2_LIBRARIES ${WITH_SSH_LIBRARIES})
+else(WITH_SSH_LIBRARIES)
+    find_package(PkgConfig REQUIRED)
+    pkg_search_module(SSH2 REQUIRED libssh2)
+    link_directories(${SSH2_LIBRARY_DIRS})
+endif(WITH_SSH_LIBRARIES)
 
 set(SOURCES
 	sshtunnelout.cpp
