@@ -51,6 +51,19 @@ QString SshClient::getName() const
     return m_name;
 }
 
+void SshClient::_resetSession()
+{
+    m_errorcode = 0;
+    m_errorMessage = QString();
+    m_session = qssh2_session_init_ex(nullptr, nullptr, nullptr, reinterpret_cast<void *>(&m_socket));
+    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_RECV,reinterpret_cast<void*>(& qt_callback_libssh_recv));
+    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_SEND,reinterpret_cast<void*>(& qt_callback_libssh_send));
+    Q_ASSERT(m_session);
+    m_knownHosts = qssh2_knownhost_init(m_session);
+    Q_ASSERT(m_knownHosts);
+    qssh2_session_set_blocking(m_session, 0);
+}
+
 SshClient::SshClient(const QString &name, QObject * parent):
     QObject(parent),
     m_session(nullptr),
@@ -72,14 +85,7 @@ SshClient::SshClient(const QString &name, QObject * parent):
     connect(&m_keepalive,SIGNAL(timeout()),                           this, SLOT(_sendKeepAlive()));
 
     Q_ASSERT(qssh2_init(0) == 0);
-    m_session = qssh2_session_init_ex(nullptr, nullptr, nullptr, reinterpret_cast<void *>(&m_socket));
-
-    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_RECV,reinterpret_cast<void*>(& qt_callback_libssh_recv));
-    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_SEND,reinterpret_cast<void*>(& qt_callback_libssh_send));
-    Q_ASSERT(m_session);
-    m_knownHosts = qssh2_knownhost_init(m_session);
-    Q_ASSERT(m_knownHosts);
-    qssh2_session_set_blocking(m_session, 0);
+    _resetSession();
 
     m_cntTimer.setInterval(1000);
     m_cntTimer.start();
@@ -224,7 +230,8 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     {
         qCCritical(sshclient, "%s: Handshake error %s", qPrintable(m_name), sshErrorToString(ret));
         m_socket.disconnectFromHost();
-        m_socket.waitForDisconnected(60000);
+        if(m_socket.state() != QTcpSocket::UnconnectedState)
+            m_socket.waitForDisconnected(60000);
         return -1;
     }
 
@@ -237,7 +244,8 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     {
         qCCritical(sshclient, "%s: Fingerprint error", qPrintable(m_name));
         m_socket.disconnectFromHost();
-        m_socket.waitForDisconnected(60000);
+        if(m_socket.state() != QTcpSocket::UnconnectedState)
+            m_socket.waitForDisconnected(60000);
         return -1;
     }
 
@@ -273,7 +281,8 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         /* Autentication Error */
         qCCritical(sshclient, "%s: Authentication error %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));
         m_socket.disconnectFromHost();
-        m_socket.waitForDisconnected(60000);
+        if(m_socket.state() != QTcpSocket::UnconnectedState)
+            m_socket.waitForDisconnected(60000);
         return -1;
     }
 
@@ -330,7 +339,8 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         /* Autentication Error */
         qCCritical(sshclient, "%s: Authentication error not more available methodes", qPrintable(m_name));
         m_socket.disconnectFromHost();
-        m_socket.waitForDisconnected(60000);
+        if(m_socket.state() != QTcpSocket::UnconnectedState)
+            m_socket.waitForDisconnected(60000);
         return -1;
     }
 
@@ -377,11 +387,9 @@ void SshClient::disconnectFromHost()
     {
         qssh2_session_free(m_session);
     }
+    _resetSession();
 
-    m_errorcode = 0;
-    m_errorMessage = QString();
     m_sshConnected = false;
-    m_session = nullptr;
 
     disconnect(&m_socket, SIGNAL(disconnected()), this, SLOT(_disconnected()));
     if(m_socket.state() != QTcpSocket::UnconnectedState)
@@ -497,17 +505,8 @@ void SshClient::askDisconnect()
         qssh2_session_disconnect(m_session, "good bye!");
         qssh2_session_free(m_session);
     }
-    m_errorcode = 0;
-    m_errorMessage = QString();
+    _resetSession();
 
-    m_session = qssh2_session_init_ex(nullptr, nullptr, nullptr, reinterpret_cast<void *>(this));
-
-    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_RECV,reinterpret_cast<void*>(& qt_callback_libssh_recv));
-    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_SEND,reinterpret_cast<void*>(& qt_callback_libssh_send));
-    Q_ASSERT(m_session);
-    m_knownHosts = qssh2_knownhost_init(m_session);
-    Q_ASSERT(m_knownHosts);
-    qssh2_session_set_blocking(m_session, 0);
     m_socket.disconnectFromHost();
     qCDebug(sshclient, "%s: reset disconnected", qPrintable(m_name));
 }

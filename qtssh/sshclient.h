@@ -35,6 +35,8 @@ private:
     QTimer m_cntTimer;
     QTimer m_keepalive;
 
+    void _resetSession();
+
 public:
     SshClient(const QString &name = "noname", QObject * parent = nullptr);
     virtual ~SshClient();
