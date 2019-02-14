@@ -250,7 +250,7 @@ inline LIBSSH2_CHANNEL * qssh2_channel_open(LIBSSH2_SESSION *session)
 }
 
 #include <qdebug.h>
-inline LIBSSH2_CHANNEL * qssh2_scp_recv2(LIBSSH2_SESSION *session, const char *path, struct stat *sb)
+inline LIBSSH2_CHANNEL * qssh2_scp_recv2(LIBSSH2_SESSION *session, const char *path, libssh2_struct_stat *sb)
 {
     LIBSSH2_CHANNEL *cret = nullptr;
 

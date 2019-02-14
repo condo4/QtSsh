@@ -16,7 +16,7 @@ QString SshScpGet::get(const QString &source, const QString &dest)
 {
     libssh2_struct_stat_size got = 0;
     ssize_t rc;
-    struct stat fileinfo = {};
+    libssh2_struct_stat fileinfo = {};
 
     if(!sshChannel)
     {
