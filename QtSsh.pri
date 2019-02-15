@@ -1,4 +1,6 @@
 # QtSsh
+QT             += core network
+
 HEADERS += \
     $$PWD/qtssh/sshtunnelout.h \
     $$PWD/qtssh/sshtunnelin.h \
