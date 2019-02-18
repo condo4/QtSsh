@@ -29,10 +29,10 @@ public:
     explicit SshChannel(QObject *client);
     explicit SshChannel(SshClient *client);
     virtual ~SshChannel();
+    virtual void stopChannel();
 
 protected slots:
     virtual void sshDataReceived() {}
-    virtual void stopChannel();
 
 public slots:
     virtual quint16 localPort() { return 0; }

@@ -65,13 +65,13 @@ public slots:
 
 
 signals:
-    void connected();
-    void unexpectedDisconnection();
-    void disconnected();
     void sshDataReceived();
-    void sshReset();
     void _connectionFailed();
-    void sFtpXfer();
+
+    void connected();
+    void disconnected();
+    void error(QAbstractSocket::SocketError);
+    void stateChanged(QAbstractSocket::SocketState socketState);
 
 
 public slots:
@@ -82,6 +82,8 @@ private slots:
     void _readyRead();
     void _disconnected();
     void _getLastError();
-    void _tcperror(QAbstractSocket::SocketError err);
     void _sendKeepAlive();
+
+    void _tcperror(QAbstractSocket::SocketError err);
+    void _stateChanged(QAbstractSocket::SocketState socketState);
 };

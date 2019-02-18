@@ -17,12 +17,10 @@ SshChannel::SshChannel(SshClient *client) :
     sshChannel(nullptr),
     sshClient(client)
 {
-    connect(sshClient, &SshClient::sshReset, this, &SshChannel::stopChannel);
 }
 
 SshChannel::~SshChannel()
 {
-    disconnect(sshClient, &SshClient::sshReset, this, &SshChannel::stopChannel);
     stopChannel();
 }
 

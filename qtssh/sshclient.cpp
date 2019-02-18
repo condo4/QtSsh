@@ -73,19 +73,16 @@ SshClient::SshClient(const QString &name, QObject * parent):
     m_port(0),
     m_errorcode(0),
     m_sshConnected(false),
-    m_errorMessage(QString()),
+    m_errorMessage(QString())
 {
-    qCDebug(sshclient, "%s: Enter in constructor", qPrintable(m_name));
-
-    connect(&m_socket,   SIGNAL(disconnected()),                      this, SLOT(_disconnected()));
     connect(&m_socket,   SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(_tcperror(QAbstractSocket::SocketError)));
-    connect(&m_keepalive,SIGNAL(timeout()),                           this, SLOT(_sendKeepAlive()));
+    connect(&m_socket,   &QTcpSocket::stateChanged, this, &SshClient::_stateChanged);
+    connect(&m_socket,   &QTcpSocket::disconnected, this, &SshClient::_disconnected);
+    connect(&m_keepalive,&QTimer::timeout,          this, &SshClient::_sendKeepAlive);
 
     Q_ASSERT(qssh2_init(0) == 0);
     _resetSession();
-
-    m_cntTimer.setInterval(1000);
-    m_cntTimer.start();
+    qCDebug(sshclient, "%s: created", qPrintable(m_name));
 }
 
 SshClient::~SshClient()
@@ -334,7 +331,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     if(!qssh2_userauth_authenticated(m_session))
     {
         /* Autentication Error */
-        qCCritical(sshclient, "%s: Authentication error not more available methodes", qPrintable(m_name));
+        qCDebug(sshclient, "%s: Authentication error not more available methodes", qPrintable(m_name));
         m_socket.disconnectFromHost();
         if(m_socket.state() != QTcpSocket::UnconnectedState)
             m_socket.waitForDisconnected(60000);
@@ -370,7 +367,6 @@ void SshClient::disconnectFromHost()
     m_channels.clear();
 
     m_keepalive.stop();
-    emit sshReset();
 
     QObject::disconnect(&m_socket, &QAbstractSocket::readyRead, this, &SshClient::_readyRead);
 
@@ -458,23 +454,21 @@ void SshClient::_tcperror(QAbstractSocket::SocketError err)
     if(err == QAbstractSocket::ConnectionRefusedError)
     {
         m_errorcode = LIBSSH2_ERROR_BAD_SOCKET;
-        qCCritical(sshclient, "%s: Connection Refused Error", qPrintable(m_name));
     }
-    else
-    {
-        qCCritical(sshclient, "%s: failed to connect session tcp socket, err=%i", qPrintable(m_name), err);
-    }
-}
-
-void SshClient::_cntRate()
-{
-    emit xfer_rate(m_cntTxData, m_cntRxData);
+    qCDebug(sshclient) << m_name << ": Error " << err;
+    emit error(err);
 }
 
 void SshClient::_sendKeepAlive()
 {
     int keepalive;
     qssh2_keepalive_send(m_session, &keepalive);
+}
+
+void SshClient::_stateChanged(QAbstractSocket::SocketState socketState)
+{
+    qCDebug(sshclient) << m_name << ": State changed " << socketState;
+    emit stateChanged(socketState);
 }
 
 void SshClient::askDisconnect()
@@ -488,7 +482,6 @@ void SshClient::askDisconnect()
 
     qCDebug(sshclient, "%s: reset", qPrintable(m_name));
     m_keepalive.stop();
-    emit sshReset();
 
     if (m_knownHosts)
     {
@@ -510,8 +503,7 @@ void SshClient::_disconnected()
 {
     m_keepalive.stop();
 
-    qCWarning(sshclient, "%s: unexpected shutdown", qPrintable(m_name));
-    emit unexpectedDisconnection();
+    qCDebug(sshclient, "%s: unexpected shutdown", qPrintable(m_name));
     askDisconnect();
 
     m_sshConnected = false;
