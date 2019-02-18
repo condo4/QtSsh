@@ -19,7 +19,7 @@ static ssize_t qt_callback_libssh_recv(int socket,void *buffer, size_t length,in
     Q_UNUSED(flags);
 
     QTcpSocket * c = reinterpret_cast<QTcpSocket *>(* abstract);
-    qint64 r = c->read(reinterpret_cast<char *>(buffer), length);
+    qint64 r = c->read(reinterpret_cast<char *>(buffer), static_cast<qint64>(length));
     if (r == 0)
     {
         return -EAGAIN;
@@ -33,7 +33,7 @@ static ssize_t qt_callback_libssh_send(int socket,const void * buffer, size_t le
     Q_UNUSED(flags);
 
     QTcpSocket * c = reinterpret_cast<QTcpSocket *>(* abstract);
-    qint64 r = c->write(reinterpret_cast<const char *>(buffer), length);
+    qint64 r = c->write(reinterpret_cast<const char *>(buffer), static_cast<qint64>(length));
     if (r == 0)
     {
         return -EAGAIN;
@@ -82,14 +82,13 @@ SshClient::SshClient(const QString &name, QObject * parent):
 
     Q_ASSERT(qssh2_init(0) == 0);
     _resetSession();
-    qCDebug(sshclient, "%s: created", qPrintable(m_name));
+    qCDebug(sshclient) << m_name << " created";
 }
 
 SshClient::~SshClient()
 {
-    qCDebug(sshclient, "%s: Enter in destructor", qPrintable(m_name));
     disconnectFromHost();
-    qCDebug(sshclient, "%s: Leave destructor", qPrintable(m_name));
+    qCDebug(sshclient) << m_name << " destroyed";
 }
 
 
@@ -199,14 +198,14 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         qCCritical(sshclient, "%s: Allready connected", qPrintable(m_name));
         return 0;
     }
+    qCDebug(sshclient) << m_name << ": connectToHost(" << m_hostname << "," << m_port << ") with login " << user;
+
     QEventLoop wait;
     QTimer timeout;
     m_hostname = host;
     m_username = user;
     m_port = port;
     m_errorcode = 0;
-
-    qCDebug(sshclient, "%s: trying to connect to host (%s:%i)", qPrintable(m_name), qPrintable(m_hostname), m_port);
 
     m_socket.connectToHost(m_hostname, m_port);
     if(!m_socket.waitForConnected(60000))
@@ -286,8 +285,6 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     {
         if(methodes.contains("publickey"))
         {
-            qCDebug(sshclient, "%s: Trying authentication by publickey", qPrintable(m_name));
-
             ret = qssh2_userauth_publickey_frommemory(
                             m_session,
                             m_username.toStdString().c_str(),
@@ -312,9 +309,9 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 
             ret = qssh2_userauth_password_ex(m_session,
                                                      username.data(),
-                                                     username.length(),
+                                                     static_cast<unsigned int>(username.length()),
                                                      passphrase.data(),
-                                                     passphrase.length());
+                                                     static_cast<unsigned int>(passphrase.length()));
             if(ret)
             {
                 qCDebug(sshclient, "%s: Failed to userauth_password: %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));

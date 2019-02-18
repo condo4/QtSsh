@@ -13,7 +13,6 @@ SshProcess::SshProcess(SshClient *client) : SshChannel(client)
 #endif
         return;
     }
-    QObject::connect(client, &SshClient::sshDataReceived, this, &SshProcess::sshDataReceived, Qt::QueuedConnection);
 
 #if defined(DEBUG_SSHCHANNEL)
     qDebug() << "DEBUG : QtSshChannel : channel session opened";
@@ -22,7 +21,6 @@ SshProcess::SshProcess(SshClient *client) : SshChannel(client)
 
 SshProcess::~SshProcess()
 {
-    QObject::disconnect(sshClient, &SshClient::sshDataReceived, this, &SshProcess::sshDataReceived);
     stopChannel();
 }
 
