@@ -30,9 +30,6 @@ private:
     QString m_publicKey;
     QString m_errorMessage;
     SshKey  m_hostKey;
-    qint64 m_cntTxData;
-    qint64 m_cntRxData;
-    QTimer m_cntTimer;
     QTimer m_keepalive;
 
     void _resetSession();
@@ -71,7 +68,6 @@ signals:
     void connected();
     void unexpectedDisconnection();
     void disconnected();
-    void xfer_rate(qint64 tx, qint64 rx);
     void sshDataReceived();
     void sshReset();
     void _connectionFailed();
@@ -87,6 +83,5 @@ private slots:
     void _disconnected();
     void _getLastError();
     void _tcperror(QAbstractSocket::SocketError err);
-    void _cntRate();
     void _sendKeepAlive();
 };

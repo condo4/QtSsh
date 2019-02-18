@@ -74,14 +74,11 @@ SshClient::SshClient(const QString &name, QObject * parent):
     m_errorcode(0),
     m_sshConnected(false),
     m_errorMessage(QString()),
-    m_cntTxData(0),
-    m_cntRxData(0)
 {
     qCDebug(sshclient, "%s: Enter in constructor", qPrintable(m_name));
 
     connect(&m_socket,   SIGNAL(disconnected()),                      this, SLOT(_disconnected()));
     connect(&m_socket,   SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(_tcperror(QAbstractSocket::SocketError)));
-    connect(&m_cntTimer, SIGNAL(timeout()),                           this, SLOT(_cntRate()));
     connect(&m_keepalive,SIGNAL(timeout()),                           this, SLOT(_sendKeepAlive()));
 
     Q_ASSERT(qssh2_init(0) == 0);
@@ -472,8 +469,6 @@ void SshClient::_tcperror(QAbstractSocket::SocketError err)
 void SshClient::_cntRate()
 {
     emit xfer_rate(m_cntTxData, m_cntRxData);
-    m_cntRxData = 0;
-    m_cntTxData = 0;
 }
 
 void SshClient::_sendKeepAlive()
