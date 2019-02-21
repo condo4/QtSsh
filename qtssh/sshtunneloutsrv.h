@@ -29,5 +29,5 @@ signals:
 
 public slots:
     void createConnection();
-    void connectionDisconnected();
+    void connectionDestroyed();
 };

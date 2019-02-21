@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractSocket>
+#include <QMutex>
 #include "sshchannel.h"
 
 class QTcpServer;
@@ -14,25 +15,21 @@ class SshTunnelOut: public QObject
     Q_OBJECT
 
 private:
-    bool m_opened;
     quint16 m_port;
     QString m_name;
-    QTcpSocket *m_tcpsocket;
-    SshClient *m_client;
-    LIBSSH2_CHANNEL *m_sshChannel;
+    QTcpSocket *m_tcpsocket {nullptr};
+    SshClient *m_client {nullptr};
+    LIBSSH2_CHANNEL *m_sshChannel {nullptr};
     QByteArray m_dataSsh;
     QByteArray m_dataSocket;
+    QMutex m_mutex;
 
-    unsigned int m_callDepth;
-
-    void _stopChannel();
-    void _stopSocket();
+    size_t m_totalreadtcp {0};
 
 public:
     explicit SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QString &port_identifier, quint16 port, QObject *parent);
     virtual ~SshTunnelOut();
-    void close(QString reason);
-    bool ready() const;
+    void disconectFromHost();
     QString name() const;
 
 public slots:
@@ -45,7 +42,7 @@ private slots:
 
 
 signals:
-    void disconnected();
+    void disconnectedFromTcp();
+    void disconnectedFromSsh();
     void channelReady();
-    
 };
