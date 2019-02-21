@@ -3,20 +3,18 @@
 #include <QTimer>
 #include <QEventLoop>
 
+Q_LOGGING_CATEGORY(logsshprocess, "ssh.process", QtWarningMsg)
+
 SshProcess::SshProcess(SshClient *client) : SshChannel(client)
 {
     sshChannel = qssh2_channel_open(sshClient->session());
     if (sshChannel == nullptr)
     {
-#if defined(DEBUG_SSHCHANNEL)
-        qDebug() << "DEBUG : QtSshChannel : channel session open failed";
-#endif
+        qCDebug(logsshprocess) << "Channel session open failed";
         return;
     }
 
-#if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : QtSshChannel : channel session opened";
-#endif
+    qCDebug(logsshprocess) << "Channel session opened";
 }
 
 SshProcess::~SshProcess()
@@ -26,9 +24,7 @@ SshProcess::~SshProcess()
 
 QByteArray SshProcess::runCommand(const QString &cmd)
 {
-#if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : QtSshChannel : runCommand(" << cmd << ")";
-#endif
+    qCDebug(logsshprocess) << "runCommand(" << cmd << ")";
     int ret = qssh2_channel_exec(sshChannel, cmd.toStdString().c_str());
     if (ret)
     {
@@ -47,18 +43,17 @@ QByteArray SshProcess::runCommand(const QString &cmd)
         retsz = qssh2_channel_read(sshChannel, buffer, 16 * 1024);
         if(retsz < 0)
         {
-            qDebug() << "ERROR: can't read result (" << retsz << ")";
+            qCWarning(logsshprocess) << "ERROR: can't read result (" << retsz << ")";
             return QByteArray();
         }
         result.append(buffer, static_cast<int>(retsz));
+            qCDebug(logsshprocess) << "runCommand(" << cmd << ") -> " << result;
 
         if (qssh2_channel_eof(sshChannel) == 1)
         {
             eof = true;
         }
     }
-#if defined(DEBUG_SSHCHANNEL)
-    qDebug() << "DEBUG : QtSshChannel : runCommand(" << cmd << ") -> " << result;
-#endif
+    qCDebug(logsshprocess) << "runCommand(" << cmd << ") -> " << result;
     return result;
 }

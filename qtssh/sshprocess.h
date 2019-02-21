@@ -2,6 +2,9 @@
 
 #include "sshchannel.h"
 #include <QSemaphore>
+#include <QLoggingCategory>
+
+Q_DECLARE_LOGGING_CATEGORY(logsshprocess)
 
 class SshProcess : public SshChannel
 {
