@@ -418,7 +418,7 @@ inline int qssh2_channel_exec(LIBSSH2_CHANNEL *channel, const char *command)
     return ret;
 }
 
-inline LIBSSH2_LISTENER * qssh2_channel_forward_listen_ex(LIBSSH2_SESSION *session, const char *host, int port, int *bound_port, int queue_maxsize)
+inline LIBSSH2_LISTENER * qssh2_channel_forward_listen_ex(LIBSSH2_SESSION *session, const char *host, int port, int *bound_port, int queue_maxsize = 16)
 {
     LIBSSH2_LISTENER *cret = nullptr;
     while(cret == nullptr)
