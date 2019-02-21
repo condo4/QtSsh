@@ -10,7 +10,7 @@ Q_LOGGING_CATEGORY(logsshtunnelin, "ssh.tunnelin", QtWarningMsg)
 #define BUFFER_LEN (16384)
 
 
-SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint16 port, quint16 bind)
+SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint16 port, quint16 bind, QString host)
     : SshChannel(client)
     , m_localTcpPort(bind)
     , m_sshListener(nullptr)
@@ -31,7 +31,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
     qCDebug(logsshtunnelin, "Try reverse forwarding port %i from %i (%s)", m_port, bind, qPrintable(m_name));
 
     int bindport = m_localTcpPort;
-    m_sshListener = qssh2_channel_forward_listen_ex(sshClient->session(), "localhost", m_port, &bindport, 1);
+    m_sshListener = qssh2_channel_forward_listen_ex(sshClient->session(), qPrintable(host), m_port, &bindport);
     if (m_sshListener == nullptr)
     {
         int ret = qssh2_session_last_error(sshClient->session(), nullptr, nullptr, 0);

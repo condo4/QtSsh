@@ -24,7 +24,7 @@ private:
     bool m_needToSendEOF;
 
 public:
-    explicit SshTunnelIn(SshClient * client, const QString &portIdentifier, quint16 port, quint16 bind);
+    explicit SshTunnelIn(SshClient * client, const QString &portIdentifier, quint16 port, quint16 bind, QString host = "localhost");
     virtual ~SshTunnelIn();
     quint16 localPort();
 
