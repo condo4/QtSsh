@@ -17,7 +17,7 @@ private:
     LIBSSH2_LISTENER *m_sshListener;
     quint16 m_port;
     QString m_name;
-    QTcpSocket *m_tcpsocket;
+    QScopedPointer<QTcpSocket> m_tcpsocket;
     bool m_valid;
     bool m_workinprogress;
     bool m_needToDisconnect;
