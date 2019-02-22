@@ -10,11 +10,12 @@ Q_LOGGING_CATEGORY(logsshtunnelin, "ssh.tunnelin", QtWarningMsg)
 #define BUFFER_LEN (16384)
 
 
-SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint16 port, quint16 bind, QString host)
+SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint16 localport, quint16 remoteport, QString host)
     : SshChannel(client)
-    , m_localTcpPort(bind)
+    , m_localTcpPort(localport)
+    , m_remoteTcpPort(remoteport)
     , m_sshListener(nullptr)
-    , m_port(port)
+    , m_port(localport)
     , m_name(portIdentifier)
     , m_tcpsocket(nullptr)
     , m_valid(false)
@@ -22,21 +23,19 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
     , m_needToDisconnect(false)
     , m_needToSendEOF(false)
 {
-    if(bind == 0)
-    {
-        qCWarning(logsshtunnelin, "ERROR : %s Fail to create channel", qPrintable(m_name));
-        return;
-    }
+    qCDebug(logsshtunnelin, "Try reverse forwarding port %i from %i (%s)", m_port, remoteport, qPrintable(m_name));
 
-    qCDebug(logsshtunnelin, "Try reverse forwarding port %i from %i (%s)", m_port, bind, qPrintable(m_name));
-
-    int bindport = m_localTcpPort;
-    m_sshListener = qssh2_channel_forward_listen_ex(sshClient->session(), qPrintable(host), m_port, &bindport);
+    m_sshListener = qssh2_channel_forward_listen_ex(sshClient->session(), qPrintable(host), m_remoteTcpPort, &m_remoteTcpPort);
     if (m_sshListener == nullptr)
     {
         int ret = qssh2_session_last_error(sshClient->session(), nullptr, nullptr, 0);
-        qCDebug(logsshtunnelin, "ERROR : Can't create remote connection throw %s for port %i (error %i)", qPrintable(sshClient->getName()) , port, ret);
+        qCDebug(logsshtunnelin, "ERROR : Can't create remote connection throw %s for port %i (error %i)", qPrintable(sshClient->getName()) , localport, ret);
         return;
+    }
+
+    if(remoteport == 0)
+    {
+        qCDebug(logsshtunnelin) << m_name << " Use dynamic remote port: " << m_remoteTcpPort;
     }
 
     qCInfo(logsshtunnelin, "INFO : Channel open for %s", qPrintable(m_name));
@@ -57,7 +56,12 @@ bool SshTunnelIn::valid() const
 
 quint16 SshTunnelIn::localPort()
 {
-    return m_localTcpPort;
+    return static_cast<unsigned short>(m_localTcpPort);
+}
+
+quint16 SshTunnelIn::remotePort()
+{
+    return static_cast<unsigned short>(m_remoteTcpPort);
 }
 
 void SshTunnelIn::onLocalSocketDisconnected()
@@ -72,8 +76,10 @@ void SshTunnelIn::onLocalSocketDisconnected()
     m_needToDisconnect = false;
     if (!m_tcpsocket.isNull())
     {
-        m_tcpsocket->close();
-        m_tcpsocket->waitForDisconnected();
+        if(m_tcpsocket->state() == QAbstractSocket::ConnectedState)
+            m_tcpsocket->disconnectFromHost();
+        if(m_tcpsocket->state() == QAbstractSocket::ConnectedState)
+            m_tcpsocket->waitForDisconnected();
         QObject::disconnect(m_tcpsocket.data());
         m_tcpsocket.reset();
 
