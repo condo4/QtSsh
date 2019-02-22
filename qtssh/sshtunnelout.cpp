@@ -16,28 +16,12 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QStri
     m_dataSsh(16384, 0),
     m_dataSocket(16384, 0)
 {
-    m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(), "127.0.0.1", m_port);
-    if(m_sshChannel == nullptr)
-    {
-        int ret = qssh2_session_last_error(m_client->session(), nullptr, nullptr, 0);
-        if(ret != LIBSSH2_ERROR_CHANNEL_FAILURE)
-        {
-            qDebug() << "ERROR: Can't connect direct tcpip " << ret << " for port " << m_port;
-        }
-        else
-        {
-            qCDebug(logsshtunnelout) << "Can't connect direct tcpip " << ret << " for port " << m_port;
-        }
-        return;
-    }
-
     QObject::connect(m_client,    &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
     QObject::connect(m_tcpsocket, &QTcpSocket::readyRead,      this, &SshTunnelOut::tcpDataReceived);
     QObject::connect(m_tcpsocket, &QTcpSocket::disconnected,   this, &SshTunnelOut::tcpDisconnected);
     QObject::connect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
 
     qCDebug(logsshtunnelout) << "SshTunnelOut::SshTunnelOut() OK " << m_name;
-    tcpDataReceived();
 }
 
 SshTunnelOut::~SshTunnelOut()
@@ -147,10 +131,32 @@ void SshTunnelOut::sshDataReceived()
 void SshTunnelOut::tcpDataReceived()
 {
     if(!m_mutex.tryLock())
+    {
         return;
+    }
     qint64 len = 0;
     ssize_t wr = 0;
     ssize_t i = 0;
+
+    if(m_sshChannel == nullptr)
+    {
+        m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(), "127.0.0.1", m_port);
+        qCDebug(logsshtunnelout) << "SshTunnelOut::SshTunnelOut() " << m_name << " try to connect to " << m_port << " return " << m_sshChannel;
+
+        if(m_sshChannel == nullptr)
+        {
+            int ret = qssh2_session_last_error(m_client->session(), nullptr, nullptr, 0);
+            if(ret != LIBSSH2_ERROR_CHANNEL_FAILURE)
+            {
+                qDebug() << "ERROR: Can't connect direct tcpip " << ret << " for port " << m_port;
+            }
+            else
+            {
+                qCDebug(logsshtunnelout) << "Can't connect direct tcpip " << ret << " for port " << m_port;
+            }
+            return;
+        }
+    }
 
     if (m_tcpsocket == nullptr || m_sshChannel == nullptr)
     {
