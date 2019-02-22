@@ -25,7 +25,6 @@ SshTunnelOutSrv::~SshTunnelOutSrv()
 
 void SshTunnelOutSrv::createConnection()
 {
-    qCDebug(logsshtunneloutsrv) << "SshTunnelOutSrv::createConnection()";
 
     if(!m_sshclient->channelReady())
     {
@@ -36,9 +35,10 @@ void SshTunnelOutSrv::createConnection()
     QTcpSocket *sock = m_tcpserver.nextPendingConnection();
     if(!sock) return;
 
+    qCDebug(logsshtunneloutsrv) << "SshTunnelOutSrv::createConnection() " << m_identifier << " : " << sock;
+
     SshTunnelOut *tunnel = new SshTunnelOut(m_sshclient, sock, QString("%1_%2").arg(m_identifier).arg(++m_count), m_port, this);
     QObject::connect(tunnel,    &SshTunnelOut::destroyed,    this,   &SshTunnelOutSrv::connectionDestroyed);
-    qCDebug(logsshtunneloutsrv) << "SshTunnelOutSrv::createConnection() OK";
     m_connections.append(tunnel);
 }
 

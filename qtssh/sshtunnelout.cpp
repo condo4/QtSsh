@@ -16,7 +16,6 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QStri
     m_dataSsh(16384, 0),
     m_dataSocket(16384, 0)
 {
-    qCDebug(logsshtunnelout) << "SshTunnelOut::SshTunnelOut() " << m_name;
     m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(), "127.0.0.1", m_port);
     if(m_sshChannel == nullptr)
     {
@@ -43,7 +42,7 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QStri
 
 SshTunnelOut::~SshTunnelOut()
 {
-    qCDebug(logsshtunnelout) << "~SshTunnelOut() " << m_name << " datasend: " << m_totalreadtcp;
+    qCDebug(logsshtunnelout) << "~SshTunnelOut() " << m_name << " " << this;
     if(m_tcpsocket && (m_tcpsocket->state() == QAbstractSocket::ConnectedState))
     {
         m_tcpsocket->disconnectFromHost();
@@ -111,7 +110,7 @@ void SshTunnelOut::sshDataReceived()
         }
         if (len < 0)
         {
-            qDebug() << "ERROR : " << m_name << " remote failed to read (" << len << ")";
+            qCWarning(logsshtunnelout) <<  "ERROR : " << m_name << " remote failed to read (" << len << " / " << m_dataSsh.size() << ")";
             m_mutex.unlock();
             return;
         }
@@ -125,7 +124,7 @@ void SshTunnelOut::sshDataReceived()
                 i = m_tcpsocket->write( m_dataSsh.mid(static_cast<int>(wr), static_cast<int>(len)));
                 if (i <= 0)
                 {
-                    qDebug() << "ERROR : " << m_name << " local failed to write (" << i << ")";
+                    qCWarning(logsshtunnelout) << "ERROR : " << m_name << " local failed to write (" << i << ")";
                     m_mutex.unlock();
                     return;
                 }
@@ -155,7 +154,7 @@ void SshTunnelOut::tcpDataReceived()
 
     if (m_tcpsocket == nullptr || m_sshChannel == nullptr)
     {
-        qDebug() << "ERROR : SshTunnelOut(" << m_name << ") : received TCP data but not seems to be a valid Tcp socket or channel not ready";
+        qCWarning(logsshtunnelout) <<  "ERROR : SshTunnelOut(" << m_name << ") : received TCP data but not seems to be a valid Tcp socket or channel not ready";
         m_mutex.unlock();
         return;
     }
@@ -166,11 +165,13 @@ void SshTunnelOut::tcpDataReceived()
         len = m_tcpsocket->read(m_dataSocket.data(), m_dataSocket.size());
         if (-EAGAIN == len)
         {
+            qCDebug(logsshtunnelout) << m_name << "tcpDataReceived() EAGAIN";
             break;
         }
+
         if (len < 0)
         {
-            qDebug() << "ERROR : " << m_name << " local failed to read (" << len << ")";
+            qCWarning(logsshtunnelout) <<  "ERROR : " << m_name << " local failed to read (" << len << ")";
             m_mutex.unlock();
             return;
         }
@@ -182,13 +183,13 @@ void SshTunnelOut::tcpDataReceived()
                 i = qssh2_channel_write(m_sshChannel, m_dataSocket.data(), static_cast<size_t>(len));
                 if (i < 0)
                 {
-                    qDebug() << "ERROR : " << m_name << " remote failed to write (" << i << ")";
+                    qCWarning(logsshtunnelout) << "ERROR : " << m_name << " remote failed to write (" << i << ")";
                     m_mutex.unlock();
                     return;
                 }
                 if (i == 0)
                 {
-                    qDebug() << "ERROR : " << m_name << " qssh2_channel_write return 0";
+                    qCWarning(logsshtunnelout) << "ERROR : " << m_name << " qssh2_channel_write return 0";
                 }
                 wr += i;
             } while(i > 0 && wr < len);
@@ -209,6 +210,6 @@ void SshTunnelOut::tcpDisconnected()
 
 void SshTunnelOut::displayError(QAbstractSocket::SocketError error)
 {
-    qDebug() << "ERROR : SshTunnelOut(" << m_name << ") : redirection socket error=" << error;
+    qCWarning(logsshtunnelout) << "ERROR : SshTunnelOut(" << m_name << ") : redirection socket error=" << error;
 }
 
