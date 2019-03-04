@@ -22,15 +22,15 @@ private:
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
     QByteArray m_dataSsh;
     QByteArray m_dataSocket;
-    QMutex m_mutex;
+    int m_retryChannelCreation;
 
-    void _init_channel();
 
 public:
     explicit SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QString &port_identifier, quint16 port, QObject *parent);
     virtual ~SshTunnelOut();
     void disconectFromHost();
     QString name() const;
+
 
 public slots:
     void sshDataReceived();
@@ -39,7 +39,7 @@ private slots:
     void displayError(QAbstractSocket::SocketError error);
     void tcpDataReceived();
     void tcpDisconnected();
-
+    void _init_channel();
 
 signals:
     void disconnectedFromTcp();

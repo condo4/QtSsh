@@ -1,7 +1,6 @@
 #include "sshclient.h"
 #include <QTemporaryFile>
 #include <QDir>
-#include <QThread>
 #include <QEventLoop>
 #include <QCoreApplication>
 #include "sshtunnelin.h"

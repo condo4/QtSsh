@@ -12,7 +12,7 @@
 #include <QObject>
 #include <QLoggingCategory>
 #include "async_libssh2.h"
-
+#include <QMutex>
 class SshClient;
 
 Q_DECLARE_LOGGING_CATEGORY(sshchannel)
@@ -20,7 +20,6 @@ Q_DECLARE_LOGGING_CATEGORY(sshchannel)
 class SshChannel : public QObject
 {
     Q_OBJECT
-
 protected:
     LIBSSH2_CHANNEL *sshChannel;
     SshClient       *sshClient;

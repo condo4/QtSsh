@@ -4,6 +4,7 @@
 #include <QList>
 #include <QTcpSocket>
 #include <QTimer>
+#include <QMutex>
 #include "sshchannel.h"
 #include "sshkey.h"
 
@@ -39,6 +40,8 @@ public:
     virtual ~SshClient();
 
     QString getName() const;
+    QMutex channelCreationInProgress;
+    void *currentLockerForChannelCreation;
 
 public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22);

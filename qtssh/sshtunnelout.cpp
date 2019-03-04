@@ -2,8 +2,8 @@
 #include "sshclient.h"
 #include <QTcpServer>
 #include <QTcpSocket>
-#include <QEventLoop>
 #include <cerrno>
+#include <QMutexLocker>
 
 Q_LOGGING_CATEGORY(logsshtunnelout, "ssh.tunnelout", QtWarningMsg)
 
@@ -14,14 +14,14 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QStri
     m_tcpsocket(tcpSocket),
     m_client(client),
     m_dataSsh(16384, 0),
-    m_dataSocket(16384, 0)
+    m_dataSocket(16384, 0),
+    m_retryChannelCreation(5)
 {
-    QObject::connect(m_client,    &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
-    QObject::connect(m_tcpsocket, &QTcpSocket::readyRead,      this, &SshTunnelOut::tcpDataReceived);
     QObject::connect(m_tcpsocket, &QTcpSocket::disconnected,   this, &SshTunnelOut::tcpDisconnected);
     QObject::connect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
 
     qCDebug(logsshtunnelout) << "SshTunnelOut::SshTunnelOut() OK " << m_name;
+    QTimer::singleShot(0, this, &SshTunnelOut::_init_channel);
 }
 
 SshTunnelOut::~SshTunnelOut()
@@ -61,27 +61,59 @@ void SshTunnelOut::_init_channel()
 {
     if(m_sshChannel == nullptr)
     {
-        if(!m_mutex.tryLock())
+        //
+        if ( ! m_client->channelCreationInProgress.tryLock() && m_client->currentLockerForChannelCreation != this )
+        {
+            qCDebug(logsshtunnelout) << "Initchannel have to wait for its tunnel creation" << m_port;
+            QTimer::singleShot(50, this, &SshTunnelOut::_init_channel);
             return;
+        }
+        m_client->currentLockerForChannelCreation = this;
+        qCDebug(logsshtunnelout) << "Initchannel" << m_port << m_sshChannel;
+        //qCDebug(logsshtunnelout) << "Initchannel protected section";
+        m_sshChannel = libssh2_channel_direct_tcpip_ex(m_client->session(),  "127.0.0.1", m_port, "127.0.0.1", 22);
+        qCDebug(logsshtunnelout) << "Creating direct tcpip channel done for " << m_port << ":" << m_sshChannel;
 
-        m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(), "127.0.0.1", m_port);
-        qCDebug(logsshtunnelout) << "SshTunnelOut::SshTunnelOut() " << m_name << " try to connect to " << m_port << " return " << m_sshChannel;
+        //m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(), "127.0.0.1", m_port);
+        //qCDebug(logsshtunnelout) << "Init channel " << m_name << " try to connect to " << m_port << " return " << m_sshChannel;
 
         if(m_sshChannel == nullptr)
         {
             int ret = qssh2_session_last_error(m_client->session(), nullptr, nullptr, 0);
-            if(ret != LIBSSH2_ERROR_CHANNEL_FAILURE)
+            if(ret == LIBSSH2_ERROR_CHANNEL_FAILURE)
             {
-                qDebug() << "ERROR: Can't connect direct tcpip " << ret << " for port " << m_port;
+                qCCritical(logsshtunnelout) << "Error channel failure " << " for port " << m_port;
+            }
+            else if (ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                if ( m_retryChannelCreation )
+                {
+                    qCDebug(logsshtunnelout) << "Will retry channel creation later";
+                    QTimer::singleShot(50, this, &SshTunnelOut::_init_channel);
+                    m_retryChannelCreation--;
+                }
+                else
+                {
+                    qCCritical(logsshtunnelout) << "Out of retries for channel creation, channel creation failed " <<"for port" << m_port;
+                }
             }
             else
             {
-                qCDebug(logsshtunnelout) << "Can't connect direct tcpip " << ret << " for port " << m_port;
+                qCCritical(logsshtunnelout) << "Error during channel creation" << ret <<"for port" << m_port;
             }
-            m_mutex.unlock();
             return;
         }
-        m_mutex.unlock();
+        else
+        {
+            QObject::connect(m_client,    &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
+            QObject::connect(m_tcpsocket, &QTcpSocket::readyRead,      this, &SshTunnelOut::tcpDataReceived);
+            m_client->channelCreationInProgress.unlock();
+            if ( m_tcpsocket->bytesAvailable())
+            {
+                QTimer::singleShot(0, this, &SshTunnelOut::tcpDataReceived);
+            }
+            QTimer::singleShot(0, this, &SshTunnelOut::sshDataReceived);
+        }
     }
 }
 
@@ -100,12 +132,7 @@ QString SshTunnelOut::name() const
 
 void SshTunnelOut::sshDataReceived()
 {
-    qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() " << m_name;
-    _init_channel();
-
-    if(!m_mutex.tryLock())
-        return;
-
+    qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() " << m_name << m_sshChannel;
     ssize_t len = 0,wr = 0;
     qint64 i;
 
@@ -118,15 +145,14 @@ void SshTunnelOut::sshDataReceived()
          * We can return, we will be recall at the next sshDataReceived
          */
         len = static_cast<ssize_t>(libssh2_channel_read(m_sshChannel, m_dataSsh.data(), static_cast<unsigned int>(m_dataSsh.size())));
+        //qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() read" << len;
         if(len == LIBSSH2_ERROR_EAGAIN)
         {
-            m_mutex.unlock();
             return;
         }
         if (len < 0)
         {
             qCWarning(logsshtunnelout) <<  "ERROR : " << m_name << " remote failed to read (" << len << " / " << m_dataSsh.size() << ")";
-            m_mutex.unlock();
             return;
         }
 
@@ -140,7 +166,6 @@ void SshTunnelOut::sshDataReceived()
                 if (i <= 0)
                 {
                     qCWarning(logsshtunnelout) << "ERROR : " << m_name << " local failed to write (" << i << ")";
-                    m_mutex.unlock();
                     return;
                 }
                 wr += i;
@@ -156,32 +181,25 @@ void SshTunnelOut::sshDataReceived()
         qCDebug(logsshtunnelout) << "Disconnected from ssh";
         emit disconnectedFromSsh();
     }
-    m_mutex.unlock();
 }
 
 void SshTunnelOut::tcpDataReceived()
 {
-    _init_channel();
-    if(!m_mutex.tryLock())
-    {
-        return;
-    }
+    qCDebug(logsshtunnelout) << "SshTunnelOut::tcpDataReceived() In";
     qint64 len = 0;
     ssize_t wr = 0;
     ssize_t i = 0;
 
-
     if (m_tcpsocket == nullptr || m_sshChannel == nullptr)
     {
         qCWarning(logsshtunnelout) <<  "ERROR : SshTunnelOut(" << m_name << ") : received TCP data but not seems to be a valid Tcp socket or channel not ready";
-        m_mutex.unlock();
         return;
     }
 
     do
     {
         /* Read data from local socket */
-        len = m_tcpsocket->read(m_dataSocket.data(), m_dataSocket.size());
+        len = m_tcpsocket->read(m_dataSocket.data(), m_dataSocket.length());
         if (-EAGAIN == len)
         {
             qCDebug(logsshtunnelout) << m_name << "tcpDataReceived() EAGAIN";
@@ -191,11 +209,10 @@ void SshTunnelOut::tcpDataReceived()
         if (len < 0)
         {
             qCWarning(logsshtunnelout) <<  "ERROR : " << m_name << " local failed to read (" << len << ")";
-            m_mutex.unlock();
             return;
         }
 
-        if(len > 0)
+        if(len > 0 )
         {
             do
             {
@@ -203,7 +220,6 @@ void SshTunnelOut::tcpDataReceived()
                 if (i < 0)
                 {
                     qCWarning(logsshtunnelout) << "ERROR : " << m_name << " remote failed to write (" << i << ")";
-                    m_mutex.unlock();
                     return;
                 }
                 if (i == 0)
@@ -213,9 +229,9 @@ void SshTunnelOut::tcpDataReceived()
                 wr += i;
             } while(i > 0 && wr < len);
         }
+
     }
     while(len > 0);
-    m_mutex.unlock();
 }
 
 void SshTunnelOut::tcpDisconnected()
