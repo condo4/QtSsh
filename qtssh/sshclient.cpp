@@ -50,6 +50,30 @@ QString SshClient::getName() const
     return m_name;
 }
 
+bool SshClient::takeChannelCreationMutex(void *identifier)
+{
+    if ( ! channelCreationInProgress.tryLock() && currentLockerForChannelCreation != identifier )
+    {
+        qCDebug(sshclient) << "takeChannelCreationMutex another channel is already been created, have to wait";
+        return false;
+    }
+    currentLockerForChannelCreation = identifier;
+    return true;
+}
+
+void SshClient::releaseChannelCreationMutex(void *identifier)
+{
+    if ( currentLockerForChannelCreation == identifier )
+    {
+        channelCreationInProgress.unlock();
+        currentLockerForChannelCreation = nullptr;
+    }
+    else
+    {
+        qCCritical(sshclient) << "Trying to release channel mutex but it doesn't host it";
+    }
+}
+
 void SshClient::_resetSession()
 {
     m_errorcode = 0;
@@ -156,6 +180,7 @@ quint16 SshClient::openRemotePortForwarding(const QString &servicename, quint16 
     {
         return m_channels.value(servicename)->localPort();
     }
+
 
     SshChannel *tunnel = qobject_cast<SshChannel *>(new SshTunnelOutSrv(this, servicename, port));
     m_channels.insert(servicename, tunnel);

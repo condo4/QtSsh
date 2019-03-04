@@ -15,7 +15,7 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QStri
     m_client(client),
     m_dataSsh(16384, 0),
     m_dataSocket(16384, 0),
-    m_retryChannelCreation(5)
+    m_retryChannelCreation(20)
 {
     QObject::connect(m_tcpsocket, &QTcpSocket::disconnected,   this, &SshTunnelOut::tcpDisconnected);
     QObject::connect(m_tcpsocket, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(displayError(QAbstractSocket::SocketError)));
@@ -61,21 +61,14 @@ void SshTunnelOut::_init_channel()
 {
     if(m_sshChannel == nullptr)
     {
-        //
-        if ( ! m_client->channelCreationInProgress.tryLock() && m_client->currentLockerForChannelCreation != this )
+        if ( ! m_client->takeChannelCreationMutex(this) )
         {
             qCDebug(logsshtunnelout) << "Initchannel have to wait for its tunnel creation" << m_port;
             QTimer::singleShot(50, this, &SshTunnelOut::_init_channel);
             return;
         }
-        m_client->currentLockerForChannelCreation = this;
-        qCDebug(logsshtunnelout) << "Initchannel" << m_port << m_sshChannel;
-        //qCDebug(logsshtunnelout) << "Initchannel protected section";
-        m_sshChannel = libssh2_channel_direct_tcpip_ex(m_client->session(),  "127.0.0.1", m_port, "127.0.0.1", 22);
-        qCDebug(logsshtunnelout) << "Creating direct tcpip channel done for " << m_port << ":" << m_sshChannel;
-
-        //m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(), "127.0.0.1", m_port);
-        //qCDebug(logsshtunnelout) << "Init channel " << m_name << " try to connect to " << m_port << " return " << m_sshChannel;
+        qCDebug(logsshtunnelout) << "Initchannel" << m_name << m_port;
+        m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(),  "127.0.0.1", m_port);
 
         if(m_sshChannel == nullptr)
         {
@@ -99,7 +92,7 @@ void SshTunnelOut::_init_channel()
             }
             else
             {
-                qCCritical(logsshtunnelout) << "Error during channel creation" << ret <<"for port" << m_port;
+                qCCritical(logsshtunnelout) << "Error during channel creation, code:" << ret <<",for port" << m_port;
             }
             return;
         }
@@ -107,7 +100,8 @@ void SshTunnelOut::_init_channel()
         {
             QObject::connect(m_client,    &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
             QObject::connect(m_tcpsocket, &QTcpSocket::readyRead,      this, &SshTunnelOut::tcpDataReceived);
-            m_client->channelCreationInProgress.unlock();
+            m_client->releaseChannelCreationMutex(this);
+            // If there is some data to read try processing them
             if ( m_tcpsocket->bytesAvailable())
             {
                 QTimer::singleShot(0, this, &SshTunnelOut::tcpDataReceived);

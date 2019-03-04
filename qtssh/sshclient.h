@@ -32,6 +32,8 @@ private:
     QString m_errorMessage;
     SshKey  m_hostKey;
     QTimer m_keepalive;
+    QMutex channelCreationInProgress;
+    void *currentLockerForChannelCreation;
 
     void _resetSession();
 
@@ -40,8 +42,8 @@ public:
     virtual ~SshClient();
 
     QString getName() const;
-    QMutex channelCreationInProgress;
-    void *currentLockerForChannelCreation;
+    bool takeChannelCreationMutex(void *identifier);
+    void releaseChannelCreationMutex(void *identifier);
 
 public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22);

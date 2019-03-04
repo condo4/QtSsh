@@ -320,11 +320,7 @@ inline LIBSSH2_CHANNEL * qssh2_channel_forward_accept(LIBSSH2_SESSION *session, 
 
 inline LIBSSH2_CHANNEL *qssh2_channel_direct_tcpip(LIBSSH2_SESSION *session, const char *host, int port)
 {
-    LIBSSH2_CHANNEL *cret = nullptr;
-    qDebug() << "Creating direct tcpip channel for" << port;
-    cret = libssh2_channel_direct_tcpip_ex(session, host, port, "127.0.0.1", 22);
-    qDebug() << "Creating direct tcpip channel done for " << port << ":" << cret;
-    return cret;
+    return libssh2_channel_direct_tcpip_ex(session, host, port, "127.0.0.1", 22);
 }
 
 
