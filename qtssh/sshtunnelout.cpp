@@ -239,6 +239,12 @@ void SshTunnelOut::tcpDisconnected()
 
 void SshTunnelOut::displayError(QAbstractSocket::SocketError error)
 {
-    qCWarning(logsshtunnelout) << "ERROR : SshTunnelOut(" << m_name << ") : redirection socket error=" << error;
+    switch(error)
+    {
+    case QAbstractSocket::RemoteHostClosedError:
+        // Socket will be closed just after this, nothing to care about
+        break;
+    default:
+        qCWarning(logsshtunnelout) << "ERROR : SshTunnelOut(" << m_name << ") : redirection socket error=" << error;
+    }
 }
-
