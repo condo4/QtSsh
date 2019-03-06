@@ -29,7 +29,10 @@ void SshChannel::stopChannel()
     if (sshChannel == nullptr)
         return;
 
-    int ret = qssh2_channel_close(sshChannel);
+    LIBSSH2_CHANNEL *tempChannel = sshChannel;
+    sshChannel = nullptr;
+
+    int ret = qssh2_channel_close(tempChannel);
 
     if(ret)
     {
@@ -37,18 +40,17 @@ void SshChannel::stopChannel()
         return;
     }
 
-    ret = qssh2_channel_wait_closed(sshChannel);
+    ret = qssh2_channel_wait_closed(tempChannel);
     if(ret)
     {
         qCDebug(sshchannel) << "Failed to channel_wait_closed";
         return;
     }
 
-    ret = qssh2_channel_free(sshChannel);
+    ret = qssh2_channel_free(tempChannel);
     if(ret)
     {
         qCDebug(sshchannel) << "Failed to channel_free";
         return;
     }
-    sshChannel = nullptr;
 }
