@@ -69,7 +69,6 @@ void SshTunnelOut::_init_channel()
         }
         qCDebug(logsshtunnelout) << "Initchannel" << m_name << m_port;
         m_sshChannel = qssh2_channel_direct_tcpip(m_client->session(),  "127.0.0.1", m_port);
-
         if(m_sshChannel == nullptr)
         {
             int ret = qssh2_session_last_error(m_client->session(), nullptr, nullptr, 0);
@@ -126,12 +125,18 @@ QString SshTunnelOut::name() const
 
 void SshTunnelOut::sshDataReceived()
 {
-    qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() " << m_name << m_sshChannel;
-    ssize_t len = 0,wr = 0;
-    qint64 i;
-
+    ssize_t len = 0;
+    if ( ! m_mutextSsh.tryLock() )
+    {
+        qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() avoid multiple called";
+        return;
+    }
+    m_mutextSsh.unlock();
+    QMutexLocker locker(&m_mutextSsh);
     do
     {
+        ssize_t wr = 0;
+        qint64 i;
         /* Read data from SSH */
         /*
          * In this case, we must not used qssh2_channel_read
@@ -139,7 +144,6 @@ void SshTunnelOut::sshDataReceived()
          * We can return, we will be recall at the next sshDataReceived
          */
         len = static_cast<ssize_t>(libssh2_channel_read(m_sshChannel, m_dataSsh.data(), static_cast<unsigned int>(m_dataSsh.size())));
-        //qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() read" << len;
         if(len == LIBSSH2_ERROR_EAGAIN)
         {
             return;
@@ -149,14 +153,13 @@ void SshTunnelOut::sshDataReceived()
             qCWarning(logsshtunnelout) <<  "ERROR : " << m_name << " remote failed to read (" << len << " / " << m_dataSsh.size() << ")";
             return;
         }
-
+        //qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() " << m_name << m_dataSsh.left(4).toHex() << len;
         /* Write data into output local socket */
-        wr = 0;
         if(m_tcpsocket != nullptr)
         {
             while (wr < len)
             {
-                i = m_tcpsocket->write( m_dataSsh.mid(static_cast<int>(wr), static_cast<int>(len)));
+                i = m_tcpsocket->write( m_dataSsh.mid(static_cast<int>(wr)));
                 if (i <= 0)
                 {
                     qCWarning(logsshtunnelout) << "ERROR : " << m_name << " local failed to write (" << i << ")";
@@ -164,10 +167,10 @@ void SshTunnelOut::sshDataReceived()
                 }
                 wr += i;
             }
+            //qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() " << m_name << "writen" << len << "total" << m_counters[m_name];
         }
     }
-    while(len == m_dataSsh.size());
-
+    while(len != 0);
     if (libssh2_channel_eof(m_sshChannel))
     {
         if(m_tcpsocket)
@@ -179,10 +182,14 @@ void SshTunnelOut::sshDataReceived()
 
 void SshTunnelOut::tcpDataReceived()
 {
-    qCDebug(logsshtunnelout) << "SshTunnelOut::tcpDataReceived() In";
-    qint64 len = 0;
-    ssize_t wr = 0;
-    ssize_t i = 0;
+    if ( ! m_mutextTcp.tryLock() )
+    {
+        qCDebug(logsshtunnelout) << "SshTunnelOut::tcpDataReceived() avoid multiple called";
+        return;
+    }
+    m_mutextTcp.unlock();
+    QMutexLocker locker(&m_mutextTcp);
+    //qCDebug(logsshtunnelout) << "SshTunnelOut::tcpDataReceived() In";
 
     if (m_tcpsocket == nullptr || m_sshChannel == nullptr)
     {
@@ -190,8 +197,11 @@ void SshTunnelOut::tcpDataReceived()
         return;
     }
 
+    qint64 len = 0;
     do
     {
+        ssize_t wr = 0;
+        ssize_t i = 0;
         /* Read data from local socket */
         len = m_tcpsocket->read(m_dataSocket.data(), m_dataSocket.length());
         if (-EAGAIN == len)
@@ -199,18 +209,19 @@ void SshTunnelOut::tcpDataReceived()
             qCDebug(logsshtunnelout) << m_name << "tcpDataReceived() EAGAIN";
             break;
         }
-
         if (len < 0)
         {
             qCWarning(logsshtunnelout) <<  "ERROR : " << m_name << " local failed to read (" << len << ")";
-            return;
+            break;
         }
-
         if(len > 0 )
         {
             do
             {
-                i = qssh2_channel_write(m_sshChannel, m_dataSocket.data(), static_cast<size_t>(len));
+                i = qssh2_channel_write(
+                            m_sshChannel,
+                            m_dataSocket.mid(static_cast<int>(wr)).constData(),
+                            static_cast<size_t>(len-wr));
                 if (i < 0)
                 {
                     qCWarning(logsshtunnelout) << "ERROR : " << m_name << " remote failed to write (" << i << ")";
@@ -221,9 +232,10 @@ void SshTunnelOut::tcpDataReceived()
                     qCWarning(logsshtunnelout) << "ERROR : " << m_name << " qssh2_channel_write return 0";
                 }
                 wr += i;
-            } while(i > 0 && wr < len);
-        }
+            } while( wr != len);
 
+        }
+        //qCDebug(logsshtunnelout) << "SshTunnelOut::tcpDataReceived()" << m_name << "Writen" << len ;
     }
     while(len > 0);
 }

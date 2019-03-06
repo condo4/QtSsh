@@ -23,7 +23,8 @@ private:
     QByteArray m_dataSsh;
     QByteArray m_dataSocket;
     int m_retryChannelCreation;
-
+    QMutex m_mutextSsh;
+    QMutex m_mutextTcp;
 
 public:
     explicit SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QString &port_identifier, quint16 port, QObject *parent);
