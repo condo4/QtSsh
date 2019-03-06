@@ -4,6 +4,7 @@
 #include <QTcpSocket>
 #include <QEventLoop>
 #include <cerrno>
+#include <QTime>
 
 Q_LOGGING_CATEGORY(logsshtunnelin, "ssh.tunnelin", QtWarningMsg)
 
@@ -27,13 +28,33 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
 {
     qCDebug(logsshtunnelin) << m_name << "Try reverse forwarding port" << m_port << "from" << remoteport;
 
-    m_sshListener = qssh2_channel_forward_listen_ex(sshClient->session(), qPrintable(host), m_remoteTcpPort, &m_remoteTcpPort);
-    if (m_sshListener == nullptr)
+    /* There is an unknown issue here, sometime qssh2_channel_forward_listen_ex will failed with error LIBSSH2_ERROR_REQUEST_DENIED
+     * for an unknown reason, if we retry it will do the job... so try a few time
+     */
+    int retryListen = 3;
+    do
     {
-        int ret = qssh2_session_last_error(sshClient->session(), nullptr, nullptr, 0);
-        qCCritical(logsshtunnelin, "ERROR : Can't create remote connection throw %s for port %i (error %i)", qPrintable(sshClient->getName()) , localport, ret);
-        return;
-    }
+        m_sshListener = qssh2_channel_forward_listen_ex(sshClient->session(), qPrintable(host), m_remoteTcpPort, &m_remoteTcpPort);
+        if (m_sshListener == nullptr)
+        {
+            int ret = qssh2_session_last_error(sshClient->session(), nullptr, nullptr, 0);
+            if ( ret==LIBSSH2_ERROR_REQUEST_DENIED && retryListen > 0 )
+            {
+                retryListen--;
+                QTime timer;
+                timer.start();
+                while(timer.elapsed() < 50)
+                {
+                    QCoreApplication::processEvents();
+                }
+            }
+            else
+            {
+                qCCritical(logsshtunnelin, "ERROR : Can't create remote connection throw %s for port %i (error %i)", qPrintable(sshClient->getName()) , localport, ret);
+                return;
+            }
+        }
+    } while (m_sshListener == nullptr);
 
     if(remoteport == 0)
     {
