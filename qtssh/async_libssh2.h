@@ -324,7 +324,7 @@ inline LIBSSH2_CHANNEL *qssh2_channel_direct_tcpip(LIBSSH2_SESSION *session, con
 }
 
 
-inline ssize_t qssh2_channel_write(LIBSSH2_CHANNEL *channel, char *buf, size_t buflen)
+inline ssize_t qssh2_channel_write(LIBSSH2_CHANNEL *channel, const char *buf, size_t buflen)
 {
     ssize_t ret = LIBSSH2_ERROR_EAGAIN;
 
