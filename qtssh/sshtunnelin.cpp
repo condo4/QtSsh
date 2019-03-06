@@ -22,14 +22,16 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
     , m_workinprogress(false)
     , m_needToDisconnect(false)
     , m_needToSendEOF(false)
+    , m_tcpBuffer(BUFFER_LEN, 0)
+    , m_sshBuffer(BUFFER_LEN, 0)
 {
-    qCDebug(logsshtunnelin, "Try reverse forwarding port %i from %i (%s)", m_port, remoteport, qPrintable(m_name));
+    qCDebug(logsshtunnelin) << m_name << "Try reverse forwarding port" << m_port << "from" << remoteport;
 
     m_sshListener = qssh2_channel_forward_listen_ex(sshClient->session(), qPrintable(host), m_remoteTcpPort, &m_remoteTcpPort);
     if (m_sshListener == nullptr)
     {
         int ret = qssh2_session_last_error(sshClient->session(), nullptr, nullptr, 0);
-        qCDebug(logsshtunnelin, "ERROR : Can't create remote connection throw %s for port %i (error %i)", qPrintable(sshClient->getName()) , localport, ret);
+        qCCritical(logsshtunnelin, "ERROR : Can't create remote connection throw %s for port %i (error %i)", qPrintable(sshClient->getName()) , localport, ret);
         return;
     }
 
@@ -87,8 +89,7 @@ void SshTunnelIn::onLocalSocketDisconnected()
         {
             qCDebug(logsshtunnelin, "SshTunnelIn::onLocalSocketDisconnected() Free Channel");
             qssh2_channel_flush(sshChannel);
-            qssh2_channel_free(sshChannel);
-            sshChannel = nullptr;
+            stopChannel();
         }
     }
 }
@@ -124,41 +125,29 @@ void SshTunnelIn::onLocalSocketError(QAbstractSocket::SocketError error)
 void SshTunnelIn::onLocalSocketDataReceived()
 {
     QObject::disconnect(m_tcpsocket.data(), &QTcpSocket::readyRead,    this, &SshTunnelIn::onLocalSocketDataReceived);
-    QByteArray buffer(BUFFER_LEN, 0);
     qint64 len = 0;
-    qint64 wr  = 0;
-    qint64 i   = 0;
     m_workinprogress = true;
-    do
+
+    while( m_tcpsocket->bytesAvailable() > 0)
     {
         /* Read data from local socket */
-        wr = 0;
-        len = m_tcpsocket->read(buffer.data(), buffer.size());
-        if (-EAGAIN == len)
+        qint64 wr  = 0;
+        qint64 i   = 0;
+        len = m_tcpsocket->read(m_tcpBuffer.data(), m_tcpBuffer.size());
+        //qCDebug(logsshtunnelin) <<  "Read from tcp" << len;
+        while(wr < len)
         {
-            QCoreApplication::processEvents();
-            break;
-        }
-        if (len < 0)
-        {
-            qCWarning(logsshtunnelin, "ERROR : %s local failed to read (%lli)", qPrintable(m_name), len);
-            goto exit2;
-        }
-
-        do
-        {
-            i = qssh2_channel_write(sshChannel, buffer.data() + wr, static_cast<size_t>(len - wr));
+            i = qssh2_channel_write(sshChannel, m_tcpBuffer.mid(static_cast<int>(wr)).constData(), static_cast<size_t>(len - wr));
             if (i < 0)
             {
                 qCWarning(logsshtunnelin, "ERROR : %s  remote failed to write (%lli)", qPrintable(m_name), i);
-                goto exit2;
+                break;
             }
             wr += i;
-        } while(wr < len);
+            //qCDebug(logsshtunnelin) <<  "Write into ssh" << i;
+        }
     }
-    while(m_tcpsocket->bytesAvailable() > 0);
 
-exit2:
     m_workinprogress = false;
     if(m_needToSendEOF) {
         qssh2_channel_send_eof(sshChannel);
@@ -174,9 +163,7 @@ void SshTunnelIn::sshDataReceived()
 {
     QObject::disconnect(sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived);
     m_workinprogress = true;
-    QByteArray buffer(BUFFER_LEN, 0);
-    ssize_t len,wr;
-    qint64 i;
+    ssize_t len;
     int ret;
 
     if (sshChannel == nullptr)
@@ -196,43 +183,47 @@ void SshTunnelIn::sshDataReceived()
         qCDebug(logsshtunnelin, "-> forward connection accepted, now create forward socket");
 
         m_tcpsocket.reset(new QTcpSocket(this));
-        m_tcpsocket->setReadBufferSize(16384);
+        //m_tcpsocket->setReadBufferSize(16384);
         QObject::connect(m_tcpsocket.data(), &QTcpSocket::connected, this, &SshTunnelIn::onLocalSocketConnected);
 
         qCDebug(logsshtunnelin, "-> try to connect forward socket");
-        m_tcpsocket->connectToHost(QHostAddress("127.0.0.1"), m_localTcpPort, QIODevice::ReadWrite);
+        m_tcpsocket->connectToHost(QHostAddress("127.0.0.1"), static_cast<quint16>(m_localTcpPort), QIODevice::ReadWrite);
         goto exit;
     }
 
     do
     {
+        qint64 i;
+        ssize_t wr = 0;
         /* Read data from SSH */
-        len = libssh2_channel_read_ex(sshChannel, 0, buffer.data(), static_cast<size_t>(buffer.size()));
+        len = libssh2_channel_read_ex(sshChannel, 0, m_sshBuffer.data(), static_cast<size_t>(m_sshBuffer.size()));
         if(len == LIBSSH2_ERROR_EAGAIN)
         {
             goto exit;
         }
-
+        //qCDebug(logsshtunnelin) <<  "Read from ssh" << len;
         /* Write data into output local socket */
         wr = 0;
         while (wr < len)
         {
             if (m_tcpsocket->isValid() && m_tcpsocket->state() == QAbstractSocket::ConnectedState)
             {
-                i = m_tcpsocket->write(buffer.data() + wr, static_cast<int>(len - wr));
-                if (i == -EAGAIN)
+                i = m_tcpsocket->write(m_sshBuffer.mid(static_cast<int>(wr)).constData(), len - wr);
+                if (i < 0)
                 {
-                    continue;
-                }
-                if (i <= 0)
-                {
-                    qCWarning(logsshtunnelin, "ERROR : local failed to write (%lli)", i);
+                    qCWarning(logsshtunnelin) << "ERROR : local failed to write (%lli)" << i << wr << len;
                     goto exit;
+                }
+                else if ( i == 0 )
+                {
+                    qCWarning(logsshtunnelin) << "TCP socket is full! Waiting" << m_tcpsocket->bytesToWrite() << len << wr;
+                    QCoreApplication::processEvents();
                 }
                 wr += i;
                 m_tcpsocket->flush();
             }
         }
+        //qCDebug(logsshtunnelin) <<  "Write into tcp" << len;
     }
     while(len > 0);
 

@@ -23,6 +23,8 @@ private:
     bool m_workinprogress;
     bool m_needToDisconnect;
     bool m_needToSendEOF;
+    QByteArray m_tcpBuffer;
+    QByteArray m_sshBuffer;
 
 public:
     explicit SshTunnelIn(SshClient * client, const QString &portIdentifier, quint16 localport, quint16 remoteport, QString host = "localhost");
