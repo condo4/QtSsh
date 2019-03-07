@@ -153,21 +153,21 @@ void SshTunnelOut::sshDataReceived()
             qCWarning(logsshtunnelout) <<  "ERROR : " << m_name << " remote failed to read (" << len << " / " << m_dataSsh.size() << ")";
             return;
         }
-        //qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() " << m_name << m_dataSsh.left(4).toHex() << len;
+        //qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() " << m_name << len << "total" << readSshCount;
         /* Write data into output local socket */
         if(m_tcpsocket != nullptr)
         {
             while (wr < len)
             {
-                i = m_tcpsocket->write( m_dataSsh.mid(static_cast<int>(wr)));
+                i = m_tcpsocket->write( m_dataSsh.mid(static_cast<int>(wr)).constData(), static_cast<int>(len-wr));
                 if (i <= 0)
                 {
                     qCWarning(logsshtunnelout) << "ERROR : " << m_name << " local failed to write (" << i << ")";
                     return;
                 }
                 wr += i;
+                //qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() " << m_name << "writen total" << writeTcpCount;
             }
-            //qCDebug(logsshtunnelout) << "SshTunnelOut::sshDataReceived() " << m_name << "writen" << len << "total" << m_counters[m_name];
         }
     }
     while(len != 0);

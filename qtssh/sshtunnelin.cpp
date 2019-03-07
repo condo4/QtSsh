@@ -155,7 +155,7 @@ void SshTunnelIn::onLocalSocketDataReceived()
         qint64 wr  = 0;
         qint64 i   = 0;
         len = m_tcpsocket->read(m_tcpBuffer.data(), m_tcpBuffer.size());
-        //qCDebug(logsshtunnelin) <<  "Read from tcp" << len;
+        //qCDebug(logsshtunnelin) <<  "Read from tcp" << len << "total" << m_readByteOnTcp;
         while(wr < len)
         {
             i = qssh2_channel_write(sshChannel, m_tcpBuffer.mid(static_cast<int>(wr)).constData(), static_cast<size_t>(len - wr));
@@ -222,7 +222,7 @@ void SshTunnelIn::sshDataReceived()
         {
             goto exit;
         }
-        //qCDebug(logsshtunnelin) <<  "Read from ssh" << len;
+        //qCDebug(logsshtunnelin) <<  "Read from ssh" << len << "total" << m_readByteOnSsh;
         /* Write data into output local socket */
         wr = 0;
         while (wr < len)
