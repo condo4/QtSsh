@@ -31,7 +31,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
     /* There is an unknown issue here, sometime qssh2_channel_forward_listen_ex will failed with error LIBSSH2_ERROR_REQUEST_DENIED
      * for an unknown reason, if we retry it will do the job... so try a few time
      */
-    int retryListen = 3;
+    int retryListen = 10;
     do
     {
         m_sshListener = qssh2_channel_forward_listen_ex(sshClient->session(), qPrintable(host), m_remoteTcpPort, &m_remoteTcpPort);
@@ -43,7 +43,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
                 retryListen--;
                 QTime timer;
                 timer.start();
-                while(timer.elapsed() < 50)
+                while(timer.elapsed() < 100)
                 {
                     QCoreApplication::processEvents();
                 }
