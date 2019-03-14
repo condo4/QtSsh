@@ -11,6 +11,7 @@
 #include "cerrno"
 
 Q_LOGGING_CATEGORY(sshclient, "ssh.client", QtWarningMsg)
+int SshClient::s_nbInstance = 0;
 
 static ssize_t qt_callback_libssh_recv(int socket,void *buffer, size_t length,int flags, void **abstract)
 {
@@ -103,14 +104,23 @@ SshClient::SshClient(const QString &name, QObject * parent):
     connect(&m_socket,   &QTcpSocket::disconnected, this, &SshClient::_disconnected);
     connect(&m_keepalive,&QTimer::timeout,          this, &SshClient::_sendKeepAlive);
 
-    Q_ASSERT(qssh2_init(0) == 0);
-    _resetSession();
+    if(s_nbInstance == 0)
+    {
+        Q_ASSERT(qssh2_init(0) == 0);
+    }
+    ++s_nbInstance;
+
     qCDebug(sshclient) << m_name << " created";
 }
 
 SshClient::~SshClient()
 {
     disconnectFromHost();
+    --s_nbInstance;
+    if(s_nbInstance == 0)
+    {
+        libssh2_exit();
+    }
     qCDebug(sshclient) << m_name << " destroyed";
 }
 

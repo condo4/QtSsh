@@ -16,6 +16,7 @@ class  SshClient : public QObject {
 private:
     LIBSSH2_SESSION    * m_session;
     LIBSSH2_KNOWNHOSTS * m_knownHosts;
+    static int s_nbInstance;
     QString m_name;
     QMap<QString, SshChannel *> m_channels;
     QTcpSocket m_socket;
