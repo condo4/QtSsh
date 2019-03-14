@@ -75,18 +75,6 @@ void SshClient::releaseChannelCreationMutex(void *identifier)
     }
 }
 
-void SshClient::_resetSession()
-{
-    m_errorcode = 0;
-    m_errorMessage = QString();
-    m_session = qssh2_session_init_ex(nullptr, nullptr, nullptr, reinterpret_cast<void *>(&m_socket));
-    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_RECV,reinterpret_cast<void*>(& qt_callback_libssh_recv));
-    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_SEND,reinterpret_cast<void*>(& qt_callback_libssh_send));
-    Q_ASSERT(m_session);
-    m_knownHosts = qssh2_knownhost_init(m_session);
-    Q_ASSERT(m_knownHosts);
-    qssh2_session_set_blocking(m_session, 0);
-}
 
 SshClient::SshClient(const QString &name, QObject * parent):
     QObject(parent),
@@ -228,11 +216,11 @@ QString SshClient::sendFile(const QString &src, const QString &dst)
 
 int SshClient::connectToHost(const QString & user, const QString & host, quint16 port)
 {
+    qCDebug(sshclient) << m_name << ": connectToHost(" << m_hostname << "," << m_port << ") with login " << user;
     if(m_sshConnected) {
         qCCritical(sshclient, "%s: Allready connected", qPrintable(m_name));
         return 0;
     }
-    qCDebug(sshclient) << m_name << ": connectToHost(" << m_hostname << "," << m_port << ") with login " << user;
 
     QEventLoop wait;
     QTimer timeout;
@@ -252,6 +240,18 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 
     /* Socket is ready, now start to initialize Ssh Session */
     int sock = static_cast<int>(m_socket.socketDescriptor());
+
+
+    m_errorcode = 0;
+    m_errorMessage = QString();
+    m_session = qssh2_session_init_ex(nullptr, nullptr, nullptr, reinterpret_cast<void *>(&m_socket));
+    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_RECV,reinterpret_cast<void*>(& qt_callback_libssh_recv));
+    qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_SEND,reinterpret_cast<void*>(& qt_callback_libssh_send));
+    Q_ASSERT(m_session);
+    m_knownHosts = qssh2_knownhost_init(m_session);
+    Q_ASSERT(m_knownHosts);
+    qssh2_session_set_blocking(m_session, 0);
+
     int ret = qssh2_session_handshake(m_session, sock);
     if(ret)
     {
@@ -386,36 +386,39 @@ void SshClient::_readyRead()
 
 void SshClient::disconnectFromHost()
 {
+    qCDebug(sshclient) << m_name << ": disconnectFromHost()";
     if(!m_sshConnected) return;
 
-    QEventLoop wait;
-
     /* Close all Opened Channels */
-    for(SshChannel *ch: m_channels)
+    if(m_channels.size() > 0)
     {
-        delete ch;
+        for(SshChannel *ch: m_channels)
+        {
+            delete ch;
+        }
+        m_channels.clear();
     }
-    m_channels.clear();
 
+    /* Stop keepalive */
     m_keepalive.stop();
 
-    QObject::disconnect(&m_socket, &QAbstractSocket::readyRead, this, &SshClient::_readyRead);
-
+    /* Disconnect session */
     if (m_knownHosts)
     {
         qssh2_knownhost_free(m_knownHosts);
+        m_knownHosts = nullptr;
     }
-
 
     if (m_session)
     {
+        qssh2_session_disconnect(m_session, "good bye!");
         qssh2_session_free(m_session);
     }
-    _resetSession();
-
     m_sshConnected = false;
 
-    disconnect(&m_socket, SIGNAL(disconnected()), this, SLOT(_disconnected()));
+    /* Disconnect socket */
+    QObject::disconnect(&m_socket, &QAbstractSocket::readyRead,    this, &SshClient::_readyRead);
+    QObject::disconnect(&m_socket, &QAbstractSocket::disconnected, this, &SshClient::_disconnected);
     if(m_socket.state() != QTcpSocket::UnconnectedState)
     {
         m_socket.disconnectFromHost();
@@ -425,6 +428,8 @@ void SshClient::disconnectFromHost()
         }
     }
     m_socket.close();
+
+    emit disconnected();
 }
 
 void SshClient::setPassphrase(const QString & pass)
@@ -502,43 +507,10 @@ void SshClient::_stateChanged(QAbstractSocket::SocketState socketState)
     emit stateChanged(socketState);
 }
 
-void SshClient::askDisconnect()
-{
-    /* Close all Opened Channels */
-    for(SshChannel *ch: m_channels)
-    {
-        delete ch;
-    }
-    m_channels.clear();
-
-    qCDebug(sshclient, "%s: reset", qPrintable(m_name));
-    m_keepalive.stop();
-
-    if (m_knownHosts)
-    {
-        qssh2_knownhost_free(m_knownHosts);
-    }
-
-    if (m_session)
-    {
-        qssh2_session_disconnect(m_session, "good bye!");
-        qssh2_session_free(m_session);
-    }
-    _resetSession();
-
-    m_socket.disconnectFromHost();
-    qCDebug(sshclient, "%s: reset disconnected", qPrintable(m_name));
-}
-
 void SshClient::_disconnected()
 {
-    m_keepalive.stop();
-
     qCDebug(sshclient, "%s: unexpected shutdown", qPrintable(m_name));
-    askDisconnect();
-
-    m_sshConnected = false;
-    emit disconnected();
+    disconnectFromHost();
 }
 
 void SshClient::_getLastError()

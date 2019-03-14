@@ -36,8 +36,6 @@ private:
     QMutex channelCreationInProgress;
     void *currentLockerForChannelCreation;
 
-    void _resetSession();
-
 public:
     SshClient(const QString &name = "noname", QObject * parent = nullptr);
     virtual ~SshClient();
@@ -78,11 +76,6 @@ signals:
     void disconnected();
     void error(QAbstractSocket::SocketError);
     void stateChanged(QAbstractSocket::SocketState socketState);
-
-
-public slots:
-    void askDisconnect();
-
 
 private slots:
     void _readyRead();
