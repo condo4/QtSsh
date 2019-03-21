@@ -94,7 +94,7 @@ SshClient::SshClient(const QString &name, QObject * parent):
 
     if(s_nbInstance == 0)
     {
-        Q_ASSERT(qssh2_init(0) == 0);
+        Q_ASSERT(libssh2_init(0) == 0);
     }
     ++s_nbInstance;
 
@@ -191,25 +191,23 @@ void SshClient::closePortForwarding(const QString &servicename)
 
     if(m_channels.contains(servicename))
     {
-        SshChannel *tunnel = m_channels.value(servicename);
+        QScopedPointer<SshChannel> tunnel(m_channels.value(servicename));
         m_channels.remove(servicename);
-        delete tunnel;
     }
 }
 
 QString SshClient::runCommand(const QString &command)
 {
     QString res;
-    SshProcess *sshProcess = new SshProcess(this);
+    QScopedPointer<SshProcess> sshProcess(new SshProcess(this));
     res = sshProcess->runCommand(command);
     return res;
 }
 
 QString SshClient::sendFile(const QString &src, const QString &dst)
 {
-    SshScpSend *sender = new SshScpSend(this);
+    QScopedPointer<SshScpSend> sender(new SshScpSend(this));
     QString d = sender->send(src, dst);
-    delete sender;
     return d;
 }
 
