@@ -7,6 +7,7 @@
 #include <QMutex>
 #include "sshchannel.h"
 #include "sshkey.h"
+#include <QSharedPointer>
 
 Q_DECLARE_LOGGING_CATEGORY(sshclient)
 
