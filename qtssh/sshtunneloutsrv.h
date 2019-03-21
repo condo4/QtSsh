@@ -14,7 +14,7 @@ class SshTunnelOutSrv : public SshChannel
     Q_OBJECT
 
     QTcpServer              m_tcpserver;
-    QList<SshTunnelOut*>    m_connections;
+    QList<QSharedPointer<SshTunnelOut>>    m_connections;
     SshClient               *m_sshclient;
     QString                 m_identifier;
     quint16                 m_port;

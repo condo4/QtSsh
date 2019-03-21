@@ -17,7 +17,7 @@ SshTunnelOutSrv::SshTunnelOutSrv(SshClient *client, const QString &port_identifi
 
 SshTunnelOutSrv::~SshTunnelOutSrv()
 {
-    foreach (SshTunnelOut *tunnel, m_connections) {
+    foreach (QSharedPointer<SshTunnelOut> tunnel, m_connections) {
         tunnel->disconectFromHost();
     }
     m_tcpserver.close();
@@ -37,17 +37,23 @@ void SshTunnelOutSrv::createConnection()
 
     qCDebug(logsshtunneloutsrv) << "SshTunnelOutSrv::createConnection() " << m_identifier << " : " << sock;
 
-    SshTunnelOut *tunnel = new SshTunnelOut(m_sshclient, sock, QString("%1_%2").arg(m_identifier).arg(++m_count), m_port, this);
-    QObject::connect(tunnel,    &SshTunnelOut::destroyed,    this,   &SshTunnelOutSrv::connectionDestroyed);
+    QSharedPointer<SshTunnelOut> tunnel(new SshTunnelOut(m_sshclient, sock, QString("%1_%2").arg(m_identifier).arg(++m_count), m_port, this));
+    QObject::connect(tunnel.data(),    &SshTunnelOut::destroyed,    this,   &SshTunnelOutSrv::connectionDestroyed);
     m_connections.append(tunnel);
 }
 
 void SshTunnelOutSrv::connectionDestroyed()
 {
-    SshTunnelOut *tunnel = qobject_cast<SshTunnelOut *>(QObject::sender());
+    SshTunnelOut* tunnel = qobject_cast<SshTunnelOut *>(QObject::sender());
     if(tunnel == nullptr)
         return;
-    m_connections.removeAll(tunnel);
+    for(int i=(m_connections.size() - 1); i > 0; i++)
+    {
+        if(m_connections[i].data() == tunnel)
+        {
+            m_connections.removeAt(i);
+        }
+    }
 }
 
 quint16 SshTunnelOutSrv::localPort()

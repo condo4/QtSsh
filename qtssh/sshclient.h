@@ -18,7 +18,7 @@ private:
     LIBSSH2_KNOWNHOSTS * m_knownHosts;
     static int s_nbInstance;
     QString m_name;
-    QMap<QString, SshChannel *> m_channels;
+    QMap<QString, QSharedPointer<SshChannel>> m_channels;
     QTcpSocket m_socket;
 
     quint16 m_port;

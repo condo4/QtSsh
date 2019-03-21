@@ -164,7 +164,7 @@ quint16 SshClient::openLocalPortForwarding(const QString &servicename, quint16 p
         return m_channels.value(servicename)->localPort();
     }
 
-    SshTunnelIn *tunnel = new SshTunnelIn(this, servicename, port, bind);
+    QSharedPointer<SshTunnelIn> tunnel(new SshTunnelIn(this, servicename, port, bind));
     if(!tunnel->valid())
     {
         qCWarning(sshclient, "SshTunnelIn creation failed");
@@ -181,8 +181,7 @@ quint16 SshClient::openRemotePortForwarding(const QString &servicename, quint16 
         return m_channels.value(servicename)->localPort();
     }
 
-
-    SshChannel *tunnel = qobject_cast<SshChannel *>(new SshTunnelOutSrv(this, servicename, port));
+    QSharedPointer<SshTunnelOutSrv> tunnel(new SshTunnelOutSrv(this, servicename, port));
     m_channels.insert(servicename, tunnel);
     return tunnel->localPort();
 }
@@ -193,7 +192,6 @@ void SshClient::closePortForwarding(const QString &servicename)
 
     if(m_channels.contains(servicename))
     {
-        QScopedPointer<SshChannel> tunnel(m_channels.value(servicename));
         m_channels.remove(servicename);
     }
 }
@@ -397,14 +395,7 @@ void SshClient::disconnectFromHost()
     if(!m_sshConnected) return;
 
     /* Close all Opened Channels */
-    if(m_channels.size() > 0)
-    {
-        for(SshChannel *ch: m_channels)
-        {
-            delete ch;
-        }
-        m_channels.clear();
-    }
+    m_channels.clear();
 
     /* Stop keepalive */
     m_keepalive.stop();

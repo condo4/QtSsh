@@ -112,7 +112,10 @@ void SshTunnelOut::_init_channel()
 
 void SshTunnelOut::disconectFromHost()
 {
-    if(m_tcpsocket && (m_tcpsocket->state() == QAbstractSocket::ConnectedState))
+    if(m_tcpsocket == nullptr)
+        return;
+
+    if(m_tcpsocket->state() == QAbstractSocket::ConnectedState)
     {
         m_tcpsocket->disconnectFromHost();
     }
