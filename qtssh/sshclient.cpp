@@ -94,6 +94,7 @@ SshClient::SshClient(const QString &name, QObject * parent):
 
     if(s_nbInstance == 0)
     {
+        qCDebug(sshclient) << "libssh2_init()";
         Q_ASSERT(libssh2_init(0) == 0);
     }
     ++s_nbInstance;
@@ -107,6 +108,7 @@ SshClient::~SshClient()
     --s_nbInstance;
     if(s_nbInstance == 0)
     {
+        qCDebug(sshclient) << "libssh2_exit()";
         libssh2_exit();
     }
     qCDebug(sshclient) << m_name << " destroyed";
