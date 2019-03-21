@@ -31,6 +31,7 @@ private:
     QString m_privateKey;
     QString m_publicKey;
     QString m_errorMessage;
+    QString m_knowhostFiles;
     SshKey  m_hostKey;
     QTimer m_keepalive;
     QMutex channelCreationInProgress;
@@ -52,10 +53,10 @@ public slots:
     quint16 openRemotePortForwarding(const QString &servicename, quint16 port);
     void closePortForwarding(const QString &servicename);
     void setKeys(const QString &publicKey, const QString &privateKey);
-    bool loadKnownHosts(const QString &file);
     QString sendFile(const QString &src, const QString &dst);
     void setPassphrase(const QString & pass);
     bool saveKnownHosts(const QString &file);
+    void setKownHostFile(const QString &file);
     bool addKnownHost  (const QString &hostname, const SshKey &key);
     QString banner();
     void waitSocket();
@@ -82,6 +83,7 @@ private slots:
     void _disconnected();
     void _getLastError();
     void _sendKeepAlive();
+    bool _loadKnownHosts(const QString &file);
 
     void _tcperror(QAbstractSocket::SocketError err);
     void _stateChanged(QAbstractSocket::SocketState socketState);

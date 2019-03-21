@@ -248,9 +248,16 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_RECV,reinterpret_cast<void*>(& qt_callback_libssh_recv));
     qssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_SEND,reinterpret_cast<void*>(& qt_callback_libssh_send));
     Q_ASSERT(m_session);
+
+    qssh2_session_set_blocking(m_session, 0);
+
     m_knownHosts = qssh2_knownhost_init(m_session);
     Q_ASSERT(m_knownHosts);
-    qssh2_session_set_blocking(m_session, 0);
+
+    if(m_knowhostFiles.size())
+    {
+        _loadKnownHosts(m_knowhostFiles);
+    }
 
     int ret = qssh2_session_handshake(m_session, sock);
     if(ret)
@@ -443,7 +450,7 @@ void SshClient::setKeys(const QString &publicKey, const QString &privateKey)
     m_privateKey = privateKey;
 }
 
-bool SshClient::loadKnownHosts(const QString & file)
+bool SshClient::_loadKnownHosts(const QString & file)
 {
     bool res = (qssh2_knownhost_readfile(m_knownHosts, qPrintable(file), LIBSSH2_KNOWNHOST_FILE_OPENSSH) == 0);
     return (res);
@@ -453,6 +460,11 @@ bool SshClient::saveKnownHosts(const QString & file)
 {
     bool res = (qssh2_knownhost_writefile(m_knownHosts, qPrintable(file), LIBSSH2_KNOWNHOST_FILE_OPENSSH) == 0);
     return res;
+}
+
+void SshClient::setKownHostFile(const QString &file)
+{
+    m_knowhostFiles = file;
 }
 
 bool SshClient::addKnownHost(const QString & hostname,const SshKey & key)
