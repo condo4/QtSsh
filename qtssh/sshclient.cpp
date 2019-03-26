@@ -214,6 +214,9 @@ QString SshClient::sendFile(const QString &src, const QString &dst)
 
 int SshClient::connectToHost(const QString & user, const QString & host, quint16 port)
 {
+    m_hostname = host;
+    m_port = port;
+    m_username = user;
     qCDebug(sshclient) << m_name << ": connectToHost(" << m_hostname << "," << m_port << ") with login " << user;
     if(m_sshConnected) {
         qCCritical(sshclient, "%s: Allready connected", qPrintable(m_name));
@@ -222,9 +225,6 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 
     QEventLoop wait;
     QTimer timeout;
-    m_hostname = host;
-    m_username = user;
-    m_port = port;
     m_errorcode = 0;
 
     m_socket.connectToHost(m_hostname, m_port);
