@@ -19,11 +19,7 @@ public:
     Q_ENUM(Type)
     QByteArray hash;
     QByteArray key;
-    Type       type;
-
-signals:
-
-public slots:
+    Type       type {UnknownType};
 };
 
 #endif // SSHKEY_H

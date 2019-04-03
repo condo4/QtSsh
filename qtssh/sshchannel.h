@@ -13,26 +13,43 @@
 #include <QLoggingCategory>
 #include "async_libssh2.h"
 #include <QMutex>
+
 class SshClient;
+/* All SshChannel types */
+class SshSFtp;
+class SshTunnelIn;
+class SshTunnelOut;
+class SshTunnelOutSrv;
 
 Q_DECLARE_LOGGING_CATEGORY(sshchannel)
 
 class SshChannel : public QObject
 {
     Q_OBJECT
+    bool m_connected;
+
 protected:
-    LIBSSH2_CHANNEL *sshChannel;
-    SshClient       *sshClient;
+    explicit SshChannel(QString name, SshClient *client);
 
 public:
-    explicit SshChannel(QObject *client);
-    explicit SshChannel(SshClient *client);
     virtual ~SshChannel();
-    virtual void stopChannel();
+    bool connected() const;
+    QString name() const;
+
+protected:
+    LIBSSH2_CHANNEL *m_sshChannel {nullptr};
+    SshClient       *m_sshClient  {nullptr};
+    QString m_name;
+    virtual void connectChannel(LIBSSH2_CHANNEL *channel);
+    virtual void close();
+    virtual void free();
 
 protected slots:
     virtual void sshDataReceived() {}
 
 public slots:
+    virtual void disconnectChannel();
     virtual quint16 localPort() { return 0; }
+
+    friend class SshClient;
 };

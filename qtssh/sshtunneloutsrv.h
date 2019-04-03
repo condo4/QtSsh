@@ -16,14 +16,16 @@ class SshTunnelOutSrv : public SshChannel
     QTcpServer              m_tcpserver;
     QList<QSharedPointer<SshTunnelOut>>    m_connections;
     SshClient               *m_sshclient;
-    QString                 m_identifier;
     quint16                 m_port;
     int                     m_count;
 
-public:
+protected:
+    virtual void close() override;
     explicit SshTunnelOutSrv(SshClient * client, const QString &port_identifier, quint16 port);
-    ~SshTunnelOutSrv();
-    quint16 localPort();
+    friend class SshClient;
+
+public:
+    quint16 localPort() override;
 
 signals:
 

@@ -2,7 +2,6 @@
 
 SshKey::SshKey(QObject *parent)
     : QObject(parent)
-    , type(UnknownType)
 {
 
 }

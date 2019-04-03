@@ -6,13 +6,16 @@
 #include <QTimer>
 #include <QStringList>
 #include <QHash>
+#include <QLoggingCategory>
+
+Q_DECLARE_LOGGING_CATEGORY(logsshsftp)
 
 class SshSFtp : public SshChannel
 {
     Q_OBJECT
 
 private:
-    LIBSSH2_SFTP *m_sftpSession;
+    LIBSSH2_SFTP *m_sftpSession {nullptr};
     QString m_mkdir;
 
     bool m_waitData(int timeout);
@@ -23,12 +26,16 @@ private:
     LIBSSH2_SFTP_HANDLE *closeDirHandler(const QString &path);
     LIBSSH2_SFTP_ATTRIBUTES getFileInfo(const QString &path);
 
+protected:
+    SshSFtp(const QString &name, SshClient * client);
+    friend class SshClient;
 
 public:
-    SshSFtp(SshClient * client);
-    ~SshSFtp();
+    virtual ~SshSFtp();
 
-    void enableSFTP();
+    virtual void close() override;
+    virtual void free() override;
+
     QString send(const QString &source, QString dest);
     bool get(const QString &source, QString dest, bool override = false);
     int mkdir(const QString &dest);
@@ -41,7 +48,7 @@ public:
 
 
 protected slots:
-    void sshDataReceived();
+    void sshDataReceived() override;
 
 signals:
     void sshData();

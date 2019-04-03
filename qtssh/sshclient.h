@@ -11,6 +11,9 @@
 
 Q_DECLARE_LOGGING_CATEGORY(sshclient)
 
+
+
+
 class  SshClient : public QObject {
     Q_OBJECT
 
@@ -19,7 +22,7 @@ private:
     LIBSSH2_KNOWNHOSTS * m_knownHosts;
     static int s_nbInstance;
     QString m_name;
-    QMap<QString, QSharedPointer<SshChannel>> m_channels;
+    QList<QSharedPointer<SshChannel>> m_channels;
     QTcpSocket m_socket;
 
     quint16 m_port;
@@ -38,6 +41,9 @@ private:
     QMutex channelCreationInProgress;
     void *currentLockerForChannelCreation;
 
+    void _sshClientClose();
+    void _sshClientFree();
+
 public:
     SshClient(const QString &name = "noname", QObject * parent = nullptr);
     virtual ~SshClient();
@@ -46,15 +52,24 @@ public:
     bool takeChannelCreationMutex(void *identifier);
     void releaseChannelCreationMutex(void *identifier);
 
+
 public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22);
     void disconnectFromHost();
-    QString runCommand(const QString &command);
-    quint16 openLocalPortForwarding(const QString &servicename, quint16 port, quint16 bind);
-    quint16 openRemotePortForwarding(const QString &servicename, quint16 port);
-    void closePortForwarding(const QString &servicename);
+
+    QString runCommand(const QString &command);                  // SshProcess
+    QString getFile(const QString &source, const QString &dest); // SshScpGet
+    QString sendFile(const QString &src, const QString &dst);    // SshScpSend
+    QSharedPointer<SshSFtp> getSFtp(const QString name = "sftp");
+    QSharedPointer<SshTunnelIn> getTunnelIn(const QString &name, quint16 localport, quint16 remoteport, QString host);
+    QSharedPointer<SshTunnelOutSrv> getTunnelOut(const QString &name, quint16 port);
+
+
+
+
+
+
     void setKeys(const QString &publicKey, const QString &privateKey);
-    QString sendFile(const QString &src, const QString &dst);
     void setPassphrase(const QString & pass);
     bool saveKnownHosts(const QString &file);
     void setKownHostFile(const QString &file);
@@ -88,4 +103,5 @@ private slots:
 
     void _tcperror(QAbstractSocket::SocketError err);
     void _stateChanged(QAbstractSocket::SocketState socketState);
+
 };

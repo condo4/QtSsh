@@ -6,7 +6,10 @@ class SshScpSend : public SshChannel
 {
     Q_OBJECT
 
+protected:
+    SshScpSend(const QString &name, SshClient * client);
+    friend class SshClient;
+
 public:
-    SshScpSend(SshClient * client);
     QString send(const QString &source, QString dest);
 };

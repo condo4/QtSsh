@@ -3,8 +3,8 @@
 #include <QFileInfo>
 #include <qdebug.h>
 
-SshScpSend::SshScpSend(SshClient *client):
-    SshChannel(client)
+SshScpSend::SshScpSend(const QString &name, SshClient *client):
+    SshChannel(name, client)
 {
 
 }
@@ -24,9 +24,9 @@ QString SshScpSend::send(const QString &source, QString dest)
     QString destination = dest + src.fileName();
 
     stat(source.toStdString().c_str(), &fileinfo);
-    if(!sshChannel)
+    if(!m_sshChannel)
     {
-        sshChannel = qssh2_scp_send64(sshClient->session(), destination.toStdString().c_str(), fileinfo.st_mode & 0777, fileinfo.st_size, 0, 0);
+        connectChannel(qssh2_scp_send64(m_sshClient->session(), destination.toStdString().c_str(), fileinfo.st_mode & 0777, fileinfo.st_size, 0, 0));
     }
 
     QFile qsource(source);
@@ -41,7 +41,7 @@ QString SshScpSend::send(const QString &source, QString dest)
 
             while(offset < readsize)
             {
-                ssize_t ret = qssh2_channel_write(sshChannel, buffer + offset, static_cast<size_t>(readsize - offset));
+                ssize_t ret = qssh2_channel_write(m_sshChannel, buffer + offset, static_cast<size_t>(readsize - offset));
                 if(ret < 0)
                 {
                     qDebug() << "ERROR : send file return " << ret;
@@ -53,7 +53,7 @@ QString SshScpSend::send(const QString &source, QString dest)
     }
     qsource.close();
 
-    int ret = qssh2_channel_send_eof(sshChannel);
+    int ret = qssh2_channel_send_eof(m_sshChannel);
     if(ret < 0)
     {
         qDebug() << "ERROR : SendFile failed: Can't send EOF";

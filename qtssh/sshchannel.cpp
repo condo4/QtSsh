@@ -4,50 +4,73 @@
 
 Q_LOGGING_CATEGORY(sshchannel, "ssh.channel", QtWarningMsg)
 
-SshChannel::SshChannel(QObject *client):
-    QObject(client),
-    sshChannel(nullptr),
-    sshClient(nullptr)
+SshChannel::SshChannel(QString name, SshClient *client)
+    : QObject(client)
+    , m_sshClient(client)
+    , m_name(name)
 {
-
-}
-
-SshChannel::SshChannel(SshClient *client) :
-    QObject(client),
-    sshChannel(nullptr),
-    sshClient(client)
-{
+    qCDebug(sshchannel) << "createChannel:" << m_name;
 }
 
 SshChannel::~SshChannel()
 {
-    stopChannel();
+    free();
 }
 
-void SshChannel::stopChannel()
+bool SshChannel::connected() const
 {
-    if (sshChannel == nullptr)
+    return m_connected;
+}
+
+QString SshChannel::name() const
+{
+    return m_name;
+}
+
+void SshChannel::connectChannel(LIBSSH2_CHANNEL *channel)
+{
+    m_sshChannel = channel;
+    m_connected = true;
+    qCDebug(sshchannel) << "connectChannel:" << m_name;
+}
+
+void SshChannel::disconnectChannel()
+{
+    free();
+}
+
+void SshChannel::close()
+{
+    if (m_sshChannel == nullptr || m_connected == false || !m_sshClient->getSshConnected())
         return;
 
-    LIBSSH2_CHANNEL *tempChannel = sshChannel;
-    sshChannel = nullptr;
-
-    int ret = qssh2_channel_close(tempChannel);
-
+    qCDebug(sshchannel) << "closeChannel:" << m_name;
+    int ret = qssh2_channel_close(m_sshChannel);
     if(ret)
     {
         qCDebug(sshchannel) << "Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
         return;
     }
 
-    ret = qssh2_channel_wait_closed(tempChannel);
+    ret = qssh2_channel_wait_closed(m_sshChannel);
     if(ret)
     {
         qCDebug(sshchannel) << "Failed to channel_wait_closed";
         return;
     }
+    m_connected = false;
+}
 
-    ret = qssh2_channel_free(tempChannel);
+void SshChannel::free()
+{
+    if (m_sshChannel == nullptr)
+        return;
+
+    close();
+
+    qCDebug(sshchannel) << "freeChannel:" << m_name;
+
+    int ret = qssh2_channel_free(m_sshChannel);
     if(ret)
     {
         qCDebug(sshchannel) << "Failed to channel_free";

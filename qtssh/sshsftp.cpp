@@ -5,6 +5,61 @@
 #include <QFileInfo>
 #include <QCryptographicHash>
 
+Q_LOGGING_CATEGORY(logsshsftp, "ssh.sftp", QtWarningMsg)
+
+SshSFtp::SshSFtp(const QString &name, SshClient *client):
+    SshChannel(name, client)
+
+{
+    while(!(m_sftpSession = libssh2_sftp_init(m_sshClient->session())))
+    {
+        if(libssh2_session_last_errno(m_sshClient->session()) == LIBSSH2_ERROR_EAGAIN)
+        {
+            QCoreApplication::processEvents();
+        }
+        else
+        {
+            break;
+        }
+    }
+    if(!m_sftpSession)
+    {
+        qCWarning(logsshsftp) << "LAST ERROR IS : " << libssh2_session_last_errno(m_sshClient->session());
+    }
+    QObject::connect(client, &SshClient::sshDataReceived, this, &SshSFtp::sshDataReceived, Qt::QueuedConnection);
+
+    qCDebug(logsshsftp) << "SFTP connected";
+}
+
+SshSFtp::~SshSFtp()
+{
+    qCDebug(logsshsftp) << "SshSFtp::~SshSFtp()";
+    close();
+    qCDebug(logsshsftp) << "SshSFtp::~SshSFtp() OK";
+}
+
+void SshSFtp::close()
+{
+    for(LIBSSH2_SFTP_HANDLE *sftpdir: m_dirhandler)
+    {
+        libssh2_sftp_closedir(sftpdir);
+    }
+    m_dirhandler.clear();
+
+    if(m_sftpSession)
+    {
+        libssh2_sftp_shutdown(m_sftpSession);
+        m_sftpSession = nullptr;
+        qCDebug(sshchannel) << "closeChannel:" << m_name;
+    }
+}
+
+void SshSFtp::free()
+{
+
+}
+
+
 QString SshSFtp::send(const QString &source, QString dest)
 {
     QFile s(source);
@@ -28,7 +83,7 @@ QString SshSFtp::send(const QString &source, QString dest)
 
     local = fopen(qPrintable(source), "rb");
     if (!local) {
-        qDebug() << "ERROR : Can't open file "<< source;
+        qCWarning(logsshsftp) << "Can't open file "<< source;
         return "";
     }
 
@@ -38,7 +93,7 @@ QString SshSFtp::send(const QString &source, QString dest)
                                  LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,
                                      LIBSSH2_SFTP_S_IRUSR|LIBSSH2_SFTP_S_IWUSR|
                                                                LIBSSH2_SFTP_S_IRGRP|LIBSSH2_SFTP_S_IROTH);
-        rc = libssh2_session_last_errno(sshClient->session());
+        rc = libssh2_session_last_errno(m_sshClient->session());
         if (!sftpfile && (rc == LIBSSH2_ERROR_EAGAIN))
         {
             m_waitData(2000);
@@ -47,7 +102,7 @@ QString SshSFtp::send(const QString &source, QString dest)
         {
             if(!sftpfile)
             {
-                qDebug() << "ERROR : SSH error " << rc;
+                qCWarning(logsshsftp) << "SSH error " << rc;
                 fclose(local);
                 return "";
             }
@@ -71,7 +126,7 @@ QString SshSFtp::send(const QString &source, QString dest)
              }
              if(rc < 0)
              {
-                 qDebug() << "ERROR : Write error send(" << source << "," <<  dest << ") = " << rc;
+                 qCWarning(logsshsftp) << "Write error send(" << source << "," <<  dest << ") = " << rc;
                  break;
              }
              ptr += rc;
@@ -119,13 +174,13 @@ bool SshSFtp::get(const QString &source, QString dest, bool override)
 
     tempstorage = fopen(qPrintable(dest), "w");
     if (!tempstorage) {
-        qDebug() << "ERROR : Can't open file "<< dest;
+        qCWarning(logsshsftp) << "Can't open file "<< dest;
         return false;
     }
 
     do {
         sftpfile = libssh2_sftp_open(m_sftpSession, qPrintable(source), LIBSSH2_FXF_READ, 0);
-        rc = libssh2_session_last_errno(sshClient->session());
+        rc = libssh2_session_last_errno(m_sshClient->session());
         if (!sftpfile && (rc == LIBSSH2_ERROR_EAGAIN))
         {
             m_waitData(2000);
@@ -140,7 +195,7 @@ bool SshSFtp::get(const QString &source, QString dest, bool override)
                 }
                 else
                 {
-                    qDebug() << "ERROR : SSH error " << rc;
+                    qCWarning(logsshsftp) << "ERROR : SSH error " << rc;
                     fclose(tempstorage);
                     return false;
                 }
@@ -207,14 +262,12 @@ int SshSFtp::mkdir(const QString &dest)
 
     if(res != 0)
     {
-        qDebug() << "ERROR : mkdir " << dest << " error, result = " << res;
+        qCWarning(logsshsftp) << "mkdir " << dest << " error, result = " << res;
     }
-#ifdef DEBUG_SFTP
     else
     {
-        qDebug() << "DEBUG : mkdir "<< dest << " OK";
+        qCDebug(logsshsftp) << "mkdir "<< dest << " OK";
     }
-#endif
 
     return res;
 }
@@ -261,17 +314,13 @@ bool SshSFtp::isFile(const QString &d)
         status = libssh2_sftp_stat(m_sftpSession,qPrintable(d),&fileinfo);
         if(status == LIBSSH2_ERROR_EAGAIN) m_waitData(2000);
     }
-#ifdef DEBUG_SFTP
-    qDebug() << "DEBUG : isFile(" << d << ") = " << status;
-#endif
+    qCDebug(logsshsftp) << "isFile(" << d << ") = " << status;
     return (status == 0);
 }
 
 int SshSFtp::mkpath(const QString &dest)
 {
-#ifdef DEBUG_SFTP
-    qDebug() << "DEBUG : mkpath " << dest;
-#endif
+    qCDebug(logsshsftp) << "mkpath " << dest;
     if(isDir(dest)) return true;
     QStringList d = dest.split("/");
     d.pop_back();
@@ -294,14 +343,12 @@ bool SshSFtp::unlink(const QString &d)
 
     if(res != 0)
     {
-        qDebug() << "ERROR : unlink " << d << " error, result = " << res;
+        qCWarning(logsshsftp) << "unlink " << d << " error, result = " << res;
     }
-#ifdef DEBUG_SFTP
     else
     {
-        qDebug() << "DEBUG : unlink "<< d << " OK";
+        qCDebug(logsshsftp) << "unlink "<< d << " OK";
     }
-#endif
     return res;
 }
 
@@ -338,7 +385,7 @@ LIBSSH2_SFTP_HANDLE *SshSFtp::getDirHandler(const QString &path)
         LIBSSH2_SFTP_HANDLE *sftpdir = nullptr;
         do {
             sftpdir = libssh2_sftp_opendir(m_sftpSession, qPrintable(path));
-            rc = libssh2_session_last_errno(sshClient->session());
+            rc = libssh2_session_last_errno(m_sshClient->session());
             if (!sftpdir && (rc == LIBSSH2_ERROR_EAGAIN))
             {
                 m_waitData(2000);
@@ -382,45 +429,4 @@ LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(const QString &path)
     return m_fileinfo[path];
 }
 
-SshSFtp::SshSFtp(SshClient *client):
-    SshChannel(client)
 
-{
-    while(!(m_sftpSession = libssh2_sftp_init(sshClient->session())))
-    {
-        if(libssh2_session_last_errno(sshClient->session()) == LIBSSH2_ERROR_EAGAIN)
-        {
-            QCoreApplication::processEvents();
-#ifdef DEBUG_SFTP
-            qDebug() << "DEBUG : SFTP try again";
-#endif
-        }
-        else
-        {
-            break;
-        }
-    }
-    if(!m_sftpSession)
-    {
-        qDebug() << "LAST ERROR IS : " << libssh2_session_last_errno(sshClient->session());
-    }
-    QObject::connect(client, &SshClient::sshDataReceived, this, &SshSFtp::sshDataReceived, Qt::QueuedConnection);
-
-#ifdef DEBUG_SFTP
-    qDebug() << "DEBUG : SFTP connected";
-#endif
-}
-
-SshSFtp::~SshSFtp()
-{  
-    for(LIBSSH2_SFTP_HANDLE *sftpdir: m_dirhandler)
-    {
-        libssh2_sftp_closedir(sftpdir);
-    }
-    libssh2_sftp_shutdown(m_sftpSession);
-}
-
-void SshSFtp::enableSFTP()
-{
-
-}

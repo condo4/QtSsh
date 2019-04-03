@@ -4,10 +4,10 @@
 
 Q_LOGGING_CATEGORY(logsshtunneloutsrv, "ssh.tunneloutsrv", QtWarningMsg)
 
+
 SshTunnelOutSrv::SshTunnelOutSrv(SshClient *client, const QString &port_identifier, quint16 port):
-    SshChannel(client),
+    SshChannel(port_identifier, client),
     m_sshclient(client),
-    m_identifier(port_identifier),
     m_port(port),
     m_count(0)
 {
@@ -15,10 +15,10 @@ SshTunnelOutSrv::SshTunnelOutSrv(SshClient *client, const QString &port_identifi
     QObject::connect(&m_tcpserver, &QTcpServer::newConnection, this, &SshTunnelOutSrv::createConnection);
 }
 
-SshTunnelOutSrv::~SshTunnelOutSrv()
+void SshTunnelOutSrv::close()
 {
     foreach (QSharedPointer<SshTunnelOut> tunnel, m_connections) {
-        tunnel->disconectFromHost();
+        tunnel->close();
     }
     m_tcpserver.close();
 }
@@ -35,9 +35,9 @@ void SshTunnelOutSrv::createConnection()
     QTcpSocket *sock = m_tcpserver.nextPendingConnection();
     if(!sock) return;
 
-    qCDebug(logsshtunneloutsrv) << "SshTunnelOutSrv::createConnection() " << m_identifier << " : " << sock;
+    qCDebug(logsshtunneloutsrv) << "SshTunnelOutSrv::createConnection() " << m_name << " : " << sock;
 
-    QSharedPointer<SshTunnelOut> tunnel(new SshTunnelOut(m_sshclient, sock, QString("%1_%2").arg(m_identifier).arg(++m_count), m_port, this));
+    QSharedPointer<SshTunnelOut> tunnel(new SshTunnelOut(m_sshclient, sock, QString("%1_%2").arg(m_name).arg(++m_count), m_port));
     QObject::connect(tunnel.data(),    &SshTunnelOut::destroyed,    this,   &SshTunnelOutSrv::connectionDestroyed);
     m_connections.append(tunnel);
 }

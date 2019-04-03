@@ -10,9 +10,9 @@ class SshProcess : public SshChannel
 {
     Q_OBJECT
 
-public:
-    explicit SshProcess(SshClient *client);
-    virtual ~SshProcess();
+protected:
+    explicit SshProcess(const QString &name, SshClient *client);
+    friend class SshClient;
     
 public slots:
     QByteArray runCommand(const QString &cmd);

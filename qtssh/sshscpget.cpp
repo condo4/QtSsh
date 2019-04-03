@@ -3,8 +3,8 @@
 #include <QFileInfo>
 #include <qdebug.h>
 
-SshScpGet::SshScpGet(SshClient *client):
-    SshChannel(client)
+SshScpGet::SshScpGet(const QString &name, SshClient *client):
+    SshChannel(name, client)
 {
 
 }
@@ -18,9 +18,9 @@ QString SshScpGet::get(const QString &source, const QString &dest)
     ssize_t rc;
     libssh2_struct_stat fileinfo = {};
 
-    if(!sshChannel)
+    if(!m_sshChannel)
     {
-        sshChannel = qssh2_scp_recv2(sshClient->session(), qPrintable(source), &fileinfo);
+        connectChannel(qssh2_scp_recv2(m_sshClient->session(), qPrintable(source), &fileinfo));
     }
 
     QFile qsource(dest);
@@ -34,7 +34,7 @@ QString SshScpGet::get(const QString &source, const QString &dest)
                 amount = static_cast<int>(fileinfo.st_size - got);
             }
 
-            rc = qssh2_channel_read(sshChannel, mem, static_cast<size_t>(amount));
+            rc = qssh2_channel_read(m_sshChannel, mem, static_cast<size_t>(amount));
 
             if(rc > 0) {
                 qsource.write(mem, rc);

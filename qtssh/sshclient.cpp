@@ -1,4 +1,4 @@
-#include "sshclient.h"
+﻿#include "sshclient.h"
 #include <QTemporaryFile>
 #include <QDir>
 #include <QEventLoop>
@@ -7,6 +7,7 @@
 #include "sshtunneloutsrv.h"
 #include "sshprocess.h"
 #include "sshscpsend.h"
+#include "sshscpget.h"
 #include "sshsftp.h"
 #include "cerrno"
 
@@ -40,6 +41,46 @@ static ssize_t qt_callback_libssh_send(int socket,const void * buffer, size_t le
     }
     return static_cast<ssize_t>(r);
 }
+
+SshClient::SshClient(const QString &name, QObject * parent):
+    QObject(parent),
+    m_session(nullptr),
+    m_knownHosts(nullptr),
+    m_name(name),
+    m_socket(this),
+    m_port(0),
+    m_errorcode(0),
+    m_sshConnected(false),
+    m_errorMessage(QString())
+{
+    connect(&m_socket,   SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(_tcperror(QAbstractSocket::SocketError)));
+    connect(&m_socket,   &QTcpSocket::stateChanged, this, &SshClient::_stateChanged);
+    connect(&m_socket,   &QTcpSocket::disconnected, this, &SshClient::_disconnected);
+    connect(&m_keepalive,&QTimer::timeout,          this, &SshClient::_sendKeepAlive);
+
+    if(s_nbInstance == 0)
+    {
+        qCDebug(sshclient) << m_name << ": libssh2_init()";
+        Q_ASSERT(libssh2_init(0) == 0);
+    }
+    ++s_nbInstance;
+
+    qCDebug(sshclient) << m_name << ": created " << this;
+}
+
+SshClient::~SshClient()
+{
+    qCDebug(sshclient) << m_name << ": SshClient::~SshClient() " << this;
+    disconnectFromHost();
+    --s_nbInstance;
+    if(s_nbInstance == 0)
+    {
+        qCDebug(sshclient) << m_name << ": libssh2_exit()";
+        libssh2_exit();
+    }
+    qCDebug(sshclient) << m_name << ": destroyed";
+}
+
 
 bool SshClient::getSshConnected() const
 {
@@ -75,44 +116,6 @@ void SshClient::releaseChannelCreationMutex(void *identifier)
     }
 }
 
-
-SshClient::SshClient(const QString &name, QObject * parent):
-    QObject(parent),
-    m_session(nullptr),
-    m_knownHosts(nullptr),
-    m_name(name),
-    m_socket(this),
-    m_port(0),
-    m_errorcode(0),
-    m_sshConnected(false),
-    m_errorMessage(QString())
-{
-    connect(&m_socket,   SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(_tcperror(QAbstractSocket::SocketError)));
-    connect(&m_socket,   &QTcpSocket::stateChanged, this, &SshClient::_stateChanged);
-    connect(&m_socket,   &QTcpSocket::disconnected, this, &SshClient::_disconnected);
-    connect(&m_keepalive,&QTimer::timeout,          this, &SshClient::_sendKeepAlive);
-
-    if(s_nbInstance == 0)
-    {
-        qCDebug(sshclient) << "libssh2_init()";
-        Q_ASSERT(libssh2_init(0) == 0);
-    }
-    ++s_nbInstance;
-
-    qCDebug(sshclient) << m_name << " created";
-}
-
-SshClient::~SshClient()
-{
-    disconnectFromHost();
-    --s_nbInstance;
-    if(s_nbInstance == 0)
-    {
-        qCDebug(sshclient) << "libssh2_exit()";
-        libssh2_exit();
-    }
-    qCDebug(sshclient) << m_name << " destroyed";
-}
 
 
 LIBSSH2_SESSION *SshClient::session()
@@ -157,60 +160,83 @@ bool SshClient::loopWhileBytesWritten(int msecs)
     return written;
 }
 
-quint16 SshClient::openLocalPortForwarding(const QString &servicename, quint16 port, quint16 bind)
-{
-    if(m_channels.contains(servicename))
-    {
-        return m_channels.value(servicename)->localPort();
-    }
-
-    QSharedPointer<SshTunnelIn> tunnel(new SshTunnelIn(this, servicename, port, bind));
-    if(!tunnel->valid())
-    {
-        qCWarning(sshclient, "SshTunnelIn creation failed");
-        return 0;
-    }
-    m_channels.insert(servicename, tunnel);
-    return tunnel->localPort();
-}
-
-quint16 SshClient::openRemotePortForwarding(const QString &servicename, quint16 port)
-{
-    if(m_channels.contains(servicename))
-    {
-        return m_channels.value(servicename)->localPort();
-    }
-
-    QSharedPointer<SshTunnelOutSrv> tunnel(new SshTunnelOutSrv(this, servicename, port));
-    m_channels.insert(servicename, tunnel);
-    return tunnel->localPort();
-}
-
-void SshClient::closePortForwarding(const QString &servicename)
-{
-    qCDebug(sshclient, "%s: SshClient::closePortForwarding(%s)", qPrintable(m_name), qPrintable(servicename));
-
-    if(m_channels.contains(servicename))
-    {
-        m_channels.remove(servicename);
-    }
-}
 
 QString SshClient::runCommand(const QString &command)
 {
     QString res;
-    QScopedPointer<SshProcess> sshProcess(new SshProcess(this));
+    QScopedPointer<SshProcess> sshProcess(new SshProcess(command, this));
     res = sshProcess->runCommand(command);
+    return res;
+}
+
+QString SshClient::getFile(const QString &source, const QString &dest)
+{
+    QString res;
+    QScopedPointer<SshScpGet> sshScpGet(new SshScpGet(source, this));
+    res = sshScpGet->get(source, dest);
     return res;
 }
 
 QString SshClient::sendFile(const QString &src, const QString &dst)
 {
-    QScopedPointer<SshScpSend> sender(new SshScpSend(this));
+    QScopedPointer<SshScpSend> sender(new SshScpSend(src, this));
     QString d = sender->send(src, dst);
     return d;
 }
 
+QSharedPointer<SshSFtp> SshClient::getSFtp(const QString name)
+{
+    for(auto c: m_channels)
+    {
+        if(name == c->name())
+        {
+            QSharedPointer<SshSFtp> ftp = qSharedPointerDynamicCast<SshSFtp>(c);
+            if(!ftp.isNull())
+            {
+                return ftp;
+            }
+        }
+    }
+    QSharedPointer<SshSFtp> ftp(new SshSFtp(name, this));
+    m_channels.append(ftp);
+    return ftp;
+}
+
+QSharedPointer<SshTunnelIn> SshClient::getTunnelIn(const QString &name, quint16 localport, quint16 remoteport, QString host)
+{
+    for(auto c: m_channels)
+    {
+        if(name == c->name())
+        {
+            QSharedPointer<SshTunnelIn> in = qSharedPointerDynamicCast<SshTunnelIn>(c);
+            if(!in.isNull())
+            {
+                return in;
+            }
+        }
+    }
+    QSharedPointer<SshTunnelIn> in(new SshTunnelIn(this, name, localport, remoteport, host));
+    m_channels.append(in);
+    return in;
+}
+
+QSharedPointer<SshTunnelOutSrv> SshClient::getTunnelOut(const QString &name, quint16 port)
+{
+    for(auto c: m_channels)
+    {
+        if(name == c->name())
+        {
+            QSharedPointer<SshTunnelOutSrv> out = qSharedPointerDynamicCast<SshTunnelOutSrv>(c);
+            if(!out.isNull())
+            {
+                return out;
+            }
+        }
+    }
+    QSharedPointer<SshTunnelOutSrv> out(new SshTunnelOutSrv(this, name, port));
+    m_channels.append(out);
+    return out;
+}
 
 int SshClient::connectToHost(const QString & user, const QString & host, quint16 port)
 {
@@ -234,7 +260,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         return -1;
     }
 
-    qCDebug(sshclient, "%s: ssh socket connected", qPrintable(m_name));
+    qCDebug(sshclient) << m_name << ": ssh socket connected";
 
     /* Socket is ready, now start to initialize Ssh Session */
     int sock = static_cast<int>(m_socket.socketDescriptor());
@@ -374,7 +400,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         return -1;
     }
 
-    qCDebug(sshclient, "%s: Connected and authenticated", qPrintable(m_name));
+    qCDebug(sshclient) << m_name << ": Connected and authenticated";
     QObject::connect(&m_socket, &QAbstractSocket::readyRead, this, &SshClient::_readyRead);
 
     m_keepalive.setInterval(10000);
@@ -391,32 +417,17 @@ void SshClient::_readyRead()
 
 void SshClient::disconnectFromHost()
 {
-    qCDebug(sshclient) << m_name << ": disconnectFromHost()";
     if(!m_sshConnected) return;
 
-    /* Close all Opened Channels */
-    m_channels.clear();
-
-    /* Stop keepalive */
-    m_keepalive.stop();
-
-    /* Disconnect session */
-    if (m_knownHosts)
-    {
-        qssh2_knownhost_free(m_knownHosts);
-        m_knownHosts = nullptr;
-    }
-
-    if (m_session)
-    {
-        qssh2_session_disconnect(m_session, "good bye!");
-        qssh2_session_free(m_session);
-    }
-    m_sshConnected = false;
+    qCDebug(sshclient) << m_name << ": disconnectFromHost()";
 
     /* Disconnect socket */
     QObject::disconnect(&m_socket, &QAbstractSocket::readyRead,    this, &SshClient::_readyRead);
     QObject::disconnect(&m_socket, &QAbstractSocket::disconnected, this, &SshClient::_disconnected);
+
+    _sshClientClose();
+    _sshClientFree();
+
     if(m_socket.state() != QTcpSocket::UnconnectedState)
     {
         m_socket.disconnectFromHost();
@@ -427,7 +438,10 @@ void SshClient::disconnectFromHost()
     }
     m_socket.close();
 
+    m_sshConnected = false;
     emit disconnected();
+
+    qCDebug(sshclient) << m_name << ": disconnected()";
 }
 
 void SshClient::setPassphrase(const QString & pass)
@@ -512,8 +526,8 @@ void SshClient::_stateChanged(QAbstractSocket::SocketState socketState)
 
 void SshClient::_disconnected()
 {
-    qCDebug(sshclient, "%s: unexpected shutdown", qPrintable(m_name));
-    disconnectFromHost();
+    qCWarning(sshclient) << m_name << "%s: unexpected disconnection";
+    _sshClientFree();
 }
 
 void SshClient::_getLastError()
@@ -524,3 +538,38 @@ void SshClient::_getLastError()
     m_errorMessage = QString::fromLocal8Bit(QByteArray::fromRawData(msg, len));
 }
 
+
+void SshClient::_sshClientClose()
+{
+    if (!m_session) return;
+
+    /* Close all Opened Channels */
+    qCDebug(sshclient) << m_name << ": close all channels";
+    for(QSharedPointer<SshChannel> channel: m_channels)
+    {
+        channel->close();
+    }
+    m_channels.clear();
+    qCDebug(sshclient) << m_name << ": no more channel registered";
+
+    /* Stop keepalive */
+    m_keepalive.stop();
+
+    qssh2_session_disconnect(m_session, "good bye!");
+}
+
+void SshClient::_sshClientFree()
+{
+    /* Disconnect session */
+    if (m_knownHosts)
+    {
+        qssh2_knownhost_free(m_knownHosts);
+        m_knownHosts = nullptr;
+    }
+
+    if (m_session)
+    {
+        qssh2_session_free(m_session);
+        m_session = nullptr;
+    }
+}

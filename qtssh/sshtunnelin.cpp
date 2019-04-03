@@ -12,12 +12,11 @@ Q_LOGGING_CATEGORY(logsshtunnelin, "ssh.tunnelin", QtWarningMsg)
 
 
 SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint16 localport, quint16 remoteport, QString host)
-    : SshChannel(client)
+    : SshChannel(portIdentifier, client)
     , m_localTcpPort(localport)
     , m_remoteTcpPort(remoteport)
     , m_sshListener(nullptr)
     , m_port(localport)
-    , m_name(portIdentifier)
     , m_tcpsocket(nullptr)
     , m_valid(false)
     , m_workinprogress(false)
@@ -34,10 +33,10 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
     int retryListen = 10;
     do
     {
-        m_sshListener = qssh2_channel_forward_listen_ex(sshClient->session(), qPrintable(host), m_remoteTcpPort, &m_remoteTcpPort);
+        m_sshListener = qssh2_channel_forward_listen_ex(m_sshClient->session(), qPrintable(host), m_remoteTcpPort, &m_remoteTcpPort);
         if (m_sshListener == nullptr)
         {
-            int ret = qssh2_session_last_error(sshClient->session(), nullptr, nullptr, 0);
+            int ret = qssh2_session_last_error(m_sshClient->session(), nullptr, nullptr, 0);
             if ( ret==LIBSSH2_ERROR_REQUEST_DENIED && retryListen > 0 )
             {
                 retryListen--;
@@ -50,7 +49,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
             }
             else
             {
-                qCCritical(logsshtunnelin, "ERROR : Can't create remote connection throw %s for port %i (error %i)", qPrintable(sshClient->getName()) , localport, ret);
+                qCCritical(logsshtunnelin, "ERROR : Can't create remote connection throw %s for port %i (error %i)", qPrintable(m_sshClient->getName()) , localport, ret);
                 return;
             }
         }
@@ -63,13 +62,13 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
 
     qCInfo(logsshtunnelin, "INFO : Channel open for %s", qPrintable(m_name));
 
-    QObject::connect(sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived, Qt::QueuedConnection);
+    QObject::connect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived, Qt::QueuedConnection);
     m_valid = true;
 }
 
 SshTunnelIn::~SshTunnelIn()
 {
-    QObject::disconnect(sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived);
+    QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived);
 }
 
 bool SshTunnelIn::valid() const
@@ -106,11 +105,11 @@ void SshTunnelIn::onLocalSocketDisconnected()
         QObject::disconnect(m_tcpsocket.data());
         m_tcpsocket.reset();
 
-        if (sshChannel != nullptr)
+        if (m_sshChannel != nullptr)
         {
             qCDebug(logsshtunnelin, "SshTunnelIn::onLocalSocketDisconnected() Free Channel");
-            qssh2_channel_flush(sshChannel);
-            stopChannel();
+            qssh2_channel_flush(m_sshChannel);
+            free();
         }
     }
 }
@@ -136,7 +135,7 @@ void SshTunnelIn::onLocalSocketError(QAbstractSocket::SocketError error)
         else
         {
             qCDebug(logsshtunnelin, "SshTunnelIn::onLocalSocketError() SEND EOF");
-            qssh2_channel_send_eof(sshChannel);
+            qssh2_channel_send_eof(m_sshChannel);
         }
         return;
     }
@@ -158,7 +157,7 @@ void SshTunnelIn::onLocalSocketDataReceived()
         //qCDebug(logsshtunnelin) <<  "Read from tcp" << len << "total" << m_readByteOnTcp;
         while(wr < len)
         {
-            i = qssh2_channel_write(sshChannel, m_tcpBuffer.mid(static_cast<int>(wr)).constData(), static_cast<size_t>(len - wr));
+            i = qssh2_channel_write(m_sshChannel, m_tcpBuffer.mid(static_cast<int>(wr)).constData(), static_cast<size_t>(len - wr));
             if (i < 0)
             {
                 qCWarning(logsshtunnelin, "ERROR : %s  remote failed to write (%lli)", qPrintable(m_name), i);
@@ -171,7 +170,7 @@ void SshTunnelIn::onLocalSocketDataReceived()
 
     m_workinprogress = false;
     if(m_needToSendEOF) {
-        qssh2_channel_send_eof(sshChannel);
+        qssh2_channel_send_eof(m_sshChannel);
         m_needToSendEOF = false;
     }
     if(m_needToDisconnect) onLocalSocketDisconnected();
@@ -182,19 +181,19 @@ void SshTunnelIn::onLocalSocketDataReceived()
 
 void SshTunnelIn::sshDataReceived()
 {
-    QObject::disconnect(sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived);
+    QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived);
     m_workinprogress = true;
     ssize_t len;
     int ret;
 
-    if (sshChannel == nullptr)
+    if (m_sshChannel == nullptr)
     {
         if(!m_tcpsocket.isNull()) qCWarning(logsshtunnelin, "ERROR: tcpsocet allready here");
 
-        sshChannel = libssh2_channel_forward_accept(m_sshListener);
-        if(sshChannel == nullptr)
+        connectChannel(libssh2_channel_forward_accept(m_sshListener));
+        if(m_sshChannel == nullptr)
         {
-            ret = libssh2_session_last_error(sshClient->session(), nullptr, nullptr, 0);
+            ret = libssh2_session_last_error(m_sshClient->session(), nullptr, nullptr, 0);
             if(ret == LIBSSH2_ERROR_EAGAIN)
             {
                 goto exit;
@@ -217,7 +216,7 @@ void SshTunnelIn::sshDataReceived()
         qint64 i;
         ssize_t wr = 0;
         /* Read data from SSH */
-        len = libssh2_channel_read_ex(sshChannel, 0, m_sshBuffer.data(), static_cast<size_t>(m_sshBuffer.size()));
+        len = libssh2_channel_read_ex(m_sshChannel, 0, m_sshBuffer.data(), static_cast<size_t>(m_sshBuffer.size()));
         if(len == LIBSSH2_ERROR_EAGAIN)
         {
             goto exit;
@@ -244,11 +243,10 @@ void SshTunnelIn::sshDataReceived()
                 m_tcpsocket->flush();
             }
         }
-        //qCDebug(logsshtunnelin) <<  "Write into tcp" << len;
     }
     while(len > 0);
 
-    if (qssh2_channel_eof(sshChannel))
+    if (qssh2_channel_eof(m_sshChannel))
     {
         qCDebug(logsshtunnelin, "-> Received EOF");
         m_tcpsocket->disconnectFromHost();
@@ -257,5 +255,14 @@ void SshTunnelIn::sshDataReceived()
 exit:
     m_workinprogress = false;
     if(m_needToDisconnect) onLocalSocketDisconnected();
-    QObject::connect(sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived, Qt::QueuedConnection);
+    QObject::connect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived, Qt::QueuedConnection);
+}
+
+void SshTunnelIn::close()
+{
+    if(m_sshListener)
+    {
+        libssh2_channel_forward_cancel(m_sshListener);
+        m_sshListener = nullptr;
+    }
 }
