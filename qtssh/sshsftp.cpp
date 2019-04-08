@@ -211,12 +211,15 @@ QStringList SshSFtp::readdir(const QString &d)
     QByteArray buffer(512,0);
 
     LIBSSH2_SFTP_ATTRIBUTES attrs;
-    rc = qssh2_sftp_readdir_ex(sftpdir, buffer.data(), static_cast<unsigned int>(buffer.size()), nullptr, 0, &attrs);
-    if(rc > 0) {
-        result.append(QString(buffer));
-    }
-
+    do {
+        rc = qssh2_sftp_readdir_ex(sftpdir, buffer.data(), static_cast<unsigned int>(buffer.size()), nullptr, 0, &attrs);
+        if(rc > 0) {
+            result.append(QString(buffer));
+        }
+    } while(rc > 0);
     qssh2_sftp_close_handle(sftpdir);
+
+    qCDebug(logsshsftp) << "readdir(" << d << ") " << result;
     return result;
 }
 
