@@ -23,6 +23,11 @@ SshTunnelOut::SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QStri
     QTimer::singleShot(0, this, &SshTunnelOut::_init_channel);
 }
 
+SshTunnelOut::~SshTunnelOut()
+{
+    qCDebug(logsshtunnelout) << m_name << "SshTunnelOut::~SshTunnelOut()";
+}
+
 
 void SshTunnelOut::_init_channel()
 {

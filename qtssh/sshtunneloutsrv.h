@@ -25,6 +25,7 @@ protected:
     friend class SshClient;
 
 public:
+    virtual ~SshTunnelOutSrv();
     quint16 localPort() override;
 
 signals:

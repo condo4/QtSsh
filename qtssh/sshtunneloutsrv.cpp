@@ -15,10 +15,16 @@ SshTunnelOutSrv::SshTunnelOutSrv(SshClient *client, const QString &port_identifi
     QObject::connect(&m_tcpserver, &QTcpServer::newConnection, this, &SshTunnelOutSrv::createConnection);
 }
 
+SshTunnelOutSrv::~SshTunnelOutSrv()
+{
+    qCDebug(logsshtunneloutsrv) << m_name << "SshTunnelOutSrv::~SshTunnelOutSrv()";
+}
+
 void SshTunnelOutSrv::close()
 {
+    qCDebug(logsshtunneloutsrv) << m_name << "SshTunnelOutSrv::close()";
     foreach (QSharedPointer<SshTunnelOut> tunnel, m_connections) {
-        tunnel->close();
+        tunnel->disconnectChannel();
     }
     m_tcpserver.close();
 }

@@ -76,4 +76,5 @@ void SshChannel::free()
         qCDebug(sshchannel) << "Failed to channel_free";
         return;
     }
+    m_sshChannel = nullptr;
 }

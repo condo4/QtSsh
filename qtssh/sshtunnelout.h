@@ -29,6 +29,7 @@ protected:
     friend class SshTunnelOutSrv;
 
 public:
+    virtual ~SshTunnelOut();
     QString name() const;
 
 protected:
