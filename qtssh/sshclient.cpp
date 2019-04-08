@@ -116,8 +116,6 @@ void SshClient::releaseChannelCreationMutex(void *identifier)
     }
 }
 
-
-
 LIBSSH2_SESSION *SshClient::session()
 {
     return m_session;
@@ -160,7 +158,6 @@ bool SshClient::loopWhileBytesWritten(int msecs)
     return written;
 }
 
-
 QString SshClient::runCommand(const QString &command)
 {
     QString res;
@@ -186,55 +183,67 @@ QString SshClient::sendFile(const QString &src, const QString &dst)
 
 QSharedPointer<SshSFtp> SshClient::getSFtp(const QString name)
 {
-    for(auto c: m_channels)
+    for(QWeakPointer<SshChannel> w: m_channels)
     {
-        if(name == c->name())
+        if(!w.isNull())
         {
-            QSharedPointer<SshSFtp> ftp = qSharedPointerDynamicCast<SshSFtp>(c);
-            if(!ftp.isNull())
+            QSharedPointer<SshChannel> c = w.toStrongRef();
+            if(name == c->name())
             {
-                return ftp;
+                QSharedPointer<SshSFtp> ftp = qSharedPointerDynamicCast<SshSFtp>(c);
+                if(!ftp.isNull())
+                {
+                    return ftp;
+                }
             }
         }
     }
     QSharedPointer<SshSFtp> ftp(new SshSFtp(name, this));
-    m_channels.append(ftp);
+    m_channels.append(ftp.toWeakRef());
     return ftp;
 }
 
 QSharedPointer<SshTunnelIn> SshClient::getTunnelIn(const QString &name, quint16 localport, quint16 remoteport, QString host)
 {
-    for(auto c: m_channels)
+    for(QWeakPointer<SshChannel> w: m_channels)
     {
-        if(name == c->name())
+        if(!w.isNull())
         {
-            QSharedPointer<SshTunnelIn> in = qSharedPointerDynamicCast<SshTunnelIn>(c);
-            if(!in.isNull())
+            QSharedPointer<SshChannel> c = w.toStrongRef();
+            if(name == c->name())
             {
-                return in;
+                QSharedPointer<SshTunnelIn> in = qSharedPointerDynamicCast<SshTunnelIn>(c);
+                if(!in.isNull())
+                {
+                    return in;
+                }
             }
         }
     }
     QSharedPointer<SshTunnelIn> in(new SshTunnelIn(this, name, localport, remoteport, host));
-    m_channels.append(in);
+    m_channels.append(in.toWeakRef());
     return in;
 }
 
 QSharedPointer<SshTunnelOutSrv> SshClient::getTunnelOut(const QString &name, quint16 port)
 {
-    for(auto c: m_channels)
+    for(QWeakPointer<SshChannel> w: m_channels)
     {
-        if(name == c->name())
+        if(!w.isNull())
         {
-            QSharedPointer<SshTunnelOutSrv> out = qSharedPointerDynamicCast<SshTunnelOutSrv>(c);
-            if(!out.isNull())
+            QSharedPointer<SshChannel> c = w.toStrongRef();
+            if(name == c->name())
             {
-                return out;
+                QSharedPointer<SshTunnelOutSrv> out = qSharedPointerDynamicCast<SshTunnelOutSrv>(c);
+                if(!out.isNull())
+                {
+                    return out;
+                }
             }
         }
     }
     QSharedPointer<SshTunnelOutSrv> out(new SshTunnelOutSrv(this, name, port));
-    m_channels.append(out);
+    m_channels.append(out.toWeakRef());
     return out;
 }
 
@@ -545,9 +554,13 @@ void SshClient::_sshClientClose()
 
     /* Close all Opened Channels */
     qCDebug(sshclient) << m_name << ": close all channels";
-    for(QSharedPointer<SshChannel> channel: m_channels)
+    for(QWeakPointer<SshChannel> wchannel: m_channels)
     {
-        channel->close();
+        if(!wchannel.isNull())
+        {
+            QSharedPointer<SshChannel> channel = wchannel.toStrongRef();
+            channel->close();
+        }
     }
     m_channels.clear();
     qCDebug(sshclient) << m_name << ": no more channel registered";

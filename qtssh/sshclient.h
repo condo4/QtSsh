@@ -11,9 +11,6 @@
 
 Q_DECLARE_LOGGING_CATEGORY(sshclient)
 
-
-
-
 class  SshClient : public QObject {
     Q_OBJECT
 
@@ -22,7 +19,7 @@ private:
     LIBSSH2_KNOWNHOSTS * m_knownHosts;
     static int s_nbInstance;
     QString m_name;
-    QList<QSharedPointer<SshChannel>> m_channels;
+    QList<QWeakPointer<SshChannel>> m_channels;
     QTcpSocket m_socket;
 
     quint16 m_port;
