@@ -18,12 +18,7 @@ private:
     LIBSSH2_SFTP *m_sftpSession {nullptr};
     QString m_mkdir;
 
-    bool m_waitData(int timeout);
-    QHash<QString,  LIBSSH2_SFTP_HANDLE *> m_dirhandler;
     QHash<QString,  LIBSSH2_SFTP_ATTRIBUTES> m_fileinfo;
-
-    LIBSSH2_SFTP_HANDLE *getDirHandler(const QString &path);
-    LIBSSH2_SFTP_HANDLE *closeDirHandler(const QString &path);
     LIBSSH2_SFTP_ATTRIBUTES getFileInfo(const QString &path);
 
 protected:
@@ -49,8 +44,4 @@ public:
 
 protected slots:
     void sshDataReceived() override;
-
-signals:
-    void sshData();
-    void xfer();
 };

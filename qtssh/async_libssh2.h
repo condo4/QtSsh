@@ -2,6 +2,7 @@
 
 extern "C" {
 #include <libssh2.h>
+#include <libssh2_sftp.h>
 }
 
 #include <QCoreApplication>
@@ -421,4 +422,187 @@ inline LIBSSH2_LISTENER * qssh2_channel_forward_listen_ex(LIBSSH2_SESSION *sessi
         break;
     }
     return cret;
+}
+
+
+inline LIBSSH2_SFTP * qssh2_sftp_init(LIBSSH2_SESSION *session)
+{
+    LIBSSH2_SFTP *cret = nullptr;
+    while(cret == nullptr)
+    {
+        int ret;
+
+        cret = libssh2_sftp_init(session);
+        if(cret == nullptr)
+        {
+            ret = libssh2_session_last_error(session, nullptr, nullptr, 0);
+            if(ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                QCoreApplication::processEvents();
+                continue;
+            }
+        }
+        break;
+    }
+    return cret;
+}
+
+inline int qssh2_sftp_close_handle(LIBSSH2_SFTP_HANDLE *handle)
+{
+    int ret = LIBSSH2_ERROR_EAGAIN;
+
+    while (ret == LIBSSH2_ERROR_EAGAIN)
+    {
+        ret = libssh2_sftp_close_handle(handle);
+        if(ret == LIBSSH2_ERROR_EAGAIN)
+        {
+            QCoreApplication::processEvents();
+        }
+    }
+    return ret;
+}
+
+inline int qssh2_sftp_shutdown(LIBSSH2_SFTP *sftp)
+{
+    int ret = LIBSSH2_ERROR_EAGAIN;
+
+    while (ret == LIBSSH2_ERROR_EAGAIN)
+    {
+        ret = libssh2_sftp_shutdown(sftp);
+        if(ret == LIBSSH2_ERROR_EAGAIN)
+        {
+            QCoreApplication::processEvents();
+        }
+    }
+    return ret;
+}
+
+inline LIBSSH2_SFTP_HANDLE * qssh2_sftp_open_ex(LIBSSH2_SESSION *session, LIBSSH2_SFTP *sftp,
+                                                const char *filename,
+                                                unsigned int filename_len,
+                                                unsigned long flags,
+                                                long mode, int open_type)
+{
+    LIBSSH2_SFTP_HANDLE *cret = nullptr;
+    while(cret == nullptr)
+    {
+        int ret;
+
+        cret = libssh2_sftp_open_ex(sftp, filename, filename_len, flags, mode, open_type);
+        if(cret == nullptr)
+        {
+            ret = libssh2_session_last_error(session, nullptr, nullptr, 0);
+            if(ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                QCoreApplication::processEvents();
+                continue;
+            }
+        }
+        break;
+    }
+    return cret;
+}
+
+inline ssize_t qssh2_sftp_write(LIBSSH2_SFTP_HANDLE *handle,
+                            const char *buffer,
+                            size_t count)
+{
+    ssize_t ret = LIBSSH2_ERROR_EAGAIN;
+
+    while (ret == LIBSSH2_ERROR_EAGAIN)
+    {
+        ret = libssh2_sftp_write(handle, buffer, count);
+        if(ret == LIBSSH2_ERROR_EAGAIN)
+        {
+            QCoreApplication::processEvents();
+        }
+    }
+    return ret;
+}
+
+inline ssize_t qssh2_sftp_read(LIBSSH2_SFTP_HANDLE *handle,
+                                char *buffer, size_t buffer_maxlen)
+{
+    ssize_t ret = LIBSSH2_ERROR_EAGAIN;
+
+    while (ret == LIBSSH2_ERROR_EAGAIN)
+    {
+        ret = libssh2_sftp_read(handle, buffer, buffer_maxlen);
+        if(ret == LIBSSH2_ERROR_EAGAIN)
+        {
+            QCoreApplication::processEvents();
+        }
+    }
+    return ret;
+}
+
+inline int qssh2_sftp_mkdir_ex(LIBSSH2_SFTP *sftp,
+                               const char *path,
+                               unsigned int path_len, long mode)
+{
+    int ret = LIBSSH2_ERROR_EAGAIN;
+
+    while (ret == LIBSSH2_ERROR_EAGAIN)
+    {
+        ret = libssh2_sftp_mkdir_ex(sftp, path, path_len, mode);
+        if(ret == LIBSSH2_ERROR_EAGAIN)
+        {
+            QCoreApplication::processEvents();
+        }
+    }
+    return ret;
+}
+
+inline int qssh2_sftp_readdir_ex(LIBSSH2_SFTP_HANDLE *handle,
+                                 char *buffer, size_t buffer_maxlen,
+                                 char *longentry, size_t longentry_maxlen,
+                                 LIBSSH2_SFTP_ATTRIBUTES *attrs)
+{
+    int ret = LIBSSH2_ERROR_EAGAIN;
+
+    while (ret == LIBSSH2_ERROR_EAGAIN)
+    {
+        ret = libssh2_sftp_readdir_ex(handle, buffer, buffer_maxlen, longentry, longentry_maxlen, attrs);
+        if(ret == LIBSSH2_ERROR_EAGAIN)
+        {
+            QCoreApplication::processEvents();
+        }
+    }
+    return ret;
+}
+
+inline int qssh2_sftp_stat_ex(LIBSSH2_SFTP *sftp,
+                               const char *path,
+                               unsigned int path_len,
+                               int stat_type,
+                               LIBSSH2_SFTP_ATTRIBUTES *attrs)
+{
+    int ret = LIBSSH2_ERROR_EAGAIN;
+
+    while (ret == LIBSSH2_ERROR_EAGAIN)
+    {
+        ret = libssh2_sftp_stat_ex(sftp, path, path_len, stat_type, attrs);
+        if(ret == LIBSSH2_ERROR_EAGAIN)
+        {
+            QCoreApplication::processEvents();
+        }
+    }
+    return ret;
+}
+
+inline ssize_t qssh2_sftp_unlink_ex(LIBSSH2_SFTP *sftp,
+                                    const char *filename,
+                                    unsigned int filename_len)
+{
+    ssize_t ret = LIBSSH2_ERROR_EAGAIN;
+
+    while (ret == LIBSSH2_ERROR_EAGAIN)
+    {
+        ret = libssh2_sftp_unlink_ex(sftp, filename, filename_len);
+        if(ret == LIBSSH2_ERROR_EAGAIN)
+        {
+            QCoreApplication::processEvents();
+        }
+    }
+    return ret;
 }
