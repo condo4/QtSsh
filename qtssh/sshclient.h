@@ -21,6 +21,7 @@ private:
     QString m_name;
     QList<QWeakPointer<SshChannel>> m_channels;
     QTcpSocket m_socket;
+    qint64 m_lastProofOfLive;
 
     quint16 m_port;
     int m_errorcode;

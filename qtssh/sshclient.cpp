@@ -2,6 +2,7 @@
 #include <QTemporaryFile>
 #include <QDir>
 #include <QEventLoop>
+#include <QDateTime>
 #include <QCoreApplication>
 #include "sshtunnelin.h"
 #include "sshtunneloutsrv.h"
@@ -12,6 +13,17 @@
 #include "cerrno"
 
 Q_LOGGING_CATEGORY(sshclient, "ssh.client", QtWarningMsg)
+
+#if !defined(MAX_LOST_KEEP_ALIVE)
+
+/*
+ * Maximum keep alive cycle (generally 5s) before connection is
+ * considered as lost
+ * Default: 6 (30s)
+ */
+#define MAX_LOST_KEEP_ALIVE 6
+#endif
+
 int SshClient::s_nbInstance = 0;
 
 static ssize_t qt_callback_libssh_recv(int socket,void *buffer, size_t length,int flags, void **abstract)
@@ -412,7 +424,8 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     qCDebug(sshclient) << m_name << ": Connected and authenticated";
     QObject::connect(&m_socket, &QAbstractSocket::readyRead, this, &SshClient::_readyRead);
 
-    m_keepalive.setInterval(10000);
+    m_keepalive.setInterval(1000);
+    m_keepalive.setSingleShot(true);
     m_keepalive.start();
     qssh2_keepalive_config(m_session, 1, 5);
     m_sshConnected = true;
@@ -421,6 +434,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 
 void SshClient::_readyRead()
 {
+    m_lastProofOfLive = QDateTime::currentMSecsSinceEpoch();
     emit sshDataReceived();
 }
 
@@ -524,9 +538,17 @@ void SshClient::_tcperror(QAbstractSocket::SocketError err)
 
 void SshClient::_sendKeepAlive()
 {
-    int keepalive;
+    int keepalive = 0;
     if(m_session)
+    {
         qssh2_keepalive_send(m_session, &keepalive);
+        if(((QDateTime::currentMSecsSinceEpoch() - m_lastProofOfLive) / 1000) > (MAX_LOST_KEEP_ALIVE * keepalive))
+        {
+            qCWarning(sshclient) << m_name << ": Connection lost !!!";
+            m_socket.disconnectFromHost();
+        }
+        m_keepalive.start(keepalive * 1000);
+    }
 }
 
 void SshClient::_stateChanged(QAbstractSocket::SocketState socketState)
