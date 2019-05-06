@@ -588,6 +588,7 @@ void SshClient::_sshClientFree()
 
     if (m_session)
     {
+        qCDebug(sshclient) << m_name << ": Destroy SSH session";
         qssh2_session_free(m_session);
         m_session = nullptr;
     }
