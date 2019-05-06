@@ -433,6 +433,7 @@ void SshClient::disconnectFromHost()
     /* Disconnect socket */
     QObject::disconnect(&m_socket, &QAbstractSocket::readyRead,    this, &SshClient::_readyRead);
     QObject::disconnect(&m_socket, &QAbstractSocket::disconnected, this, &SshClient::_disconnected);
+    QObject::disconnect(&m_keepalive,&QTimer::timeout,             this, &SshClient::_sendKeepAlive);
 
     _sshClientClose();
     _sshClientFree();
@@ -524,7 +525,8 @@ void SshClient::_tcperror(QAbstractSocket::SocketError err)
 void SshClient::_sendKeepAlive()
 {
     int keepalive;
-    qssh2_keepalive_send(m_session, &keepalive);
+    if(m_session)
+        qssh2_keepalive_send(m_session, &keepalive);
 }
 
 void SshClient::_stateChanged(QAbstractSocket::SocketState socketState)
@@ -538,6 +540,7 @@ void SshClient::_disconnected()
     qCWarning(sshclient) << m_name << "%s: unexpected disconnection";
     QObject::disconnect(&m_socket, &QAbstractSocket::readyRead,    this, &SshClient::_readyRead);
     QObject::disconnect(&m_socket, &QAbstractSocket::disconnected, this, &SshClient::_disconnected);
+    QObject::disconnect(&m_keepalive,&QTimer::timeout,             this, &SshClient::_sendKeepAlive);
     _sshClientFree();
     emit disconnected();
 }
