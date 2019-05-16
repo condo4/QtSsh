@@ -559,7 +559,7 @@ void SshClient::_stateChanged(QAbstractSocket::SocketState socketState)
 
 void SshClient::_disconnected()
 {
-    qCWarning(sshclient) << m_name << "%s: unexpected disconnection";
+    qCWarning(sshclient) << m_name << "Unexpected disconnection";
     QObject::disconnect(&m_socket, &QAbstractSocket::readyRead,    this, &SshClient::_readyRead);
     QObject::disconnect(&m_socket, &QAbstractSocket::disconnected, this, &SshClient::_disconnected);
     QObject::disconnect(&m_keepalive,&QTimer::timeout,             this, &SshClient::_sendKeepAlive);
