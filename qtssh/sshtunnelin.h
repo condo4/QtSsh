@@ -25,8 +25,11 @@ private:
     QByteArray m_tcpBuffer;
     QByteArray m_sshBuffer;
 
-public:
+protected:
     explicit SshTunnelIn(SshClient * client, const QString &portIdentifier, quint16 localport, quint16 remoteport, QString host = "localhost");
+    friend class SshClient;
+
+public:
     virtual ~SshTunnelIn();
     quint16 localPort() override;
     quint16 remotePort();
