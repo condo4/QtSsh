@@ -62,6 +62,13 @@ void SshTunnelOut::createConnection()
         return;
     }
 
+    if ( ! m_sshclient->takeChannelCreationMutex(this) )
+    {
+        qCDebug(logsshtunnelout) << m_name << "Initchannel have to wait for its tunnel creation" << m_port;
+        QTimer::singleShot(50, this, &SshTunnelOut::createConnection);
+        return;
+    }
+
     QTcpSocket *sock = m_tcpserver.nextPendingConnection();
     if(!sock) return;
 
@@ -92,7 +99,7 @@ void SshTunnelOut::createConnection()
 
 
     QObject::connect(sock, &QTcpSocket::readyRead, this, &SshTunnelOut::tcpDataReceived);
-    QObject::connect(sock, &QTcpSocket::disconnected, this, &SshTunnelOut::tcpDisconnected);
+    QObject::connect(sock, &QTcpSocket::disconnected, this, &SshTunnelOut::tcpDisconnected, Qt::QueuedConnection);
     QObject::connect(sock, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(tcpError(QAbstractSocket::SocketError)));
     QObject::connect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived, Qt::QueuedConnection);
 
@@ -103,7 +110,11 @@ void SshTunnelOut::createConnection()
     m_connections.push_back(ch);
 
     qCDebug(logsshtunnelout) << "SshTunnelOut::createConnection() " << m_name << " : " << sock->localPort() << " OK";
-    _tcpDataReceived(sock);
+    m_sshclient->releaseChannelCreationMutex(this);
+
+    if(sock->bytesAvailable())
+        _tcpDataReceived(sock);
+    sshDataReceived();
 }
 
 quint16 SshTunnelOut::localPort()
@@ -205,7 +216,15 @@ void SshTunnelOut::tcpDisconnected()
 
 void SshTunnelOut::tcpError(QAbstractSocket::SocketError error)
 {
-    qCWarning(logsshtunnelout) << m_name << "socket error=" << error;
+    switch(error)
+    {
+        case QAbstractSocket::RemoteHostClosedError:
+            qCDebug(logsshtunnelout) << m_name << "socket RemoteHostClosedError";
+            // Socket will be closed just after this, nothing to care about
+            break;
+        default:
+            qCWarning(logsshtunnelout) << m_name << "socket error=" << error;
+    }
 }
 
 SshTunnelOut::Connection &SshTunnelOut::_connectionBySock(QTcpSocket *sock)
