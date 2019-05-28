@@ -1,7 +1,7 @@
 #include "sshtunnelout.h"
 #include "sshclient.h"
 
-Q_LOGGING_CATEGORY(logsshtunnelout, "ssh.tunneloutsrv", QtWarningMsg)
+Q_LOGGING_CATEGORY(logsshtunnelout, "ssh.tunnelout", QtWarningMsg)
 
 
 SshTunnelOut::SshTunnelOut(SshClient *client, const QString &port_identifier, quint16 port):
@@ -249,7 +249,7 @@ int SshTunnelOut::_closeChannel(Connection &channel)
     ret = qssh2_channel_wait_closed(channel.channel);
     if(ret)
     {
-        qCWarning(logsshtunnelout) << "Failed to channel_wait_closed";
+        qCWarning(logsshtunnelout) << "Failed to channel_wait_closed: " << ret;
         return ret;
     }
     channel.closed = true;
@@ -260,7 +260,7 @@ int SshTunnelOut::_freeChannel(Connection &channel)
 {
     if(channel.channel == nullptr)
         return 1;
-    qCWarning(logsshtunnelout)  << m_name << "_freeChannel " << channel.channel;
+    qCDebug(logsshtunnelout)  << m_name << "_freeChannel " << channel.channel;
     int ret = qssh2_channel_free(channel.channel);
     if(ret)
     {
