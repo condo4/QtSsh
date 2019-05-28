@@ -59,7 +59,7 @@ public slots:
     QString getFile(const QString &source, const QString &dest); // SshScpGet
     QString sendFile(const QString &src, const QString &dst);    // SshScpSend
     QSharedPointer<SshSFtp> getSFtp(const QString name = "sftp");
-    QSharedPointer<SshTunnelIn> getTunnelIn(const QString &name, quint16 localport, quint16 remoteport, QString host);
+    QSharedPointer<SshTunnelIn> getTunnelIn(const QString &name, quint16 localport, quint16 remoteport = 0, QString host = "127.0.0.1");
     QSharedPointer<SshTunnelOut> getTunnelOut(const QString &name, quint16 port);
 
 
