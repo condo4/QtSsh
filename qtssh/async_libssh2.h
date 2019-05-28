@@ -606,3 +606,11 @@ inline ssize_t qssh2_sftp_unlink_ex(LIBSSH2_SFTP *sftp,
     }
     return ret;
 }
+
+inline QString qssh2_get_last_error(LIBSSH2_SESSION *session)
+{
+    char *errormsg;
+    int errorlen;
+    libssh2_session_last_error(session, &errormsg, &errorlen, 0);
+    return QString(errormsg);
+}
