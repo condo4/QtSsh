@@ -98,7 +98,6 @@ void SshTunnelOut::createConnection()
 
     struct Connection ch;
     ch.channel = channel;
-    ch.eof = false;
     ch.closed = false;
     ch.sock = sock;
     m_connections.push_back(ch);
@@ -221,38 +220,37 @@ SshTunnelOut::Connection &SshTunnelOut::_connectionBySock(QTcpSocket *sock)
 
 int SshTunnelOut::_closeChannel(Connection &channel)
 {
-    if(channel.closed)
-        return 1;
-
-    if(!channel.eof)
-    {
-        qssh2_channel_send_eof(channel.channel);
-        channel.eof = true;
-    }
-
     if(channel.closed || channel.channel == nullptr)
         return 1;
 
     qCDebug(logsshtunnelout) << m_name << "_closeChannel";
     /* Close channel */
 
-    int ret = qssh2_channel_close(channel.channel);
-    if(ret)
+    if(!channel.closed)
     {
-        qCWarning(logsshtunnelout) << "Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
-        return ret;
-    }
+        int ret = qssh2_channel_close(channel.channel);
+        if(ret)
+        {
+            qCWarning(logsshtunnelout) << "Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
+            return ret;
+        }
 
-    if(channel.closed || channel.channel == nullptr)
-        return 1;
+        if(channel.closed || channel.channel == nullptr)
+            return 1;
 
-    ret = qssh2_channel_wait_closed(channel.channel);
-    if(ret)
-    {
-        qCWarning(logsshtunnelout) << "Failed to channel_wait_closed: " << ret;
-        return ret;
+        ret = qssh2_channel_wait_closed(channel.channel);
+        if(ret)
+        {
+            char *errormsg;
+            int errorlen;
+            ret = libssh2_session_last_error(m_sshclient->session(), &errormsg, &errorlen, 0);
+
+            qCWarning(logsshtunnelout) << "Failed to channel_wait_closed: " << ret << " (channel:" << channel.channel << ")";
+            qCWarning(logsshtunnelout) << QString(errormsg);
+            return ret;
+        }
+        channel.closed = true;
     }
-    channel.closed = true;
     return 0;
 }
 
@@ -323,7 +321,6 @@ void SshTunnelOut::sshDataReceived()
         if (libssh2_channel_eof(iter->channel))
         {
             iter->sock->disconnectFromHost();
-            iter->eof = true;
             qCDebug(logsshtunnelout) << m_name << "Disconnected from ssh";
         }
         ++iter;
