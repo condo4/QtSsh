@@ -19,7 +19,6 @@ class SshClient;
 class SshSFtp;
 class SshTunnelIn;
 class SshTunnelOut;
-class SshTunnelOutSrv;
 
 Q_DECLARE_LOGGING_CATEGORY(sshchannel)
 

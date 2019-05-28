@@ -7,7 +7,6 @@ HEADERS += \
     $$PWD/qtssh/sshprocess.h \
     $$PWD/qtssh/sshchannel.h \
     $$PWD/qtssh/sshclient.h \
-    $$PWD/qtssh/sshtunneloutsrv.h \
     $$PWD/qtssh/sshscpsend.h \
     $$PWD/qtssh/sshscpget.h \
     $$PWD/qtssh/sshsftp.h \
@@ -20,7 +19,6 @@ SOURCES += \
     $$PWD/qtssh/sshprocess.cpp \
     $$PWD/qtssh/sshchannel.cpp \
     $$PWD/qtssh/sshclient.cpp \
-    $$PWD/qtssh/sshtunneloutsrv.cpp \
     $$PWD/qtssh/sshscpsend.cpp \
     $$PWD/qtssh/sshscpget.cpp \
     $$PWD/qtssh/sshsftp.cpp \

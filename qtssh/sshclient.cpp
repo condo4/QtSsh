@@ -5,7 +5,7 @@
 #include <QDateTime>
 #include <QCoreApplication>
 #include "sshtunnelin.h"
-#include "sshtunneloutsrv.h"
+#include "sshtunnelout.h"
 #include "sshprocess.h"
 #include "sshscpsend.h"
 #include "sshscpget.h"
@@ -237,7 +237,7 @@ QSharedPointer<SshTunnelIn> SshClient::getTunnelIn(const QString &name, quint16 
     return in;
 }
 
-QSharedPointer<SshTunnelOutSrv> SshClient::getTunnelOut(const QString &name, quint16 port)
+QSharedPointer<SshTunnelOut> SshClient::getTunnelOut(const QString &name, quint16 port)
 {
     for(QWeakPointer<SshChannel> w: m_channels)
     {
@@ -246,7 +246,7 @@ QSharedPointer<SshTunnelOutSrv> SshClient::getTunnelOut(const QString &name, qui
             QSharedPointer<SshChannel> c = w.toStrongRef();
             if(name == c->name())
             {
-                QSharedPointer<SshTunnelOutSrv> out = qSharedPointerDynamicCast<SshTunnelOutSrv>(c);
+                QSharedPointer<SshTunnelOut> out = qSharedPointerDynamicCast<SshTunnelOut>(c);
                 if(!out.isNull())
                 {
                     return out;
@@ -254,7 +254,7 @@ QSharedPointer<SshTunnelOutSrv> SshClient::getTunnelOut(const QString &name, qui
             }
         }
     }
-    QSharedPointer<SshTunnelOutSrv> out(new SshTunnelOutSrv(this, name, port));
+    QSharedPointer<SshTunnelOut> out(new SshTunnelOut(this, name, port));
     m_channels.append(out.toWeakRef());
     return out;
 }

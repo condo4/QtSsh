@@ -1,51 +1,53 @@
 #pragma once
 
-#include <QAbstractSocket>
-#include <QMutex>
+#include <QObject>
 #include "sshchannel.h"
+#include <QTcpServer>
 
-class QTcpServer;
-class QTcpSocket;
 class SshClient;
 
 Q_DECLARE_LOGGING_CATEGORY(logsshtunnelout)
 
-class SshTunnelOut: public SshChannel
+class SshTunnelOut : public SshChannel
 {
     Q_OBJECT
 
-private:
-    quint16 m_port;
-    QTcpSocket *m_tcpsocket {nullptr};
-    SshClient *m_client {nullptr};
-    QByteArray m_dataSsh;
-    QByteArray m_dataSocket;
-    int m_retryChannelCreation;
-    QMutex m_mutextSsh;
-    QMutex m_mutextTcp;
+    struct Connection
+    {
+        LIBSSH2_CHANNEL *channel;
+        QTcpSocket *sock;
+        bool eof;
+        bool closed;
+    };
 
-protected:
-    explicit SshTunnelOut(SshClient *client, QTcpSocket *tcpSocket, const QString &port_identifier, quint16 port);
-    friend class SshTunnelOutSrv;
+    QTcpServer              m_tcpserver;
+    QList<struct Connection> m_connections;
+    SshClient               *m_sshclient;
+    quint16                 m_port;
 
-public:
-    virtual ~SshTunnelOut();
-    QString name() const;
-
-protected:
-    void close() override;
+    struct Connection &_connectionBySock(QTcpSocket *sock);
+    int _closeChannel(struct Connection &c);
+    int _freeChannel(struct Connection &c);
 
 public slots:
     void sshDataReceived() override;
 
 private slots:
-    void displayError(QAbstractSocket::SocketError error);
+    void _tcpDataReceived(QTcpSocket *sock = nullptr);
     void tcpDataReceived();
     void tcpDisconnected();
-    void _init_channel();
+    void tcpError(QAbstractSocket::SocketError error);
+    void createConnection();
+
+protected:
+    virtual void close() override;
+    explicit SshTunnelOut(SshClient * client, const QString &port_identifier, quint16 port);
+    friend class SshClient;
+
+public:
+    virtual ~SshTunnelOut();
+    quint16 localPort() override;
 
 signals:
-    void disconnectedFromTcp();
-    void disconnectedFromSsh();
-    void channelReady();
+
 };
