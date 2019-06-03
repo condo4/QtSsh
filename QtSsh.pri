@@ -11,7 +11,9 @@ HEADERS += \
     $$PWD/qtssh/sshscpget.h \
     $$PWD/qtssh/sshsftp.h \
     $$PWD/qtssh/async_libssh2.h \
-    $$PWD/qtssh/sshkey.h
+    $$PWD/qtssh/sshkey.h \
+    $$PWD/qtssh/sshtunneloutconnection.h
+
 
 SOURCES += \
     $$PWD/qtssh/sshtunnelout.cpp \
@@ -22,6 +24,7 @@ SOURCES += \
     $$PWD/qtssh/sshscpsend.cpp \
     $$PWD/qtssh/sshscpget.cpp \
     $$PWD/qtssh/sshsftp.cpp \
-    $$PWD/qtssh/sshkey.cpp
+    $$PWD/qtssh/sshkey.cpp \
+    $$PWD/qtssh/sshtunneloutconnection.cpp
 
 INCLUDEPATH += $$PWD/qtssh

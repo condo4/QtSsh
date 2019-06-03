@@ -168,12 +168,16 @@ inline int qssh2_session_free(LIBSSH2_SESSION *session)
 }
 
 
-inline int qssh2_channel_close(LIBSSH2_CHANNEL *channel)
+inline int qssh2_channel_close(LIBSSH2_CHANNEL *&channel)
 {
     int ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
+        if(channel == nullptr)
+        {
+            return ret;
+        }
         ret = libssh2_channel_close(channel);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
@@ -183,12 +187,16 @@ inline int qssh2_channel_close(LIBSSH2_CHANNEL *channel)
     return ret;
 }
 
-inline int qssh2_channel_wait_closed(LIBSSH2_CHANNEL *channel)
+inline int qssh2_channel_wait_closed(LIBSSH2_CHANNEL *&channel)
 {
     int ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
+        if(channel == nullptr)
+        {
+            return ret;
+        }
         ret = libssh2_channel_wait_closed(channel);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
@@ -198,27 +206,39 @@ inline int qssh2_channel_wait_closed(LIBSSH2_CHANNEL *channel)
     return ret;
 }
 
-inline int qssh2_channel_free(LIBSSH2_CHANNEL *channel)
+inline int qssh2_channel_free(LIBSSH2_CHANNEL *&channel)
 {
     int ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
+        if(channel == nullptr)
+        {
+            return ret;
+        }
         ret = libssh2_channel_free(channel);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
             QCoreApplication::processEvents();
         }
     }
+    if(ret == 0)
+    {
+        channel = nullptr;
+    }
     return ret;
 }
 
-inline ssize_t qssh2_channel_read(LIBSSH2_CHANNEL *channel, char *buf, size_t buflen)
+inline ssize_t qssh2_channel_read(LIBSSH2_CHANNEL *&channel, char *buf, size_t buflen)
 {
     ssize_t ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
+        if(channel == nullptr)
+        {
+            return ret;
+        }
         ret = libssh2_channel_read_ex(channel, 0, buf, buflen);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
@@ -319,18 +339,17 @@ inline LIBSSH2_CHANNEL * qssh2_channel_forward_accept(LIBSSH2_SESSION *session, 
     return cret;
 }
 
-inline LIBSSH2_CHANNEL *qssh2_channel_direct_tcpip(LIBSSH2_SESSION *session, const char *host, int port)
-{
-    return libssh2_channel_direct_tcpip_ex(session, host, port, "127.0.0.1", 22);
-}
 
-
-inline ssize_t qssh2_channel_write(LIBSSH2_CHANNEL *channel, const char *buf, size_t buflen)
+inline ssize_t qssh2_channel_write(LIBSSH2_CHANNEL *&channel, const char *buf, size_t buflen)
 {
     ssize_t ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
+        if(channel == nullptr)
+        {
+            return ret;
+        }
         ret = libssh2_channel_write_ex(channel, 0, buf, buflen);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
@@ -340,12 +359,16 @@ inline ssize_t qssh2_channel_write(LIBSSH2_CHANNEL *channel, const char *buf, si
     return ret;
 }
 
-inline int qssh2_channel_flush(LIBSSH2_CHANNEL *channel)
+inline int qssh2_channel_flush(LIBSSH2_CHANNEL *&channel)
 {
     int ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
+        if(channel == nullptr)
+        {
+            return ret;
+        }
         ret = libssh2_channel_flush(channel);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
@@ -356,12 +379,16 @@ inline int qssh2_channel_flush(LIBSSH2_CHANNEL *channel)
 }
 
 
-inline int qssh2_channel_send_eof(LIBSSH2_CHANNEL *channel)
+inline int qssh2_channel_send_eof(LIBSSH2_CHANNEL *&channel)
 {
     int ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
+        if(channel == nullptr)
+        {
+            return ret;
+        }
         ret = libssh2_channel_send_eof(channel);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
@@ -371,12 +398,16 @@ inline int qssh2_channel_send_eof(LIBSSH2_CHANNEL *channel)
     return ret;
 }
 
-inline int qssh2_channel_request_pty(LIBSSH2_CHANNEL *channel, const char *term)
+inline int qssh2_channel_request_pty(LIBSSH2_CHANNEL *&channel, const char *term)
 {
     int ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
+        if(channel == nullptr)
+        {
+            return ret;
+        }
         ret = libssh2_channel_request_pty_ex(channel, term, static_cast<unsigned int>(strlen(term)), nullptr, 0, LIBSSH2_TERM_WIDTH, LIBSSH2_TERM_HEIGHT, LIBSSH2_TERM_WIDTH_PX, LIBSSH2_TERM_HEIGHT_PX);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
@@ -387,13 +418,17 @@ inline int qssh2_channel_request_pty(LIBSSH2_CHANNEL *channel, const char *term)
 }
 
 
-inline int qssh2_channel_exec(LIBSSH2_CHANNEL *channel, const char *command)
+inline int qssh2_channel_exec(LIBSSH2_CHANNEL *&channel, const char *command)
 {
     int ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
-        ret = libssh2_channel_exec(channel, command);
+        if(channel == nullptr)
+        {
+            return ret;
+        }
+        ret = libssh2_channel_process_startup(channel, "exec", sizeof("exec") - 1, command, static_cast<unsigned int>(strlen(command)));
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
             QCoreApplication::processEvents();

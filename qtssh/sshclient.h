@@ -85,6 +85,8 @@ public slots:
 
 signals:
     void sshDataReceived();
+    void sshDisconnected();
+
     void _connectionFailed();
 
     void connected();

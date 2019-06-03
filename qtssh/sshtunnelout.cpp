@@ -1,5 +1,6 @@
 #include "sshtunnelout.h"
 #include "sshclient.h"
+#include <QDateTime>
 
 Q_LOGGING_CATEGORY(logsshtunnelout, "ssh.tunnelout", QtWarningMsg)
 
@@ -15,43 +16,28 @@ SshTunnelOut::SshTunnelOut(SshClient *client, const QString &port_identifier, qu
 
 SshTunnelOut::~SshTunnelOut()
 {
-    qCDebug(logsshtunnelout) << m_name << "SshTunnelOut::~SshTunnelOut()";
-    /* Disconnect all channels */
-    while(m_connections.count())
-    {
-        Connection &ch = m_connections.last();
-        if(ch.sock->state() == QTcpSocket::UnconnectedState && ch.channel == nullptr)
-        {
-            m_connections.pop_back();
-            ch.sock->disconnect();
-            ch.sock->deleteLater();
-            continue;
-        }
-        else if(ch.sock->state() == QTcpSocket::UnconnectedState && ch.channel != nullptr)
-        {
-            _closeChannel(ch);
-            _freeChannel(ch);
-            continue;
-        }
-        qCDebug(logsshtunnelout) << m_name << "SshTunnelOut::~SshTunnelOut() " << m_connections.count() << ": " << ch.sock->localPort();
-        ch.sock->disconnectFromHost();
-    }
-
-    qCDebug(logsshtunnelout) << m_name << "SshTunnelOut::~SshTunnelOut() OK";
+    qCDebug(logsshtunnelout) << m_name << "Destruction";
+    close();
+    qCDebug(logsshtunnelout) << m_name << "Destruction completed";
 }
 
 void SshTunnelOut::close()
 {
-    qCDebug(logsshtunnelout) << m_name << "SshTunnelOut::close()";
-    QList<Connection>::iterator iter = m_connections.begin();
-    while(iter != m_connections.end())
-    {
-        /* Do Job for channel */
-        qCDebug(logsshtunnelout) << m_name << "SshTunnelOut::disconnect socket " << iter->sock->localPort();
-        iter->sock->disconnectFromHost();
-        ++iter;
-    }
+    qCDebug(logsshtunnelout) << m_name << "Close server";
     m_tcpserver.close();
+
+    if(m_connections.size() != 0)
+    {
+        QEventLoop wait;
+        QObject::connect(this, &SshTunnelOut::closed, &wait, &QEventLoop::quit);
+
+        for(auto *ch: m_connections)
+        {
+            ch->disconnectFromHost();
+        }
+
+        wait.exec();
+    }
 }
 
 void SshTunnelOut::createConnection()
@@ -62,59 +48,14 @@ void SshTunnelOut::createConnection()
         return;
     }
 
-    if ( ! m_sshclient->takeChannelCreationMutex(this) )
-    {
-        qCDebug(logsshtunnelout) << m_name << "Initchannel have to wait for its tunnel creation" << m_port;
-        QTimer::singleShot(50, this, &SshTunnelOut::createConnection);
-        return;
-    }
-
     QTcpSocket *sock = m_tcpserver.nextPendingConnection();
+
+    connect(sock, &QTcpSocket::disconnected, [sock](){qCDebug(logsshtunnelout) << "SOCK DISCONNECTED: " << sock << sock->localPort();});
     if(!sock) return;
+    qCDebug(logsshtunnelout) << m_name << "createConnection: " << sock << sock->localPort();
 
-    LIBSSH2_CHANNEL *channel = nullptr;
-    while(channel == nullptr)
-    {
-        int ret;
-
-        channel = qssh2_channel_direct_tcpip(m_sshclient->session(),  "127.0.0.1", m_port);
-        if(channel == nullptr)
-        {
-            ret = libssh2_session_last_error(m_sshclient->session(), nullptr, nullptr, 0);
-            if(ret == LIBSSH2_ERROR_EAGAIN)
-            {
-                QCoreApplication::processEvents();
-                continue;
-            }
-        }
-        break;
-    }
-
-    if(channel == nullptr)
-    {
-        int ret = qssh2_session_last_error(m_sshclient->session(), nullptr, nullptr, 0);
-        qCCritical(logsshtunnelout) << "Error during channel creation, code:" << ret <<",for port" << m_port;
-        return;
-    }
-
-
-    QObject::connect(sock, &QTcpSocket::readyRead, this, &SshTunnelOut::tcpDataReceived);
-    QObject::connect(sock, &QTcpSocket::disconnected, this, &SshTunnelOut::tcpDisconnected, Qt::QueuedConnection);
-    QObject::connect(sock, SIGNAL(error(QAbstractSocket::SocketError)),   this, SLOT(tcpError(QAbstractSocket::SocketError)));
-    QObject::connect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived, Qt::QueuedConnection);
-
-    struct Connection ch;
-    ch.channel = channel;
-    ch.closed = false;
-    ch.sock = sock;
+    SshTunnelOutConnection *ch = new SshTunnelOutConnection(m_name, m_sshclient, sock, m_port, this);
     m_connections.push_back(ch);
-
-    qCDebug(logsshtunnelout) << "SshTunnelOut::createConnection() " << m_name << " : " << sock->localPort() << " OK";
-    m_sshclient->releaseChannelCreationMutex(this);
-
-    if(sock->bytesAvailable())
-        _tcpDataReceived(sock);
-    sshDataReceived();
 }
 
 quint16 SshTunnelOut::localPort()
@@ -122,226 +63,17 @@ quint16 SshTunnelOut::localPort()
     return m_tcpserver.serverPort();
 }
 
-void SshTunnelOut::_tcpDataReceived(QTcpSocket *sock)
+void SshTunnelOut::_removeClosedConnection(SshTunnelOutConnection *ch)
 {
-    if(sock == nullptr)
+    m_connections.removeAll(ch);
+    delete ch;
+    if(m_connections.size() == 0)
     {
-        qCWarning(logsshtunnelout) << "_tcpDataReceived socket error";
-        return;
-    }
-
-    Connection &ch = _connectionBySock(sock);
-    if(ch.channel == nullptr)
-    {
-        qCWarning(logsshtunnelout) << "tcpDataReceived channel error";
-        return;
-    }
-
-    /* Do job: Copy data from socket to SSH channel */
-    QByteArray dataSocket(16384, 0);
-    qint64 len = 0;
-    do
-    {
-        ssize_t wr = 0;
-        ssize_t i = 0;
-        /* Read data from local socket */
-        len = sock->read(dataSocket.data(), dataSocket.length());
-        if (-EAGAIN == len)
-        {
-            qCDebug(logsshtunnelout) << m_name << "tcpDataReceived() EAGAIN";
-            break;
-        }
-        if (len < 0)
-        {
-            qCWarning(logsshtunnelout) <<  "ERROR : " << m_name << " local failed to read (" << len << ")";
-            break;
-        }
-
-        if(len > 0 )
-        {
-            do
-            {
-                i = qssh2_channel_write(
-                            ch.channel,
-                            dataSocket.mid(static_cast<int>(wr)).constData(),
-                            static_cast<size_t>(len-wr));
-                if (i < 0)
-                {
-                    qCWarning(logsshtunnelout) << "ERROR : " << m_name << " remote failed to write (" << i << ")";
-                    return;
-                }
-                if (i == 0)
-                {
-                    qCWarning(logsshtunnelout) << "ERROR : " << m_name << " qssh2_channel_write return 0";
-                }
-                wr += i;
-            } while( wr != len);
-        }
-    }
-    while(len > 0);
-}
-
-void SshTunnelOut::tcpDataReceived()
-{
-    QTcpSocket *sock = qobject_cast<QTcpSocket *>(sender());
-    if(sock == nullptr)
-    {
-        qCWarning(logsshtunnelout) << m_name << "tcpDataReceived sender error";
-        return;
-    }
-    _tcpDataReceived(sock);
-}
-
-void SshTunnelOut::tcpDisconnected()
-{
-    /* Identify client socket */
-    QTcpSocket *sock = qobject_cast<QTcpSocket *>(sender());
-    if(sock == nullptr)
-    {
-        qCWarning(logsshtunnelout) << "tcpDataReceived sender error";
-        return;
-    }
-    qCDebug(logsshtunnelout) << m_name << "tcpDisconnected:" << sock->localPort();
-
-    Connection &ch = _connectionBySock(sock);
-    if(ch.channel == nullptr)
-    {
-        qCWarning(logsshtunnelout) << "tcpDataReceived channel error";
-        return;
-    }
-
-    _closeChannel(ch);
-    _freeChannel(ch);
-}
-
-void SshTunnelOut::tcpError(QAbstractSocket::SocketError error)
-{
-    switch(error)
-    {
-        case QAbstractSocket::RemoteHostClosedError:
-            qCDebug(logsshtunnelout) << m_name << "socket RemoteHostClosedError";
-            // Socket will be closed just after this, nothing to care about
-            break;
-        default:
-            qCWarning(logsshtunnelout) << m_name << "socket error=" << error;
+        emit closed();
     }
 }
 
-SshTunnelOut::Connection &SshTunnelOut::_connectionBySock(QTcpSocket *sock)
+bool SshTunnelOut::isClosed()
 {
-    for(Connection &con: m_connections)
-    {
-        if(con.sock == sock)
-            return con;
-    }
-    return m_connections[0];
-}
-
-int SshTunnelOut::_closeChannel(Connection &channel)
-{
-    if(channel.closed || channel.channel == nullptr)
-        return 1;
-
-    qCDebug(logsshtunnelout) << m_name << "_closeChannel";
-    /* Close channel */
-
-    if(!channel.closed)
-    {
-        int ret = qssh2_channel_close(channel.channel);
-        if(ret)
-        {
-            qCWarning(logsshtunnelout) << "Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
-            return ret;
-        }
-
-        if(channel.closed || channel.channel == nullptr)
-            return 1;
-
-        ret = qssh2_channel_wait_closed(channel.channel);
-        if(ret)
-        {
-            char *errormsg;
-            int errorlen;
-            ret = libssh2_session_last_error(m_sshclient->session(), &errormsg, &errorlen, 0);
-
-            qCWarning(logsshtunnelout) << "Failed to channel_wait_closed: " << ret << " (channel:" << channel.channel << ")";
-            qCWarning(logsshtunnelout) << QString(errormsg);
-            return ret;
-        }
-        channel.closed = true;
-    }
-    return 0;
-}
-
-int SshTunnelOut::_freeChannel(Connection &channel)
-{
-    if(channel.channel == nullptr)
-        return 1;
-    qCDebug(logsshtunnelout)  << m_name << "_freeChannel " << channel.channel;
-    int ret = qssh2_channel_free(channel.channel);
-    if(ret)
-    {
-        qCWarning(logsshtunnelout)  << "Failed to channel_free";
-        return ret;
-    }
-    channel.channel = nullptr;
-    return 0;
-}
-
-void SshTunnelOut::sshDataReceived()
-{
-    ssize_t len = 0;
-    QByteArray dataSsh(16384, 0);
-    QList<Connection>::iterator iter = m_connections.begin();
-    while(iter != m_connections.end())
-    {
-        /* Do Job for channel */
-        if(iter->channel == nullptr)
-            continue;
-
-        do
-        {
-            ssize_t wr = 0;
-            qint64 i;
-            /* Read data from SSH */
-            /*
-             * In this case, we must not used qssh2_channel_read
-             * beacause we don't need to ProcessEvent to be locked
-             * We can return, we will be recall at the next sshDataReceived
-             */
-            len = static_cast<ssize_t>(libssh2_channel_read(iter->channel, dataSsh.data(), static_cast<unsigned int>(dataSsh.size())));
-            if(len == LIBSSH2_ERROR_EAGAIN)
-            {
-                return;
-            }
-            if (len < 0)
-            {
-                qCWarning(logsshtunnelout) <<  "ERROR : " << m_name << " remote failed to read (" << len << " / " << dataSsh.size() << ")";
-                return;
-            }
-
-            /* Write data into output local socket */
-            if(iter->sock != nullptr)
-            {
-                while (wr < len)
-                {
-                    i = iter->sock->write(dataSsh.mid(static_cast<int>(wr)).constData(), static_cast<int>(len-wr));
-                    if (i <= 0)
-                    {
-                        qCWarning(logsshtunnelout) << "ERROR : " << m_name << " local failed to write (" << i << ")";
-                        return;
-                    }
-                    wr += i;
-                }
-            }
-        }
-        while(len != 0);
-
-        if (libssh2_channel_eof(iter->channel))
-        {
-            iter->sock->disconnectFromHost();
-            qCDebug(logsshtunnelout) << m_name << "Disconnected from ssh";
-        }
-        ++iter;
-    }
+    return m_connections.length() == 0;
 }
