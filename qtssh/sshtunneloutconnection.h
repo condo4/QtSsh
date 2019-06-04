@@ -42,6 +42,7 @@ private:
     char *m_tx_stop_ptr {nullptr};
     char *m_rx_stop_ptr {nullptr};
     bool _sshWaiting;
+    bool _disconnectedFromSsh {false};
 
     int _displaySshError(const QString &msg);
 

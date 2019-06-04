@@ -30,6 +30,7 @@ private:
 
 public slots:
     bool isClosed();
+    virtual void disconnectChannel() override;
 
 private slots:
     void createConnection();
@@ -48,5 +49,6 @@ public:
     quint16 localPort() override;
 
 signals:
+    void connectionClosed();
     void closed();
 };

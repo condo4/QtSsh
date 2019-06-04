@@ -210,11 +210,17 @@ int SshTunnelOutConnection::_running()
     {
         if (libssh2_channel_eof(m_channel))
         {
-            if(m_sock)
-                m_sock->disconnectFromHost();
-            qCDebug(logsshtunneloutconnection) << "Disconnected from ssh";
+            _disconnectedFromSsh = true;
+            qCDebug(logsshtunneloutconnection) << "Set Disconnected from ssh";
         }
     }
+
+    if(_disconnectedFromSsh && m_sock && (m_rx_stop_ptr - m_rx_start_ptr == 0) &&  (m_tx_stop_ptr - m_tx_start_ptr == 0))
+    {
+        qCDebug(logsshtunneloutconnection) << "Disconnect socket for disconnected from Ssh";
+        m_sock->disconnectFromHost();
+    }
+
     return 0;
 }
 
@@ -234,7 +240,8 @@ int SshTunnelOutConnection::_freeing()
     m_state = ConnectionState::None;
     m_sock->disconnect();
     QObject::connect(m_sock, &QObject::destroyed, this, &SshTunnelOutConnection::_socketDestroyed);
-    m_sock->deleteLater();
+    delete m_sock;
+    m_sock = nullptr;
     return 0;
 }
 

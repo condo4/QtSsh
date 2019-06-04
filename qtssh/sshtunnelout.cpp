@@ -27,18 +27,21 @@ void SshTunnelOut::close()
     qCDebug(logsshtunnelout) << m_name << "Close server";
     m_tcpserver.close();
 
+    QEventLoop wait;
+    QObject::connect(this, &SshTunnelOut::connectionClosed, &wait, &QEventLoop::quit);
+    for(auto *ch: m_connections)
+    {
+        ch->disconnectFromHost();
+    }
+
     if(m_connections.size() != 0)
     {
-        QEventLoop wait;
-        QObject::connect(this, &SshTunnelOut::closed, &wait, &QEventLoop::quit);
-
-        for(auto *ch: m_connections)
-        {
-            ch->disconnectFromHost();
-        }
-
+        qCDebug(logsshtunnelout) << m_name << "Waiting all connection closed";
         wait.exec();
+        qCDebug(logsshtunnelout) << m_name << "All connection closed";
     }
+
+    emit closed();
 }
 
 void SshTunnelOut::createConnection()
@@ -70,11 +73,16 @@ void SshTunnelOut::_removeClosedConnection(SshTunnelOutConnection *ch)
     ch->deleteLater();
     if(m_connections.size() == 0)
     {
-        emit closed();
+        emit connectionClosed();
     }
 }
 
 bool SshTunnelOut::isClosed()
 {
     return m_connections.length() == 0;
+}
+
+void SshTunnelOut::disconnectChannel()
+{
+    close();
 }
