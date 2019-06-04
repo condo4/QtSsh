@@ -208,10 +208,16 @@ int SshTunnelOutConnection::_running()
 
     if(m_channel != nullptr)
     {
+        if (libssh2_channel_eof(m_channel))
         {
+            if(m_sock)
+                m_sock->disconnectFromHost();
+            qCDebug(logsshtunneloutconnection) << "Disconnected from ssh";
         }
     }
+    return 0;
 }
+
 
 int SshTunnelOutConnection::_freeing()
 {
