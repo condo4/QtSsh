@@ -67,7 +67,7 @@ quint16 SshTunnelOut::localPort()
 void SshTunnelOut::_removeClosedConnection(SshTunnelOutConnection *ch)
 {
     m_connections.removeAll(ch);
-    delete ch;
+    ch->deleteLater();
     if(m_connections.size() == 0)
     {
         emit closed();
