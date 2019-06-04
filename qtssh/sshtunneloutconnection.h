@@ -20,8 +20,6 @@ public:
         Error,
         Creating,
         Running,
-        Closing,
-        WaitingClosed,
         Freeing
     };
     Q_ENUM(ConnectionState)

@@ -205,36 +205,12 @@ int SshTunnelOutConnection::_running()
         _transferTxToSsh();
     }
     _transferSshToRx();
-    return 0;
-}
 
-int SshTunnelOutConnection::_closing()
-{
-    if(m_channel == nullptr)
-        return 0;
-    int ret = libssh2_channel_close(m_channel);
-    if(ret)
-    {
-        return _displaySshError("libssh2_channel_close");
-    }
-    qCDebug(logsshtunneloutconnection)  << m_name << "libssh2_channel_close OK";
-    m_state = ConnectionState::WaitingClosed;
-    return 0;
-}
-
-int SshTunnelOutConnection::_waitingClosed()
-{
     if(m_channel != nullptr)
     {
-        int ret = libssh2_channel_wait_closed(m_channel);
-        if(ret)
         {
-            return _displaySshError("libssh2_channel_wait_closed");
         }
-        qCDebug(logsshtunneloutconnection)  << m_name << "libssh2_channel_wait_closed OK";
     }
-    m_state = ConnectionState::Freeing;
-    return _freeing();
 }
 
 int SshTunnelOutConnection::_freeing()
@@ -269,7 +245,6 @@ void SshTunnelOutConnection::_socketDisconnected()
     {
         qCWarning(logsshtunneloutconnection) << m_name << "_socketDisconnected but is" << m_sock->state();
     }
-    //m_state = ConnectionState::Closing;
     m_state = ConnectionState::Freeing;
     _freeing();
 }
@@ -306,12 +281,6 @@ void SshTunnelOutConnection::_sshDataReceived()
         break;
     case ConnectionState::Running:
         ret =_running();
-        break;
-    case ConnectionState::Closing:
-        ret =_closing();
-        break;
-    case ConnectionState::WaitingClosed:
-        ret =_waitingClosed();
         break;
     case ConnectionState::Freeing:
         ret = _freeing();
