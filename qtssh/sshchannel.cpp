@@ -14,6 +14,8 @@ SshChannel::SshChannel(QString name, SshClient *client)
 
 SshChannel::~SshChannel()
 {
+    if(!m_managed)
+        return;
     free();
 }
 
@@ -29,6 +31,8 @@ QString SshChannel::name() const
 
 void SshChannel::connectChannel(LIBSSH2_CHANNEL *channel)
 {
+    if(!m_managed)
+        return;
     m_sshChannel = channel;
     m_connected = true;
     qCDebug(sshchannel) << "connectChannel:" << m_name;
@@ -36,11 +40,16 @@ void SshChannel::connectChannel(LIBSSH2_CHANNEL *channel)
 
 void SshChannel::disconnectChannel()
 {
+    if(!m_managed)
+        return;
     free();
 }
 
 void SshChannel::close()
 {
+    if(!m_managed)
+        return;
+
     if (m_sshChannel == nullptr || m_connected == false || !m_sshClient->getSshConnected())
         return;
 
@@ -63,6 +72,9 @@ void SshChannel::close()
 
 void SshChannel::free()
 {
+    if(!m_managed)
+        return;
+    qCDebug(sshchannel) << "free Channel:" << m_name;
     if (m_sshChannel == nullptr)
         return;
 
@@ -77,4 +89,9 @@ void SshChannel::free()
         return;
     }
     m_sshChannel = nullptr;
+}
+
+void SshChannel::unmanaged()
+{
+    m_managed = false;
 }

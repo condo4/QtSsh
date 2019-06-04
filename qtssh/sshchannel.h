@@ -25,6 +25,7 @@ Q_DECLARE_LOGGING_CATEGORY(sshchannel)
 class SshChannel : public QObject
 {
     Q_OBJECT
+    bool m_managed {true};
     bool m_connected;
 
 protected:
@@ -42,6 +43,7 @@ protected:
     virtual void connectChannel(LIBSSH2_CHANNEL *channel);
     virtual void close();
     virtual void free();
+    void unmanaged();
 
 protected slots:
     virtual void sshDataReceived() {}

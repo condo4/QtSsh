@@ -10,6 +10,7 @@ SshTunnelOut::SshTunnelOut(SshClient *client, const QString &port_identifier, qu
     m_sshclient(client),
     m_port(port)
 {
+    unmanaged();
     m_tcpserver.listen(QHostAddress("127.0.0.1"), 0);
     QObject::connect(&m_tcpserver, &QTcpServer::newConnection, this, &SshTunnelOut::createConnection);
 }
