@@ -27,6 +27,7 @@ private:
     QList<SshTunnelOutConnection *> m_connections;
     SshClient               *m_sshclient {nullptr};
     quint16                 m_port {0};
+    QWeakPointer<SshTunnelOut> m_myself;
 
 public slots:
     bool isClosed();
@@ -47,6 +48,7 @@ protected slots:
 public:
     virtual ~SshTunnelOut();
     quint16 localPort() override;
+    void setSharedPointer(QSharedPointer<SshTunnelOut> &ptr);
 
 signals:
     void connectionClosed();

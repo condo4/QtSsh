@@ -5,9 +5,9 @@
 Q_LOGGING_CATEGORY(logsshtunneloutconnection, "ssh.tunnelout.connection")
 Q_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer, "ssh.tunnelout.connection.transfer")
 
-SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpSocket *sock, quint16 remotePort, QObject *parent)
-    : QObject(parent)
-    , m_parent(qobject_cast<SshTunnelOut*>(parent))
+SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpSocket *sock, quint16 remotePort, QSharedPointer<SshTunnelOut> parent)
+    : QObject(parent.data())
+    , m_parent(parent)
     , m_state(Creating)
     , m_client(client)
     , m_sock(sock)
@@ -35,6 +35,8 @@ SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *c
 
 void SshTunnelOutConnection::disconnectFromHost()
 {
+    m_parent->_removeClosedConnection(this);
+    m_parent.clear();
     if(m_sock->state() == QTcpSocket::ConnectedState)
     {
         qCDebug(logsshtunneloutconnection) << m_name << "Ask disconnectFromHost";
@@ -55,7 +57,7 @@ int SshTunnelOutConnection::_displaySshError(const QString &msg)
     if(ret == LIBSSH2_ERROR_EAGAIN)
     {
         /* Process next connection */
-        _sshWaiting = true;
+        m_sshWaiting = true;
         return LIBSSH2_ERROR_EAGAIN;
     }
     qCCritical(logsshtunneloutconnection) << m_name << "Error" << ret << msg << QString(emsg);
@@ -85,6 +87,15 @@ ssize_t SshTunnelOutConnection::_transferSshToRx()
             }
         }
         while(len > 0);
+    }
+
+    if(m_channel != nullptr)
+    {
+        if (libssh2_channel_eof(m_channel))
+        {
+            m_disconnectedFromSsh = true;
+            qCDebug(logsshtunneloutconnection) << "Set Disconnected from ssh";
+        }
     }
 
     return len;
@@ -127,7 +138,8 @@ ssize_t SshTunnelOutConnection::_transferSockToTx()
         len = m_sock->read(m_tx_stop_ptr, BUFFER_SIZE - (m_tx_stop_ptr - m_tx_buffer));
         if(len > 0)
         {
-             qCDebug(logsshtunneloutconnectiontransfer) << m_name << " read on socket return " << len << "bytes";
+            m_readen += len;
+             qCDebug(logsshtunneloutconnectiontransfer) << m_name << " read on socket return " << len << "bytes (total:" << m_readen << ", available:" << m_sock->bytesAvailable() << ")";
              m_tx_stop_ptr += len;
         }
         else if(len < 0)
@@ -137,7 +149,7 @@ ssize_t SshTunnelOutConnection::_transferSockToTx()
     }
     else
     {
-        qCDebug(logsshtunneloutconnectiontransfer) << m_name << " TX buffer full";
+        qCDebug(logsshtunneloutconnectiontransfer) << m_name << " TX buffer full: " << QString("%1").arg(reinterpret_cast<long>(m_tx_stop_ptr), 0, 16) << " in {" << QString("%1").arg(reinterpret_cast<long>(m_tx_buffer), 0, 16) << ".." << QString("%1").arg(reinterpret_cast<long>(m_tx_buffer + BUFFER_SIZE), 0, 16) << "}";
     }
     if((m_tx_stop_ptr - m_tx_start_ptr) > 0 && (m_state == ConnectionState::Running))
     {
@@ -165,7 +177,8 @@ ssize_t SshTunnelOutConnection::_transferTxToSsh()
                 qCWarning(logsshtunneloutconnectiontransfer) << "ERROR : " << m_name << " libssh2_channel_write return 0";
                 return 0;
             }
-            qCDebug(logsshtunneloutconnectiontransfer) << m_name << " write on SSH return " << len << "bytes";
+            m_writen += len;
+            qCDebug(logsshtunneloutconnectiontransfer) << m_name << " write on SSH return " << len << "bytes (total:" << m_writen << ")" ;
             m_tx_start_ptr += len;
         }
         m_tx_start_ptr = m_tx_buffer;
@@ -206,16 +219,7 @@ int SshTunnelOutConnection::_running()
     }
     _transferSshToRx();
 
-    if(m_channel != nullptr)
-    {
-        if (libssh2_channel_eof(m_channel))
-        {
-            _disconnectedFromSsh = true;
-            qCDebug(logsshtunneloutconnection) << "Set Disconnected from ssh";
-        }
-    }
-
-    if(_disconnectedFromSsh && m_sock && (m_rx_stop_ptr - m_rx_start_ptr == 0) &&  (m_tx_stop_ptr - m_tx_start_ptr == 0))
+    if(m_disconnectedFromSsh && m_sock && (m_rx_stop_ptr - m_rx_start_ptr == 0) &&  (m_tx_stop_ptr - m_tx_start_ptr == 0))
     {
         qCDebug(logsshtunneloutconnection) << "Disconnect socket for disconnected from Ssh";
         m_sock->disconnectFromHost();
@@ -238,10 +242,14 @@ int SshTunnelOutConnection::_freeing()
     }
     qCDebug(logsshtunneloutconnection)  << m_name << "libssh2_channel_free OK";
     m_state = ConnectionState::None;
-    m_sock->disconnect();
-    QObject::connect(m_sock, &QObject::destroyed, this, &SshTunnelOutConnection::_socketDestroyed);
-    delete m_sock;
-    m_sock = nullptr;
+    if(m_sock != nullptr)
+    {
+        m_sock->disconnect();
+        QObject::connect(m_sock, &QObject::destroyed, this, &SshTunnelOutConnection::_socketDestroyed);
+        delete m_sock;
+        m_sock = nullptr;
+    }
+    m_parent.clear();
     return 0;
 }
 
@@ -253,10 +261,18 @@ void SshTunnelOutConnection::_socketDataReceived()
 void SshTunnelOutConnection::_socketDisconnected()
 {
     /* Identify client socket */
-    qCDebug(logsshtunneloutconnection) << m_name << "_socketDisconnected()";
-    if(m_sock->state() != QTcpSocket::UnconnectedState)
+    if(m_sock != nullptr)
     {
-        qCWarning(logsshtunneloutconnection) << m_name << "_socketDisconnected but is" << m_sock->state();
+        if(m_sock->bytesAvailable() > 0)
+        {
+            m_disconnectedFromSock = true;
+            return;
+        }
+        qCDebug(logsshtunneloutconnection) << m_name << "_socketDisconnected() : " << m_sock->bytesAvailable();
+        if(m_sock->state() != QTcpSocket::UnconnectedState)
+        {
+            qCWarning(logsshtunneloutconnection) << m_name << "_socketDisconnected but is" << m_sock->state();
+        }
     }
     m_state = ConnectionState::Freeing;
     _freeing();
@@ -285,7 +301,7 @@ void SshTunnelOutConnection::_socketError()
 
 void SshTunnelOutConnection::_sshDataReceived()
 {
-    _sshWaiting = false;
+    m_sshWaiting = false;
     int ret;
     switch(m_state)
     {
@@ -308,6 +324,10 @@ void SshTunnelOutConnection::_sshDataReceived()
     if(ret != 0 && ret != LIBSSH2_ERROR_EAGAIN)
     {
         qCWarning(logsshtunneloutconnection) << m_name << "State machine error: " << m_state << ret;
+    }
+    if(m_disconnectedFromSock)
+    {
+        _socketDisconnected();
     }
 }
 

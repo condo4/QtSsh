@@ -25,8 +25,6 @@ SshTunnelOut::~SshTunnelOut()
 void SshTunnelOut::close()
 {
     qCDebug(logsshtunnelout) << m_name << "Close server";
-    m_tcpserver.close();
-
     QEventLoop wait;
     QObject::connect(this, &SshTunnelOut::connectionClosed, &wait, &QEventLoop::quit);
     for(auto *ch: m_connections)
@@ -41,6 +39,7 @@ void SshTunnelOut::close()
         qCDebug(logsshtunnelout) << m_name << "All connection closed";
     }
 
+    m_tcpserver.close();
     emit closed();
 }
 
@@ -58,13 +57,18 @@ void SshTunnelOut::createConnection()
     if(!sock) return;
     qCDebug(logsshtunnelout) << m_name << "createConnection: " << sock << sock->localPort();
 
-    SshTunnelOutConnection *ch = new SshTunnelOutConnection(m_name, m_sshclient, sock, m_port, this);
+    SshTunnelOutConnection *ch = new SshTunnelOutConnection(m_name, m_sshclient, sock, m_port, m_myself.toStrongRef());
     m_connections.push_back(ch);
 }
 
 quint16 SshTunnelOut::localPort()
 {
     return m_tcpserver.serverPort();
+}
+
+void SshTunnelOut::setSharedPointer(QSharedPointer<SshTunnelOut> &ptr)
+{
+    m_myself = ptr.toWeakRef();
 }
 
 void SshTunnelOut::_removeClosedConnection(SshTunnelOutConnection *ch)

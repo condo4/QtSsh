@@ -255,6 +255,7 @@ QSharedPointer<SshTunnelOut> SshClient::getTunnelOut(const QString &name, quint1
         }
     }
     QSharedPointer<SshTunnelOut> out(new SshTunnelOut(this, name, port));
+    out->setSharedPointer(out);
     m_channels.append(out.toWeakRef());
     return out;
 }
