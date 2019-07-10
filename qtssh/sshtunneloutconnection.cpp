@@ -302,7 +302,7 @@ void SshTunnelOutConnection::_socketError()
 void SshTunnelOutConnection::_sshDataReceived()
 {
     m_sshWaiting = false;
-    int ret;
+    int ret = -1;
     switch(m_state)
     {
     case ConnectionState::Creating:
