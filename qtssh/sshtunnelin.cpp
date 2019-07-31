@@ -36,7 +36,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
         m_sshListener = qssh2_channel_forward_listen_ex(m_sshClient->session(), qPrintable(host), m_remoteTcpPort, &m_remoteTcpPort);
         if (m_sshListener == nullptr)
         {
-            int ret = qssh2_session_last_error(m_sshClient->session(), nullptr, nullptr, 0);
+            int ret = libssh2_session_last_error(m_sshClient->session(), nullptr, nullptr, 0);
             if ( ret==LIBSSH2_ERROR_REQUEST_DENIED && retryListen > 0 )
             {
                 retryListen--;
@@ -246,7 +246,7 @@ void SshTunnelIn::sshDataReceived()
     }
     while(len > 0);
 
-    if (qssh2_channel_eof(m_sshChannel))
+    if (libssh2_channel_eof(m_sshChannel))
     {
         qCDebug(logsshtunnelin, "-> Received EOF");
         m_tcpsocket->disconnectFromHost();

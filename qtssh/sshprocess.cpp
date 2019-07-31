@@ -45,7 +45,7 @@ QByteArray SshProcess::runCommand(const QString &cmd)
         result.append(buffer, static_cast<int>(retsz));
             qCDebug(logsshprocess) << "runCommand(" << cmd << ") -> " << result;
 
-        if (qssh2_channel_eof(m_sshChannel) == 1)
+        if (libssh2_channel_eof(m_sshChannel) == 1)
         {
             eof = true;
         }

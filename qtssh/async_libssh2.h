@@ -7,27 +7,6 @@ extern "C" {
 
 #include <QCoreApplication>
 
-/* Safe ASYNC function */
-#define qssh2_knownhost               libssh2_knownhost
-#define qssh2_init                      libssh2_init
-#define qssh2_session_init_ex           libssh2_session_init_ex
-#define qssh2_session_callback_set      libssh2_session_callback_set
-#define qssh2_knownhost_init            libssh2_knownhost_init
-#define qssh2_session_set_blocking      libssh2_session_set_blocking
-#define qssh2_session_hostkey           libssh2_session_hostkey
-#define qssh2_hostkey_hash              libssh2_hostkey_hash
-#define qssh2_knownhost_check           libssh2_knownhost_check
-#define qssh2_session_last_error        libssh2_session_last_error
-#define qssh2_userauth_authenticated    libssh2_userauth_authenticated
-#define qssh2_keepalive_config          libssh2_keepalive_config
-#define qssh2_knownhost_free            libssh2_knownhost_free
-#define qssh2_knownhost_readfile        libssh2_knownhost_readfile
-#define qssh2_knownhost_writefile       libssh2_knownhost_writefile
-#define qssh2_knownhost_add             libssh2_knownhost_add
-#define qssh2_session_banner_get        libssh2_session_banner_get
-#define qssh2_keepalive_send            libssh2_keepalive_send
-#define qssh2_channel_eof               libssh2_channel_eof
-
 inline const char* sshErrorToString(int err)
 {
     switch(err)
