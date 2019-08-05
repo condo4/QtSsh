@@ -52,7 +52,7 @@ public:
 
 
 public slots:
-    int connectToHost(const QString & username, const QString & hostname, quint16 port = 22);
+    int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, QByteArrayList methodes = QByteArrayList());
     void disconnectFromHost();
 
     QString runCommand(const QString &command);                  // SshProcess

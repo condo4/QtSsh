@@ -260,8 +260,12 @@ QSharedPointer<SshTunnelOut> SshClient::getTunnelOut(const QString &name, quint1
     return out;
 }
 
-int SshClient::connectToHost(const QString & user, const QString & host, quint16 port)
+int SshClient::connectToHost(const QString & user, const QString & host, quint16 port, QByteArrayList methodes)
 {
+    QEventLoop waitnextframe;
+    QObject::connect(&m_socket, &QTcpSocket::readyRead, &waitnextframe, &QEventLoop::quit);
+    QObject::connect(&m_socket, &QTcpSocket::disconnected, &waitnextframe, &QEventLoop::quit);
+
     m_hostname = host;
     m_port = port;
     m_username = user;
@@ -346,27 +350,49 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     struct libssh2_knownhost *khost;
     libssh2_knownhost_check(m_knownHosts, m_hostname.toStdString().c_str(), fingerprint, len, LIBSSH2_KNOWNHOST_TYPE_PLAIN | LIBSSH2_KNOWNHOST_KEYENC_RAW, &khost);
 
-    QByteArray username = m_username.toLocal8Bit();
-    char * alist = nullptr;
 
-    alist = qssh2_userauth_list(m_session, username.data(), static_cast<unsigned int>(username.length()));
-    if(alist == nullptr)
+    if(methodes.length() == 0)
     {
-        int ret = libssh2_session_last_error(m_session, nullptr, nullptr, 0);
-        qCDebug(sshclient, "%s: Failed to authenticate: %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));
-    }
+        QByteArray username = m_username.toLocal8Bit();
+        char * alist = nullptr;
 
-    if (alist == nullptr && !libssh2_userauth_authenticated(m_session))
-    {
-        /* Autentication Error */
-        qCCritical(sshclient, "%s: Authentication error %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));
-        m_socket.disconnectFromHost();
-        if(m_socket.state() != QTcpSocket::UnconnectedState)
-            m_socket.waitForDisconnected(60000);
-        return -1;
-    }
+        qCDebug(sshclient) << m_name << ": ssh start authentication userauth_list";
 
-    QByteArrayList methodes = QByteArray(alist).split(',');
+        while(alist == nullptr)
+        {
+            alist = libssh2_userauth_list(m_session, username.data(), static_cast<unsigned int>(username.length()));
+            if(alist == nullptr)
+            {
+                int ret = libssh2_session_last_error(m_session, nullptr, nullptr, 0);
+                if(ret == LIBSSH2_ERROR_EAGAIN)
+                {
+                    qCDebug(sshclient, "%s again", qPrintable(m_name));
+                    waitnextframe.exec();
+                    if(m_socket.state() != QAbstractSocket::ConnectedState)
+                        break;
+                    continue;
+                }
+                else
+                {
+                    qCDebug(sshclient, "%s: Failed to authenticate: %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));
+                }
+                break;
+            }
+            qCDebug(sshclient) << m_name << ": ssh start authentication userauth_list: " << alist;
+        }
+
+        if (alist == nullptr && !libssh2_userauth_authenticated(m_session))
+        {
+            /* Autentication Error */
+            qCCritical(sshclient, "%s: Authentication error %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));
+            m_socket.disconnectFromHost();
+            if(m_socket.state() != QTcpSocket::UnconnectedState)
+                m_socket.waitForDisconnected(60000);
+            return -1;
+        }
+
+        QByteArrayList methodes = QByteArray(alist).split(',');
+    }
 
     while(!libssh2_userauth_authenticated(m_session) && methodes.length() > 0)
     {
