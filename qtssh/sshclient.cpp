@@ -56,14 +56,8 @@ static ssize_t qt_callback_libssh_send(int socket,const void * buffer, size_t le
 
 SshClient::SshClient(const QString &name, QObject * parent):
     QObject(parent),
-    m_session(nullptr),
-    m_knownHosts(nullptr),
     m_name(name),
-    m_socket(this),
-    m_port(0),
-    m_errorcode(0),
-    m_sshConnected(false),
-    m_errorMessage(QString())
+    m_socket(this)
 {
     connect(&m_socket,   SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(_tcperror(QAbstractSocket::SocketError)));
     connect(&m_socket,   &QTcpSocket::stateChanged, this, &SshClient::_stateChanged);
@@ -193,9 +187,9 @@ QString SshClient::sendFile(const QString &src, const QString &dst)
     return d;
 }
 
-QSharedPointer<SshSFtp> SshClient::getSFtp(const QString name)
+QSharedPointer<SshSFtp> SshClient::getSFtp(const QString &name)
 {
-    for(QWeakPointer<SshChannel> w: m_channels)
+    for(QWeakPointer<SshChannel> &w: m_channels)
     {
         if(!w.isNull())
         {
@@ -217,7 +211,7 @@ QSharedPointer<SshSFtp> SshClient::getSFtp(const QString name)
 
 QSharedPointer<SshTunnelIn> SshClient::getTunnelIn(const QString &name, quint16 localport, quint16 remoteport, QString host)
 {
-    for(QWeakPointer<SshChannel> w: m_channels)
+    for(QWeakPointer<SshChannel> &w: m_channels)
     {
         if(!w.isNull())
         {
@@ -239,7 +233,7 @@ QSharedPointer<SshTunnelIn> SshClient::getTunnelIn(const QString &name, quint16 
 
 QSharedPointer<SshTunnelOut> SshClient::getTunnelOut(const QString &name, quint16 port)
 {
-    for(QWeakPointer<SshChannel> w: m_channels)
+    for(QWeakPointer<SshChannel> &w: m_channels)
     {
         if(!w.isNull())
         {
@@ -271,7 +265,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     m_username = user;
     qCDebug(sshclient) << m_name << ": connectToHost(" << m_hostname << "," << m_port << ") with login " << user;
     if(m_sshConnected) {
-        qCCritical(sshclient, "%s: Allready connected", qPrintable(m_name));
+        qCCritical(sshclient) << m_name << "Allready connected";
         return 0;
     }
 
@@ -282,7 +276,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     m_socket.connectToHost(m_hostname, m_port);
     if(!m_socket.waitForConnected(60000))
     {
-        qCDebug(sshclient, "%s: Failed to connect socket", qPrintable(m_name));
+        qCDebug(sshclient) << m_name << "Failed to connect socket";
         return -1;
     }
 
@@ -312,7 +306,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     int ret = qssh2_session_handshake(m_session, sock);
     if(ret)
     {
-        qCCritical(sshclient, "%s: Handshake error %s", qPrintable(m_name), sshErrorToString(ret));
+        qCCritical(sshclient) << m_name << "Handshake error" << sshErrorToString(ret);
         m_socket.disconnectFromHost();
         if(m_socket.state() != QTcpSocket::UnconnectedState)
             m_socket.waitForDisconnected(60000);
@@ -326,7 +320,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 
     if(fingerprint == nullptr)
     {
-        qCCritical(sshclient, "%s: Fingerprint error", qPrintable(m_name));
+        qCCritical(sshclient) << m_name << "Fingerprint error";
         m_socket.disconnectFromHost();
         if(m_socket.state() != QTcpSocket::UnconnectedState)
             m_socket.waitForDisconnected(60000);
@@ -366,16 +360,13 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
                 int ret = libssh2_session_last_error(m_session, nullptr, nullptr, 0);
                 if(ret == LIBSSH2_ERROR_EAGAIN)
                 {
-                    qCDebug(sshclient, "%s again", qPrintable(m_name));
+                    qCDebug(sshclient) << m_name << ": again";
                     waitnextframe.exec();
                     if(m_socket.state() != QAbstractSocket::ConnectedState)
                         break;
                     continue;
                 }
-                else
-                {
-                    qCDebug(sshclient, "%s: Failed to authenticate: %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));
-                }
+                qCDebug(sshclient) << m_name << ": Failed to authenticate:" << sshErrorToString(ret);
                 break;
             }
             qCDebug(sshclient) << m_name << ": ssh start authentication userauth_list: " << alist;
@@ -384,14 +375,14 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         if (alist == nullptr && !libssh2_userauth_authenticated(m_session))
         {
             /* Autentication Error */
-            qCCritical(sshclient, "%s: Authentication error %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));
+            qCCritical(sshclient) << m_name << "Authentication error" << sshErrorToString(ret);
             m_socket.disconnectFromHost();
             if(m_socket.state() != QTcpSocket::UnconnectedState)
                 m_socket.waitForDisconnected(60000);
             return -1;
         }
 
-        QByteArrayList methodes = QByteArray(alist).split(',');
+        methodes = QByteArray(alist).split(',');
     }
 
     while(!libssh2_userauth_authenticated(m_session) && methodes.length() > 0)
@@ -427,13 +418,13 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
                                                      static_cast<unsigned int>(passphrase.length()));
             if(ret)
             {
-                qCDebug(sshclient, "%s: Failed to userauth_password: %s", qPrintable(m_name), qPrintable(sshErrorToString(ret)));
+                qCDebug(sshclient) << m_name << ": Failed to userauth_password:" << sshErrorToString(ret);
                 methodes.removeAll("password");
             }
         }
         else
         {
-            qCCritical(sshclient, "%s: Not manage %s authentication", qPrintable(m_name), qPrintable(methodes.at(0)));
+            qCCritical(sshclient) << m_name << ": Not manage" << methodes.at(0) << "authentication";
             methodes.removeAll(methodes.at(0));
         }
     }
@@ -441,7 +432,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     if(!libssh2_userauth_authenticated(m_session))
     {
         /* Autentication Error */
-        qCDebug(sshclient, "%s: Authentication error not more available methodes", qPrintable(m_name));
+        qCDebug(sshclient) << m_name << ": Authentication error not more available methodes";
         m_socket.disconnectFromHost();
         if(m_socket.state() != QTcpSocket::UnconnectedState)
             m_socket.waitForDisconnected(60000);
@@ -616,7 +607,7 @@ void SshClient::_sshClientClose()
 
     /* Close all Opened Channels */
     qCDebug(sshclient) << m_name << ": close all channels";
-    for(QWeakPointer<SshChannel> wchannel: m_channels)
+    for(const QWeakPointer<SshChannel> &wchannel: m_channels)
     {
         if(!wchannel.isNull())
         {

@@ -28,8 +28,8 @@ protected:
 public:
     virtual ~SshSFtp();
 
-    virtual void close() override;
-    virtual void free() override;
+    void close() override;
+    void free() override;
 
     QString send(const QString &source, QString dest);
     bool get(const QString &source, QString dest, bool override = false);

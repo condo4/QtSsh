@@ -23,7 +23,7 @@ public:
         Freeing
     };
     Q_ENUM(ConnectionState)
-    explicit SshTunnelOutConnection(const QString &name, SshClient *client, QTcpSocket *sock, quint16 remotePort, QSharedPointer<SshTunnelOut> parent);
+    explicit SshTunnelOutConnection(const QString &name, SshClient *client, QTcpSocket *sock, quint16 remotePort, const QSharedPointer<SshTunnelOut> &parent);
     void disconnectFromHost();
     bool isClosed();
 
@@ -41,7 +41,7 @@ private:
     char *m_rx_start_ptr {nullptr};
     char *m_tx_stop_ptr {nullptr};
     char *m_rx_stop_ptr {nullptr};
-    bool m_sshWaiting;
+    bool m_sshWaiting {false};
     bool m_disconnectedFromSsh {false};
     bool m_disconnectedFromSock {false};
     ssize_t m_writen {0};

@@ -15,17 +15,17 @@ class  SshClient : public QObject {
     Q_OBJECT
 
 private:
-    LIBSSH2_SESSION    * m_session;
-    LIBSSH2_KNOWNHOSTS * m_knownHosts;
+    LIBSSH2_SESSION    * m_session {nullptr};
+    LIBSSH2_KNOWNHOSTS * m_knownHosts {nullptr};
     static int s_nbInstance;
     QString m_name;
     QList<QWeakPointer<SshChannel>> m_channels;
     QTcpSocket m_socket;
-    qint64 m_lastProofOfLive;
+    qint64 m_lastProofOfLive {0};
 
-    quint16 m_port;
-    int m_errorcode;
-    bool m_sshConnected;
+    quint16 m_port {0};
+    int m_errorcode {0};
+    bool m_sshConnected {false};
 
     QString m_hostname;
     QString m_username;
@@ -37,7 +37,7 @@ private:
     SshKey  m_hostKey;
     QTimer m_keepalive;
     QMutex channelCreationInProgress;
-    void *currentLockerForChannelCreation;
+    void *currentLockerForChannelCreation {nullptr};
 
     void _sshClientClose();
     void _sshClientFree();
@@ -58,7 +58,7 @@ public slots:
     QString runCommand(const QString &command);                  // SshProcess
     QString getFile(const QString &source, const QString &dest); // SshScpGet
     QString sendFile(const QString &src, const QString &dst);    // SshScpSend
-    QSharedPointer<SshSFtp> getSFtp(const QString name = "sftp");
+    QSharedPointer<SshSFtp> getSFtp(const QString &name = "sftp");
     QSharedPointer<SshTunnelIn> getTunnelIn(const QString &name, quint16 localport, quint16 remoteport = 0, QString host = "127.0.0.1");
     QSharedPointer<SshTunnelOut> getTunnelOut(const QString &name, quint16 port);
 

@@ -40,7 +40,7 @@ QString SshScpGet::get(const QString &source, const QString &dest)
                 qsource.write(mem, rc);
             }
             else if(rc < 0) {
-                qWarning("libssh2_channel_read() failed: %zd\n", rc);
+                qWarning() << "libssh2_channel_read() failed: " << rc;
                 break;
             }
             got += rc;

@@ -32,7 +32,7 @@ void SshTunnelOut::close()
         ch->disconnectFromHost();
     }
 
-    if(m_connections.size() != 0)
+    if(!m_connections.empty())
     {
         qCDebug(logsshtunnelout) << m_name << "Waiting all connection closed";
         wait.exec();
@@ -75,7 +75,7 @@ void SshTunnelOut::_removeClosedConnection(SshTunnelOutConnection *ch)
 {
     m_connections.removeAll(ch);
     ch->deleteLater();
-    if(m_connections.size() == 0)
+    if(m_connections.empty())
     {
         emit connectionClosed();
     }

@@ -31,15 +31,15 @@ private:
 
 public slots:
     bool isClosed();
-    virtual void disconnectChannel() override;
+    void disconnectChannel() override;
 
 private slots:
     void createConnection();
 
 protected:
-    virtual void close() override;
     explicit SshTunnelOut(SshClient * client, const QString &port_identifier, quint16 port);
     friend class SshClient;
+    void close() override;
 
 protected slots:
     void _removeClosedConnection(SshTunnelOutConnection *ch);

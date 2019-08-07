@@ -5,7 +5,7 @@
 Q_LOGGING_CATEGORY(logsshtunneloutconnection, "ssh.tunnelout.connection")
 Q_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer, "ssh.tunnelout.connection.transfer")
 
-SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpSocket *sock, quint16 remotePort, QSharedPointer<SshTunnelOut> parent)
+SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpSocket *sock, quint16 remotePort, const QSharedPointer<SshTunnelOut> &parent)
     : QObject(parent.data())
     , m_parent(parent)
     , m_state(Creating)

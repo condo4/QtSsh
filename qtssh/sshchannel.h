@@ -26,7 +26,7 @@ class SshChannel : public QObject
 {
     Q_OBJECT
     bool m_managed {true};
-    bool m_connected;
+    bool m_connected {false};
 
 protected:
     explicit SshChannel(QString name, SshClient *client);

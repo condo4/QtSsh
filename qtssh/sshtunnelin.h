@@ -42,8 +42,8 @@ private slots:
     void onLocalSocketError(QAbstractSocket::SocketError error);
     void onLocalSocketDataReceived();
 
-    virtual void sshDataReceived() override;
+    void sshDataReceived() override;
 
 protected:
-    virtual void close() override;
+    void close() override;
 };
