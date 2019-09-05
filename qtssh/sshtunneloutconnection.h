@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QObject>
-#include <QTcpSocket>
+#include <QTcpServer>
 #include <QLoggingCategory>
 #include "sshchannel.h"
 
@@ -23,7 +23,7 @@ public:
         Freeing
     };
     Q_ENUM(ConnectionState)
-    explicit SshTunnelOutConnection(const QString &name, SshClient *client, QTcpSocket *sock, quint16 remotePort, const QSharedPointer<SshTunnelOut> &parent);
+    explicit SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort, const QSharedPointer<SshTunnelOut> &parent);
     void disconnectFromHost();
     bool isClosed();
 
@@ -33,6 +33,7 @@ private:
     LIBSSH2_CHANNEL *m_channel {nullptr};
     SshClient *m_client {nullptr};
     QTcpSocket *m_sock;
+    QTcpServer &m_server;
     quint16 m_port;
     QString m_name;
     char m_rx_buffer[BUFFER_SIZE] {0,};

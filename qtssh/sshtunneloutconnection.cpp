@@ -5,28 +5,19 @@
 Q_LOGGING_CATEGORY(logsshtunneloutconnection, "ssh.tunnelout.connection")
 Q_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer, "ssh.tunnelout.connection.transfer")
 
-SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpSocket *sock, quint16 remotePort, const QSharedPointer<SshTunnelOut> &parent)
+SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort, const QSharedPointer<SshTunnelOut> &parent)
     : QObject(parent.data())
     , m_parent(parent)
     , m_state(Creating)
     , m_client(client)
-    , m_sock(sock)
+    , m_server(server)
     , m_port(remotePort)
-    , m_name(QString(name + ":%1").arg(sock->localPort()))
+    , m_name(name)
     , m_tx_start_ptr(m_tx_buffer)
     , m_rx_start_ptr(m_rx_buffer)
     , m_tx_stop_ptr(m_tx_buffer)
     , m_rx_stop_ptr(m_rx_buffer)
 {
-    QObject::connect(m_sock, &QTcpSocket::readyRead,
-                     this,   &SshTunnelOutConnection::_socketDataReceived);
-
-    QObject::connect(m_sock, &QTcpSocket::disconnected,
-                     this,   &SshTunnelOutConnection::_socketDisconnected);
-
-    QObject::connect(m_sock, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
-                     this,   &SshTunnelOutConnection::_socketError);
-
     QObject::connect(client, &SshClient::sshDataReceived,
                      this,   &SshTunnelOutConnection::_sshDataReceived);
 
@@ -35,7 +26,8 @@ SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *c
 
 void SshTunnelOutConnection::disconnectFromHost()
 {
-    m_parent->_removeClosedConnection(this);
+    if(!m_parent.isNull())
+        m_parent->_removeClosedConnection(this);
     m_parent.clear();
     if(m_sock->state() == QTcpSocket::ConnectedState)
     {
@@ -139,8 +131,8 @@ ssize_t SshTunnelOutConnection::_transferSockToTx()
         if(len > 0)
         {
             m_readen += len;
-             qCDebug(logsshtunneloutconnectiontransfer) << m_name << " read on socket return " << len << "bytes (total:" << m_readen << ", available:" << m_sock->bytesAvailable() << ")";
-             m_tx_stop_ptr += len;
+            qCDebug(logsshtunneloutconnectiontransfer) << m_name << " read on socket return " << len << "bytes (total:" << m_readen << ", available:" << m_sock->bytesAvailable() << ")";
+            m_tx_stop_ptr += len;
         }
         else if(len < 0)
         {
@@ -162,7 +154,6 @@ ssize_t SshTunnelOutConnection::_transferSockToTx()
 ssize_t SshTunnelOutConnection::_transferTxToSsh()
 {
     ssize_t len = 0;
-
     if(m_channel != nullptr)
     {
         while((m_tx_stop_ptr - m_tx_start_ptr) > 0)
@@ -202,9 +193,44 @@ int SshTunnelOutConnection::_creating()
     m_client->releaseChannelCreationMutex(this);
     if(m_channel == nullptr)
     {
-        return _displaySshError("libssh2_channel_direct_tcpip");
+        char *emsg;
+        int size;
+        int ret = libssh2_session_last_error(m_client->session(), &emsg, &size, 0);
+        if(ret == LIBSSH2_ERROR_EAGAIN)
+        {
+            m_sshWaiting = true;
+            return LIBSSH2_ERROR_EAGAIN;
+        }
+        qCDebug(logsshtunneloutconnection) << "Refuse client socket connection on " << m_server.serverPort() << QString(emsg);
+        m_sock = m_server.nextPendingConnection();
+        m_sock->close();
+        m_sock->deleteLater();
+        m_server.close();
+        m_state = ConnectionState::None;
+        return 0;
     }
-    qCDebug(logsshtunneloutconnection)  << m_name << "libssh2_channel_direct_tcpip OK";
+
+    qCDebug(logsshtunneloutconnection) << m_name << "libssh2_channel_direct_tcpip OK: Create client socket connection on " << m_server.serverPort();
+    m_sock = m_server.nextPendingConnection();
+    if(!m_sock)
+    {
+        if(!m_parent.isNull())
+            m_parent->_removeClosedConnection(this);
+        m_state = ConnectionState::None;
+        return -1;
+    }
+    QObject::connect(m_sock, &QTcpSocket::readyRead,
+                     this,   &SshTunnelOutConnection::_socketDataReceived);
+
+    QObject::connect(m_sock, &QTcpSocket::disconnected,
+                     this,   &SshTunnelOutConnection::_socketDisconnected);
+
+    QObject::connect(m_sock, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
+                     this,   &SshTunnelOutConnection::_socketError);
+
+    m_name = QString(m_name + ":%1").arg(m_sock->localPort());
+    qCDebug(logsshtunnelout) << m_name << "createConnection: " << m_sock << m_sock->localPort();
+    _transferSockToTx();
     m_state = ConnectionState::Running;
     _running();
     return 0;
@@ -282,7 +308,8 @@ void SshTunnelOutConnection::_socketDestroyed()
 {
     qCDebug(logsshtunneloutconnection)  << m_name << "_socketDestroyed OK";
     m_sock = nullptr;
-    m_parent->_removeClosedConnection(this);
+    if(!m_parent.isNull())
+        m_parent->_removeClosedConnection(this);
 }
 
 void SshTunnelOutConnection::_socketError()

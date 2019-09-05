@@ -51,13 +51,7 @@ void SshTunnelOut::createConnection()
         return;
     }
 
-    QTcpSocket *sock = m_tcpserver.nextPendingConnection();
-
-    connect(sock, &QTcpSocket::disconnected, [sock](){qCDebug(logsshtunnelout) << "SOCK DISCONNECTED: " << sock << sock->localPort();});
-    if(!sock) return;
-    qCDebug(logsshtunnelout) << m_name << "createConnection: " << sock << sock->localPort();
-
-    SshTunnelOutConnection *ch = new SshTunnelOutConnection(m_name, m_sshclient, sock, m_port, m_myself.toStrongRef());
+    SshTunnelOutConnection *ch = new SshTunnelOutConnection(m_name, m_sshclient, m_tcpserver, m_port, m_myself.toStrongRef());
     m_connections.push_back(ch);
 }
 
