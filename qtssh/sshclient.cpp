@@ -60,9 +60,6 @@ SshClient::SshClient(const QString &name, QObject * parent):
     m_socket(this)
 {
     connect(&m_socket,   SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(_tcperror(QAbstractSocket::SocketError)));
-    connect(&m_socket,   &QTcpSocket::stateChanged, this, &SshClient::_stateChanged);
-    connect(&m_socket,   &QTcpSocket::disconnected, this, &SshClient::_disconnected);
-    connect(&m_keepalive,&QTimer::timeout,          this, &SshClient::_sendKeepAlive);
 
     if(s_nbInstance == 0)
     {
@@ -257,6 +254,10 @@ QSharedPointer<SshTunnelOut> SshClient::getTunnelOut(const QString &name, quint1
 int SshClient::connectToHost(const QString & user, const QString & host, quint16 port, QByteArrayList methodes)
 {
     QEventLoop waitnextframe;
+    connect(&m_socket,   &QTcpSocket::stateChanged, this, &SshClient::_stateChanged);
+    connect(&m_socket,   &QTcpSocket::disconnected, this, &SshClient::_disconnected);
+    connect(&m_keepalive,&QTimer::timeout,          this, &SshClient::_sendKeepAlive);
+
     QObject::connect(&m_socket, &QTcpSocket::readyRead, &waitnextframe, &QEventLoop::quit);
     QObject::connect(&m_socket, &QTcpSocket::disconnected, &waitnextframe, &QEventLoop::quit);
 
