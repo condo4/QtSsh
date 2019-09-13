@@ -28,8 +28,8 @@ int SshClient::s_nbInstance = 0;
 
 static ssize_t qt_callback_libssh_recv(int socket,void *buffer, size_t length,int flags, void **abstract)
 {
-    Q_UNUSED(socket);
-    Q_UNUSED(flags);
+    Q_UNUSED(socket)
+    Q_UNUSED(flags)
 
     QTcpSocket * c = reinterpret_cast<QTcpSocket *>(* abstract);
     qint64 r = c->read(reinterpret_cast<char *>(buffer), static_cast<qint64>(length));
