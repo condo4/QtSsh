@@ -304,7 +304,12 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         _loadKnownHosts(m_knowhostFiles);
     }
 
-    int ret = qssh2_session_handshake(m_session, sock);
+    if(m_session == nullptr)
+    {
+        return -1;
+    }
+
+    int ret = qssh2_session_handshake(&m_session, sock);
     if(ret)
     {
         qCCritical(sshclient) << m_name << "Handshake error" << sshErrorToString(ret);
@@ -637,7 +642,7 @@ void SshClient::_sshClientFree()
     if (m_session)
     {
         qCDebug(sshclient) << m_name << ": Destroy SSH session";
-        qssh2_session_free(m_session);
+        qssh2_session_free(&m_session);
         m_session = nullptr;
     }
 }

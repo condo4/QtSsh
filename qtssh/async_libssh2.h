@@ -110,13 +110,16 @@ inline const char* sshErrorToString(int err)
 
 
 /* Non-Blocking async functions */
-inline int qssh2_session_handshake(LIBSSH2_SESSION *session, libssh2_socket_t sock)
+inline int qssh2_session_handshake(LIBSSH2_SESSION **session, libssh2_socket_t sock)
 {
     int ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
-        ret = libssh2_session_handshake(session, sock);
+        if(*session == nullptr)
+            return LIBSSH2_ERROR_SOCKET_NONE;
+
+        ret = libssh2_session_handshake(*session, sock);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
             QCoreApplication::processEvents();
@@ -210,13 +213,17 @@ inline int qssh2_session_disconnect(LIBSSH2_SESSION *session, const char *descri
     return ret;
 }
 
-inline int qssh2_session_free(LIBSSH2_SESSION *session)
+inline int qssh2_session_free(LIBSSH2_SESSION **session)
 {
     int ret = LIBSSH2_ERROR_EAGAIN;
 
     while (ret == LIBSSH2_ERROR_EAGAIN)
     {
-        ret = libssh2_session_free(session);
+        if(*session == nullptr)
+        {
+            return LIBSSH2_ERROR_SOCKET_NONE;
+        }
+        ret = libssh2_session_free(*session);
         if(ret == LIBSSH2_ERROR_EAGAIN)
         {
             QCoreApplication::processEvents();
