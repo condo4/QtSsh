@@ -3,107 +3,219 @@
 #include <QFileInfo>
 #include <qdebug.h>
 
+
+Q_LOGGING_CATEGORY(logscpsend, "ssh.scpsend", QtWarningMsg)
+
 SshScpSend::SshScpSend(const QString &name, SshClient *client):
     SshChannel(name, client)
 {
-
+    QObject::connect(m_sshClient, &SshClient::sshDataReceived, this, &SshScpSend::sshDataReceived);
 }
 
 SshScpSend::~SshScpSend()
 {
-    free();
-}
-
-void SshScpSend::free()
-{
-    qCDebug(sshchannel) << "free Channel:" << m_name;
-    if (m_sshChannel == nullptr)
-        return;
-
-    close();
-
-    qCDebug(sshchannel) << "freeChannel:" << m_name;
-
-    int ret = qssh2_channel_free(m_sshChannel);
-    if(ret)
-    {
-        qCDebug(sshchannel) << "Failed to channel_free";
-        return;
-    }
-    m_sshChannel = nullptr;
+    qCDebug(logscpsend) << "free Channel:" << m_name;
 }
 
 void SshScpSend::close()
 {
-    if (m_sshChannel == nullptr || !m_sshClient->getSshConnected())
-        return;
-
-    qCDebug(sshchannel) << "closeChannel:" << m_name;
-    int ret = qssh2_channel_close(m_sshChannel);
-    if(ret)
-    {
-        qCDebug(sshchannel) << "Failed to channel_close: LIBSSH2_ERROR_SOCKET_SEND";
-        return;
-    }
-
-    ret = qssh2_channel_wait_closed(m_sshChannel);
-    if(ret)
-    {
-        qCDebug(sshchannel) << "Failed to channel_wait_closed";
-        return;
-    }
+    setChannelState(ChannelState::Close);
+    sshDataReceived();
 }
 
-#if !defined(PAGE_SIZE)
-#define PAGE_SIZE (4*1024)
-#endif
 
-QString SshScpSend::send(const QString &source, QString dest)
+void SshScpSend::send(const QString &source, QString dest)
 {
-    struct stat fileinfo = {};
-    QFileInfo src(source);
-    if(dest.at(dest.length() - 1) != '/')
-    {
-        dest.append("/");
-    }
-    QString destination = dest + src.fileName();
+    m_source = source;
+    m_dest = dest;
+    setChannelState(ChannelState::Openning);
+    sshDataReceived();
+}
 
-    stat(source.toStdString().c_str(), &fileinfo);
-    if(!m_sshChannel)
+void SshScpSend::sshDataReceived()
+{
+    qCDebug(logscpsend) << "Channel "<< m_name << "State:" << channelState();
+    switch(channelState())
     {
-        m_sshChannel = qssh2_scp_send64(m_sshClient->session(), destination.toStdString().c_str(), fileinfo.st_mode & 0777, fileinfo.st_size, 0, 0);
-    }
-
-    QFile qsource(source);
-    if(qsource.open(QIODevice::ReadOnly))
-    {
-        while(qsource.atEnd())
+        case Openning:
         {
-            qint64 offset = 0;
-            qint64 readsize;
-            char buffer[PAGE_SIZE];
-            readsize = qsource.read(buffer, PAGE_SIZE);
-
-            while(offset < readsize)
+            stat(m_source.toStdString().c_str(), &m_fileinfo);
+            m_sshChannel = libssh2_scp_send64(m_sshClient->session(), m_dest.toStdString().c_str(), m_fileinfo.st_mode & 0777, m_fileinfo.st_size, 0, 0);
+            if (m_sshChannel == nullptr)
             {
-                ssize_t ret = qssh2_channel_write(m_sshChannel, buffer + offset, static_cast<size_t>(readsize - offset));
-                if(ret < 0)
+                int ret = libssh2_session_last_error(m_sshClient->session(), nullptr, nullptr, 0);
+                if(ret == LIBSSH2_ERROR_EAGAIN)
                 {
-                    qDebug() << "ERROR : send file return " << ret;
-                    return QString();
+                    return;
                 }
-                offset += ret;
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                }
+                setChannelState(ChannelState::Error);
+                qCWarning(logscpsend) << "Channel session open failed";
+                return;
             }
+            m_sshClient->registerChannel(this);
+            qCDebug(logscpsend) << "Channel session opened";
+            setChannelState(ChannelState::Exec);
+        }
+
+        FALLTHROUGH; case Exec:
+        {
+            m_file.setFileName(m_source);
+            if(!m_file.open(QIODevice::ReadOnly))
+            {
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                    qCWarning(logscpsend) << "Can't open source file";
+                }
+                setChannelState(ChannelState::Close);
+                sshDataReceived();
+                return;
+            }
+
+            setChannelState(ChannelState::Read);
+            /* OK, next step */
+        }
+
+        FALLTHROUGH; case Read:
+        {
+            while(!m_file.atEnd())
+            {
+                if(m_dataInBuf == 0)
+                {
+                    m_dataInBuf = m_file.read(m_buffer, PAGE_SIZE);
+                }
+
+                ssize_t retsz = libssh2_channel_write_ex(m_sshChannel, 0, m_buffer + m_offset, static_cast<size_t>(m_dataInBuf - m_offset));
+                if(retsz == LIBSSH2_ERROR_EAGAIN)
+                {
+                    return;
+                }
+
+                if(retsz < 0)
+                {
+                    if(!m_error)
+                    {
+                        m_error = true;
+                        emit failed();
+                        qCWarning(logscpsend) << "Can't write result (" << sshErrorToString(static_cast<int>(retsz)) << ")";
+                    }
+                    setChannelState(ChannelState::Close);
+                    sshDataReceived();
+                    return;
+                }
+
+                m_sent += retsz;
+                m_offset += retsz;
+                if(m_offset == m_dataInBuf)
+                {
+                    m_dataInBuf = 0;
+                    m_offset = 0;
+                }
+                emit progress(m_sent, m_file.size());
+            }
+            setChannelState(ChannelState::Close);
+        }
+
+        FALLTHROUGH; case Close:
+        {
+            m_file.close();
+            if(m_sent != m_file.size())
+            {
+                qCDebug(logscpsend) << m_name << "Transfer not completed";
+                emit failed();
+            }
+            else
+            {
+                emit finished();
+            }
+
+            qCDebug(logscpsend) << m_name << "closeChannel";
+            int ret = libssh2_channel_close(m_sshChannel);
+            if(ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                return;
+            }
+            if(ret < 0)
+            {
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                    qCWarning(logscpsend) << "Failed to channel_close: " << sshErrorToString(ret);
+                }
+            }
+            setChannelState(ChannelState::WaitClose);
+        }
+
+        FALLTHROUGH; case WaitClose:
+        {
+            qCDebug(logscpsend) << "Wait close channel:" << m_name;
+            int ret = libssh2_channel_wait_closed(m_sshChannel);
+            if(ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                return;
+            }
+            if(ret < 0)
+            {
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                    qCWarning(logscpsend) << "Failed to channel_wait_close: " << sshErrorToString(ret);
+                }
+            }
+            setChannelState(ChannelState::Freeing);
+        }
+
+        FALLTHROUGH; case Freeing:
+        {
+            qCDebug(logscpsend) << "free Channel:" << m_name;
+
+            int ret = libssh2_channel_free(m_sshChannel);
+            if(ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                return;
+            }
+            if(ret < 0)
+            {
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                    qCWarning(logscpsend) << "Failed to free channel: " << sshErrorToString(ret);
+                }
+            }
+            if(m_error)
+            {
+                setChannelState(ChannelState::Error);
+            }
+            else
+            {
+                setChannelState(ChannelState::Free);
+            }
+            m_sshChannel = nullptr;
+            QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshScpSend::sshDataReceived);
+            emit canBeDestroy(this);
+            return;
+        }
+
+        case Free:
+        {
+            qCDebug(logscpsend) << "Channel" << m_name << "is free";
+            return;
+        }
+
+        case Error:
+        {
+            emit failed();
+            qCDebug(logscpsend) << "Channel" << m_name << "is in error state";
+            return;
         }
     }
-    qsource.close();
-
-    int ret = qssh2_channel_send_eof(m_sshChannel);
-    if(ret < 0)
-    {
-        qDebug() << "ERROR : SendFile failed: Can't send EOF";
-    }
-
-    return destination;
 }
-

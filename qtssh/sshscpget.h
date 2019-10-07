@@ -26,7 +26,6 @@ public slots:
 private:
     QString m_source;
     QString m_dest;
-    qint64  m_tx;
     libssh2_struct_stat m_fileinfo = {};
     libssh2_struct_stat_size m_got = 0;
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
