@@ -12,7 +12,6 @@ Q_LOGGING_CATEGORY(logscpget, "ssh.scpget", QtWarningMsg)
 SshScpGet::SshScpGet(const QString &name, SshClient *client):
     SshChannel(name, client)
 {
-    QObject::connect(m_sshClient, &SshClient::sshDataReceived, this, &SshScpGet::sshDataReceived);
 }
 
 SshScpGet::~SshScpGet()
@@ -60,7 +59,6 @@ void SshScpGet::sshDataReceived()
                 qCWarning(logscpget) << "Channel session open failed";
                 return;
             }
-            m_sshClient->registerChannel(this);
             qCDebug(logscpget) << "Channel session opened";
             setChannelState(ChannelState::Exec);
         }

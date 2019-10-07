@@ -8,37 +8,88 @@ Q_LOGGING_CATEGORY(logsshtunnelout, "ssh.tunnelout", QtWarningMsg)
 SshTunnelOut::SshTunnelOut(const QString &name, SshClient *client)
     : SshChannel(name, client)
 {
+    QObject::connect(&m_tcpserver, &QTcpServer::newConnection, this, &SshTunnelOut::_createConnection);
 }
 
 SshTunnelOut::~SshTunnelOut()
 {
-    qCDebug(logsshtunnelout) << m_name << "Destruction";
-    close();
-    qCDebug(logsshtunnelout) << m_name << "Destruction completed";
+    qCDebug(logsshtunnelout) << "free Channel:" << m_name;
 }
 
 void SshTunnelOut::close()
 {
-    qCDebug(logsshtunnelout) << m_name << "Close server";
-    QEventLoop wait;
-    QObject::connect(this, &SshTunnelOut::connectionClosed, &wait, &QEventLoop::quit);
-    for(auto *ch: m_connections)
-    {
-        ch->disconnectFromHost();
-    }
-
-    if(!m_connections.empty())
-    {
-        qCDebug(logsshtunnelout) << m_name << "Waiting all connection closed";
-        wait.exec();
-        qCDebug(logsshtunnelout) << m_name << "All connection closed";
-    }
-
-    m_tcpserver.close();
-    emit closed();
+    setChannelState(ChannelState::Close);
+    sshDataReceived();
 }
 
-void SshTunnelOut::createConnection()
+void SshTunnelOut::listen(quint16 port)
+{
+    m_port = port;
+    m_tcpserver.listen(QHostAddress("127.0.0.1"), 0);
+    setChannelState(ChannelState::Exec);
+}
+
+void SshTunnelOut::sshDataReceived()
+{
+    qCDebug(logsshtunnelout) << "Channel "<< m_name << "State:" << channelState();
+    switch(channelState())
+    {
+        case Openning:
+        {
+            qCDebug(logsshtunnelout) << "Channel session opened";
+            setChannelState(ChannelState::Exec);
+        }
+
+        FALLTHROUGH; case Exec:
+        {
+            setChannelState(ChannelState::Read);
+            /* OK, next step */
+        }
+
+        FALLTHROUGH; case Read:
+        {
+            // Nothing to do...
+        }
+
+        FALLTHROUGH; case Close:
+        {
+            qCDebug(logsshtunnelout) << m_name << "Close server";
+            m_tcpserver.close();
+            setChannelState(ChannelState::WaitClose);
+        }
+
+        FALLTHROUGH; case WaitClose:
+        {
+            qCDebug(logsshtunnelout) << "Wait close channel:" << m_name;
+            setChannelState(ChannelState::Freeing);
+        }
+
+        FALLTHROUGH; case Freeing:
+        {
+            qCDebug(logsshtunnelout) << "free Channel:" << m_name;
+            setChannelState(ChannelState::Free);
+
+            QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
+            emit canBeDestroy(this);
+            return;
+        }
+
+        case Free:
+        {
+            qCDebug(logsshtunnelout) << "Channel" << m_name << "is free";
+            return;
+        }
+
+        case Error:
+        {
+            qCDebug(logsshtunnelout) << "Channel" << m_name << "is in error state";
+            return;
+        }
+    }
+}
+
+
+void SshTunnelOut::_createConnection()
 {
     if(!m_sshClient->getSshConnected())
     {
@@ -46,38 +97,10 @@ void SshTunnelOut::createConnection()
         return;
     }
 
-    SshTunnelOutConnection *ch = new SshTunnelOutConnection(m_name, m_sshClient, m_tcpserver, m_port, m_myself.toStrongRef());
-    m_connections.push_back(ch);
+    new SshTunnelOutConnection(m_name, m_sshClient, m_tcpserver, m_port);
 }
 
 quint16 SshTunnelOut::localPort()
 {
     return m_tcpserver.serverPort();
-}
-
-void SshTunnelOut::setSharedPointer(QSharedPointer<SshTunnelOut> &ptr)
-{
-    m_myself = ptr.toWeakRef();
-}
-
-void SshTunnelOut::_removeClosedConnection(SshTunnelOutConnection *ch)
-{
-    m_connections.removeAll(ch);
-    ch->deleteLater();
-    if(m_connections.empty())
-    {
-        emit connectionClosed();
-    }
-}
-
-bool SshTunnelOut::isClosed()
-{
-    return m_connections.length() == 0;
-}
-
-void SshTunnelOut::listen(quint16 port)
-{
-    m_port = port;
-    m_tcpserver.listen(QHostAddress("127.0.0.1"), 0);
-    QObject::connect(&m_tcpserver, &QTcpServer::newConnection, this, &SshTunnelOut::createConnection);
 }

@@ -8,7 +8,6 @@ Q_LOGGING_CATEGORY(logsshprocess, "ssh.process", QtWarningMsg)
 SshProcess::SshProcess(const QString &name, SshClient *client)
     : SshChannel(name, client)
 {
-    QObject::connect(m_sshClient, &SshClient::sshDataReceived, this, &SshProcess::sshDataReceived);
 }
 
 SshProcess::~SshProcess()
@@ -62,7 +61,6 @@ void SshProcess::sshDataReceived()
                 qCWarning(logsshprocess) << "Channel session open failed";
                 return;
             }
-            m_sshClient->registerChannel(this);
             qCDebug(logsshprocess) << "Channel session opened";
             setChannelState(ChannelState::Exec);
         }

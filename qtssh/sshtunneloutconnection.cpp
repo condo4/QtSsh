@@ -5,9 +5,10 @@
 Q_LOGGING_CATEGORY(logsshtunneloutconnection, "ssh.tunnelout.connection")
 Q_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer, "ssh.tunnelout.connection.transfer")
 
-SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort, const QSharedPointer<SshTunnelOut> &parent)
+#define SOCKET_WRITE_ERROR (-1001)
+
+SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort)
     : SshChannel(name, client)
-    , m_parent(parent)
     , m_state(Creating)
     , m_client(client)
     , m_server(server)
@@ -17,17 +18,13 @@ SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *c
     , m_tx_stop_ptr(m_tx_buffer)
     , m_rx_stop_ptr(m_rx_buffer)
 {
-    QObject::connect(client, &SshClient::sshDataReceived,
-                     this,   &SshTunnelOutConnection::_sshDataReceived);
+    QObject::connect(client, &SshClient::sshDataReceived, this,   &SshTunnelOutConnection::sshDataReceived);
 
     _creating();
 }
 
 void SshTunnelOutConnection::disconnectFromHost()
 {
-    if(!m_parent.isNull())
-        m_parent->_removeClosedConnection(this);
-    m_parent.clear();
     if(m_sock->state() == QTcpSocket::ConnectedState)
     {
         qCDebug(logsshtunneloutconnection) << m_name << "Ask disconnectFromHost";
@@ -222,8 +219,6 @@ int SshTunnelOutConnection::_creating()
     m_sock = m_server.nextPendingConnection();
     if(!m_sock)
     {
-        if(!m_parent.isNull())
-            m_parent->_removeClosedConnection(this);
         m_state = ConnectionState::None;
         return -1;
     }
@@ -283,7 +278,6 @@ int SshTunnelOutConnection::_freeing()
         delete m_sock;
         m_sock = nullptr;
     }
-    m_parent.clear();
     return 0;
 }
 
@@ -316,8 +310,6 @@ void SshTunnelOutConnection::_socketDestroyed()
 {
     qCDebug(logsshtunneloutconnection)  << m_name << "_socketDestroyed OK";
     m_sock = nullptr;
-    if(!m_parent.isNull())
-        m_parent->_removeClosedConnection(this);
 }
 
 void SshTunnelOutConnection::_socketError()
@@ -334,7 +326,7 @@ void SshTunnelOutConnection::_socketError()
     }
 }
 
-void SshTunnelOutConnection::_sshDataReceived()
+void SshTunnelOutConnection::sshDataReceived()
 {
     m_sshWaiting = false;
     int ret = -1;
