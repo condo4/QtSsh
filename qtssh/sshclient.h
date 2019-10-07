@@ -9,17 +9,38 @@
 #include "sshkey.h"
 #include <QSharedPointer>
 
+#ifndef FALLTHROUGH
+#if __has_cpp_attribute(fallthrough)
+#define FALLTHROUGH [[fallthrough]]
+#elif __has_cpp_attribute(clang::fallthrough)
+#define FALLTHROUGH [[clang::fallthrough]]
+#else
+#define FALLTHROUGH
+#endif
+#endif
+
 Q_DECLARE_LOGGING_CATEGORY(sshclient)
+class SshSFtp;
+class SshTunnelIn;
+class SshTunnelOut;
 
 class  SshClient : public QObject {
     Q_OBJECT
 
+public:
+    void unregisterChannel(SshChannel* channel);
+    void registerChannel(SshChannel* channel);
+
 private:
+    static int s_nbInstance;
     LIBSSH2_SESSION    * m_session {nullptr};
     LIBSSH2_KNOWNHOSTS * m_knownHosts {nullptr};
-    static int s_nbInstance;
+    QList<SshChannel*> m_channels;
+    QAbstractSocket::SocketState m_state {QAbstractSocket::UnconnectedState};
+
+
+
     QString m_name;
-    QList<QWeakPointer<SshChannel>> m_channels;
     QTcpSocket m_socket;
     qint64 m_lastProofOfLive {0};
 
@@ -36,6 +57,7 @@ private:
     QString m_knowhostFiles;
     SshKey  m_hostKey;
     QTimer m_keepalive;
+    QTimer m_connectionTimeout;
     QMutex channelCreationInProgress;
     void *currentLockerForChannelCreation {nullptr};
 
@@ -51,6 +73,8 @@ public:
     void releaseChannelCreationMutex(void *identifier);
 
 
+    void setState(const QAbstractSocket::SocketState &state);
+
 public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, QByteArrayList methodes = QByteArrayList());
     void disconnectFromHost();
@@ -58,14 +82,9 @@ public slots:
     QString runCommand(const QString &command);                  // SshProcess
     QString getFile(const QString &source, const QString &dest); // SshScpGet
     QString sendFile(const QString &src, const QString &dst);    // SshScpSend
-    QSharedPointer<SshSFtp> getSFtp(const QString &name = "sftp");
-    QSharedPointer<SshTunnelIn> getTunnelIn(const QString &name, quint16 localport, quint16 remoteport = 0, QString host = "127.0.0.1");
-    QSharedPointer<SshTunnelOut> getTunnelOut(const QString &name, quint16 port);
-
-
-
-
-
+    SshSFtp *getSFtp(const QString &name = "sftp");
+    SshTunnelIn* getTunnelIn(const QString &name, quint16 localport, quint16 remoteport = 0, QString host = "127.0.0.1");
+    SshTunnelOut *getTunnelOut(const QString &name, quint16 port);
 
     void setKeys(const QString &publicKey, const QString &privateKey);
     void setPassphrase(const QString & pass);
@@ -75,10 +94,8 @@ public slots:
     QString banner();
     void waitSocket();
 
-public slots:
 
     LIBSSH2_SESSION *session();
-    bool channelReady();
     bool loopWhileBytesWritten(int msecs);
     bool getSshConnected() const;
 
@@ -95,13 +112,44 @@ signals:
     void stateChanged(QAbstractSocket::SocketState socketState);
 
 private slots:
-    void _readyRead();
     void _disconnected();
-    void _getLastError();
     void _sendKeepAlive();
-    bool _loadKnownHosts(const QString &file);
 
-    void _tcperror(QAbstractSocket::SocketError err);
-    void _stateChanged(QAbstractSocket::SocketState socketState);
 
+
+
+
+public: /* New function implementation with state machine */
+    enum SshState {
+        Unconnected,
+        SocketConnection,
+        WaitingSocketConnection,
+        Initialize,
+        HandShake,
+        GetAuthenticationMethodes,
+        Authentication,
+        Ready,
+        DisconnectChannel,
+        Error
+    };
+    Q_ENUM(SshState)
+    SshState sshState() const;
+
+private: /* New function implementation with state machine */
+    SshState m_sshState {SshState::Unconnected};
+    QByteArrayList m_authenticationMethodes;
+    void setSshState(const SshState &sshState);
+
+
+private slots: /* New function implementation with state machine */
+    void _connection_socketTimeout();
+    void _connection_socketError();
+    void _connection_socketConnected();
+    void _connection_socketDisconnected();
+    void _ssh_processEvent();
+
+signals:
+    void sshStateChanged(SshState sshState);
+    void sshReady();
+    void sshError();
 };

@@ -31,7 +31,6 @@ private:
 
 public slots:
     bool isClosed();
-    void disconnectChannel() override;
 
 private slots:
     void createConnection();
@@ -39,16 +38,16 @@ private slots:
 protected:
     explicit SshTunnelOut(SshClient * client, const QString &port_identifier, quint16 port);
     friend class SshClient;
-    void close() override;
 
 protected slots:
     void _removeClosedConnection(SshTunnelOutConnection *ch);
     friend class SshTunnelOutConnection;
 
 public:
-    virtual ~SshTunnelOut();
-    quint16 localPort() override;
+    virtual ~SshTunnelOut() override;
+    quint16 localPort();
     void setSharedPointer(QSharedPointer<SshTunnelOut> &ptr);
+    void close() override;
 
 signals:
     void connectionClosed();

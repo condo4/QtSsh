@@ -66,9 +66,29 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
     m_valid = true;
 }
 
+void SshTunnelIn::free()
+{
+    qCDebug(sshchannel) << "free Channel:" << m_name;
+    if (m_sshChannel == nullptr)
+        return;
+
+    close();
+
+    qCDebug(sshchannel) << "freeChannel:" << m_name;
+
+    int ret = qssh2_channel_free(m_sshChannel);
+    if(ret)
+    {
+        qCDebug(sshchannel) << "Failed to channel_free";
+        return;
+    }
+    m_sshChannel = nullptr;
+}
+
 SshTunnelIn::~SshTunnelIn()
 {
     QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived);
+    free();
 }
 
 bool SshTunnelIn::valid() const
@@ -188,7 +208,7 @@ void SshTunnelIn::sshDataReceived()
     {
         if(!m_tcpsocket.isNull()) qCWarning(logsshtunnelin, "ERROR: tcpsocet allready here");
 
-        connectChannel(libssh2_channel_forward_accept(m_sshListener));
+        m_sshChannel = libssh2_channel_forward_accept(m_sshListener);
         if(m_sshChannel == nullptr)
         {
             ret = libssh2_session_last_error(m_sshClient->session(), nullptr, nullptr, 0);

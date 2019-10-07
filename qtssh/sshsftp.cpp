@@ -21,6 +21,7 @@ SshSFtp::~SshSFtp()
 {
     qCDebug(logsshsftp) << "SshSFtp::~SshSFtp()";
     close();
+    free();
     qCDebug(logsshsftp) << "SshSFtp::~SshSFtp() OK";
 }
 

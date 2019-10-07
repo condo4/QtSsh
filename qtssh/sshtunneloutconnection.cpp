@@ -6,13 +6,12 @@ Q_LOGGING_CATEGORY(logsshtunneloutconnection, "ssh.tunnelout.connection")
 Q_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer, "ssh.tunnelout.connection.transfer")
 
 SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort, const QSharedPointer<SshTunnelOut> &parent)
-    : QObject(parent.data())
+    : SshChannel(name, client)
     , m_parent(parent)
     , m_state(Creating)
     , m_client(client)
     , m_server(server)
     , m_port(remotePort)
-    , m_name(name)
     , m_tx_start_ptr(m_tx_buffer)
     , m_rx_start_ptr(m_rx_buffer)
     , m_tx_stop_ptr(m_tx_buffer)
@@ -39,6 +38,15 @@ void SshTunnelOutConnection::disconnectFromHost()
 bool SshTunnelOutConnection::isClosed()
 {
     return (m_sock == nullptr);
+}
+
+void SshTunnelOutConnection::close()
+{
+    if(m_sock->state() == QTcpSocket::ConnectedState)
+    {
+        qCDebug(logsshtunneloutconnection) << m_name << "Ask channel close";
+        m_sock->disconnectFromHost();
+    }
 }
 
 int SshTunnelOutConnection::_displaySshError(const QString &msg)

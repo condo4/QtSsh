@@ -10,7 +10,6 @@ SshTunnelOut::SshTunnelOut(SshClient *client, const QString &port_identifier, qu
     m_sshclient(client),
     m_port(port)
 {
-    unmanaged();
     m_tcpserver.listen(QHostAddress("127.0.0.1"), 0);
     QObject::connect(&m_tcpserver, &QTcpServer::newConnection, this, &SshTunnelOut::createConnection);
 }
@@ -45,7 +44,7 @@ void SshTunnelOut::close()
 
 void SshTunnelOut::createConnection()
 {
-    if(!m_sshclient->channelReady())
+    if(!m_sshclient->getSshConnected())
     {
         qDebug() << "WARNING : SshTunnelOut cannot open channel before connected()";
         return;
@@ -78,9 +77,4 @@ void SshTunnelOut::_removeClosedConnection(SshTunnelOutConnection *ch)
 bool SshTunnelOut::isClosed()
 {
     return m_connections.length() == 0;
-}
-
-void SshTunnelOut::disconnectChannel()
-{
-    close();
 }

@@ -15,42 +15,26 @@
 #include <QMutex>
 
 class SshClient;
-/* All SshChannel types */
-class SshSFtp;
-class SshTunnelIn;
-class SshTunnelOut;
 
 Q_DECLARE_LOGGING_CATEGORY(sshchannel)
 
 class SshChannel : public QObject
 {
     Q_OBJECT
-    bool m_managed {true};
-    bool m_connected {false};
+    friend class SshClient;
+
+public:
+    QString name() const;
+    virtual void close() = 0;
 
 protected:
     explicit SshChannel(QString name, SshClient *client);
-
-public:
-    virtual ~SshChannel();
-    bool connected() const;
-    QString name() const;
-
-protected:
-    LIBSSH2_CHANNEL *m_sshChannel {nullptr};
-    SshClient       *m_sshClient  {nullptr};
+    SshClient *m_sshClient  {nullptr};
     QString m_name;
-    virtual void connectChannel(LIBSSH2_CHANNEL *channel);
-    virtual void close();
-    virtual void free();
-    void unmanaged();
 
 protected slots:
     virtual void sshDataReceived() {}
 
-public slots:
-    virtual void disconnectChannel();
-    virtual quint16 localPort() { return 0; }
-
-    friend class SshClient;
+signals:
+    void canBeDestroy(SshChannel *);
 };

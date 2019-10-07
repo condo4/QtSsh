@@ -29,12 +29,15 @@ protected:
     explicit SshTunnelIn(SshClient * client, const QString &portIdentifier, quint16 localport, quint16 remoteport, QString host = "localhost");
     friend class SshClient;
 
+    void free();
+
 public:
-    virtual ~SshTunnelIn();
-    quint16 localPort() override;
+    virtual ~SshTunnelIn() override;
+    quint16 localPort();
     quint16 remotePort();
 
     bool valid() const;
+    void close() override;
 
 private slots:
     void onLocalSocketDisconnected();
@@ -44,6 +47,7 @@ private slots:
 
     void sshDataReceived() override;
 
-protected:
-    void close() override;
+private:
+    LIBSSH2_CHANNEL *m_sshChannel {nullptr};
+
 };

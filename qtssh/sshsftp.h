@@ -26,10 +26,10 @@ protected:
     friend class SshClient;
 
 public:
-    virtual ~SshSFtp();
+    virtual ~SshSFtp() override;
 
     void close() override;
-    void free() override;
+    void free();
 
     QString send(const QString &source, QString dest);
     bool get(const QString &source, QString dest, bool override = false);
@@ -44,4 +44,8 @@ public:
 
 protected slots:
     void sshDataReceived() override;
+
+private:
+    LIBSSH2_CHANNEL *m_sshChannel {nullptr};
+
 };

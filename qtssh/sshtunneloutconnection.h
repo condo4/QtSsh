@@ -10,7 +10,9 @@
 Q_DECLARE_LOGGING_CATEGORY(logsshtunneloutconnection)
 Q_DECLARE_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer)
 
-class SshTunnelOutConnection : public QObject
+class SshTunnelOut;
+
+class SshTunnelOutConnection : public SshChannel
 {
     Q_OBJECT
 
@@ -26,6 +28,8 @@ public:
     explicit SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort, const QSharedPointer<SshTunnelOut> &parent);
     void disconnectFromHost();
     bool isClosed();
+    void close() override;
+
 
 private:
     QSharedPointer<SshTunnelOut> m_parent;
@@ -35,7 +39,6 @@ private:
     QTcpSocket *m_sock;
     QTcpServer &m_server;
     quint16 m_port;
-    QString m_name;
     char m_rx_buffer[BUFFER_SIZE] {0,};
     char m_tx_buffer[BUFFER_SIZE] {0,};
     char *m_tx_start_ptr {nullptr};
