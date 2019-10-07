@@ -29,7 +29,7 @@ QByteArray SshProcess::result()
 
 bool SshProcess::isError()
 {
-    return m_pstate == ProcessState::Error;
+    return m_error;
 }
 
 void SshProcess::setPstate(const ProcessState &pstate)
@@ -58,6 +58,12 @@ void SshProcess::sshDataReceived()
                 {
                     return;
                 }
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                }
+                setPstate(ProcessState::Error);
                 qCWarning(logsshprocess) << "Channel session open failed";
                 return;
             }
@@ -81,8 +87,14 @@ void SshProcess::sshDataReceived()
             }
             if(ret != 0)
             {
-                setPstate(ProcessState::Error);
-                qCWarning(logsshprocess) << "Failed to run command" << ret;
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                    qCWarning(logsshprocess) << "Failed to run command" << ret;
+                }
+                setPstate(ProcessState::Close);
+                sshDataReceived();
                 return;
             }
             setPstate(ProcessState::Read);
@@ -102,7 +114,14 @@ void SshProcess::sshDataReceived()
 
             if(retsz < 0)
             {
-                qCWarning(logsshprocess) << "Can't read result (" << sshErrorToString(static_cast<int>(retsz)) << ")";
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                    qCWarning(logsshprocess) << "Can't read result (" << sshErrorToString(static_cast<int>(retsz)) << ")";
+                }
+                setPstate(ProcessState::Close);
+                sshDataReceived();
                 return;
             }
 
@@ -126,8 +145,12 @@ void SshProcess::sshDataReceived()
             }
             if(ret < 0)
             {
-                qCWarning(logsshprocess) << "Failed to channel_close: " << sshErrorToString(ret);
-                return;
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                    qCWarning(logsshprocess) << "Failed to channel_close: " << sshErrorToString(ret);
+                }
             }
             setPstate(ProcessState::WaitClose);
         }
@@ -142,8 +165,12 @@ void SshProcess::sshDataReceived()
             }
             if(ret < 0)
             {
-                qCWarning(logsshprocess) << "Failed to channel_wait_close: " << sshErrorToString(ret);
-                return;
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                    qCWarning(logsshprocess) << "Failed to channel_wait_close: " << sshErrorToString(ret);
+                }
             }
             setPstate(ProcessState::Freeing);
         }
@@ -159,16 +186,28 @@ void SshProcess::sshDataReceived()
             }
             if(ret < 0)
             {
-                qCWarning(logsshprocess) << "Failed to channel_wait_close: " << sshErrorToString(ret);
-                return;
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                    qCWarning(logsshprocess) << "Failed to free channel: " << sshErrorToString(ret);
+                }
+            }
+            if(m_error)
+            {
+                setPstate(ProcessState::Error);
+            }
+            else
+            {
+                setPstate(ProcessState::Free);
             }
             m_sshChannel = nullptr;
-            setPstate(ProcessState::Free);
             QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshProcess::sshDataReceived);
             emit canBeDestroy(this);
+            return;
         }
 
-        FALLTHROUGH; case Free:
+        case Free:
         {
             qCDebug(logsshprocess) << "Channel" << m_name << "is free";
             return;

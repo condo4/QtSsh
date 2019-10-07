@@ -20,6 +20,11 @@ public:
     QByteArray result();
     bool isError();
 
+public slots:
+    void runCommand(const QString &cmd);
+    void sshDataReceived() override;
+
+private:
     enum ProcessState {
         Openning,
         Exec,
@@ -33,17 +38,11 @@ public:
     Q_ENUM(ProcessState)
     ProcessState m_pstate {ProcessState::Openning};
     QString m_cmd;
-
-
-    void setPstate(const ProcessState &pstate);
-
-public slots:
-    void runCommand(const QString &cmd);
-    void sshDataReceived() override;
-
-private:
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
     QByteArray m_result;
+    bool m_error {false};
+
+    void setPstate(const ProcessState &pstate);
 
 signals:
     void finished();
