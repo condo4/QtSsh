@@ -12,6 +12,20 @@ SshChannel::SshChannel(QString name, SshClient *client)
     qCDebug(sshchannel) << "createChannel:" << m_name;
 }
 
+SshChannel::ChannelState SshChannel::channelState() const
+{
+    return m_channelState;
+}
+
+void SshChannel::setChannelState(const ChannelState &channelState)
+{
+    if(m_channelState != channelState)
+    {
+        m_channelState = channelState;
+        emit stateChanged(m_channelState);
+    }
+}
+
 QString SshChannel::name() const
 {
     return m_name;

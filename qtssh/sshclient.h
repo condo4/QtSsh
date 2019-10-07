@@ -20,6 +20,9 @@
 #endif
 
 Q_DECLARE_LOGGING_CATEGORY(sshclient)
+class SshProcess;
+class SshScpGet;
+class SshScpSend;
 class SshSFtp;
 class SshTunnelIn;
 class SshTunnelOut;
@@ -79,9 +82,9 @@ public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, QByteArrayList methodes = QByteArrayList());
     void disconnectFromHost();
 
-    QString runCommand(const QString &command);                  // SshProcess
-    QString getFile(const QString &source, const QString &dest); // SshScpGet
-    QString sendFile(const QString &src, const QString &dst);    // SshScpSend
+    SshProcess *getSshProcess(const QString &name = "cmd");
+    SshScpSend *getSshScpSend(const QString &name = "scp_send");
+    SshScpGet *getSshScpGet(const QString &name = "scp_get");
     SshSFtp *getSFtp(const QString &name = "sftp");
     SshTunnelIn* getTunnelIn(const QString &name, quint16 localport, quint16 remoteport = 0, QString host = "127.0.0.1");
     SshTunnelOut *getTunnelOut(const QString &name, quint16 port);

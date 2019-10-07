@@ -20,18 +20,6 @@ public:
     QByteArray result();
     bool isError();
 
-    enum ProcessState {
-        Openning,
-        Exec,
-        Read,
-        Close,
-        WaitClose,
-        Freeing,
-        Free,
-        Error
-    };
-    Q_ENUM(ProcessState)
-
 public slots:
     void runCommand(const QString &cmd);
     void sshDataReceived() override;
@@ -40,13 +28,10 @@ public slots:
 
 
 private:
-    ProcessState m_pstate {ProcessState::Openning};
     QString m_cmd;
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
     QByteArray m_result;
     bool m_error {false};
-
-    void setPstate(const ProcessState &pstate);
 
 signals:
     void finished();

@@ -163,37 +163,55 @@ bool SshClient::loopWhileBytesWritten(int msecs)
     return written;
 }
 
-QString SshClient::runCommand(const QString &command)
+SshProcess *SshClient::getSshProcess(const QString &name)
 {
-    QString res;
-    QEventLoop wait;
-    qCDebug(sshclient) << m_name << "runCommand("<<command<<"): Create Process";
-    SshProcess *sshProcess = new SshProcess(command, this);
-    QObject::connect(sshProcess, &SshProcess::finished, &wait, &QEventLoop::quit);
-    QObject::connect(sshProcess, &SshProcess::failed, &wait, &QEventLoop::quit);
-    sshProcess->runCommand(command);
-    qCDebug(sshclient) << m_name << "runCommand("<<command<<"): Wait results";
-    wait.exec();
-    res = sshProcess->result();
-    qCDebug(sshclient) << m_name << "runCommand("<<command<<"): RET" << res;
-    return res;
+    for(SshChannel *ch: m_channels)
+    {
+        if(ch->name() == name)
+        {
+            SshProcess *proc = qobject_cast<SshProcess*>(ch);
+            if(proc)
+            {
+                return proc;
+            }
+        }
+    }
+
+    return new SshProcess(name, this);
 }
 
-QString SshClient::getFile(const QString &source, const QString &dest)
+SshScpSend *SshClient::getSshScpSend(const QString &name)
 {
-    QString res;
-    SshScpGet *sshScpGet = new SshScpGet(source, this);
-    res = sshScpGet->get(source, dest);
-    unregisterChannel(sshScpGet);
-    return res;
+    for(SshChannel *ch: m_channels)
+    {
+        if(ch->name() == name)
+        {
+            SshScpSend *scp = qobject_cast<SshScpSend*>(ch);
+            if(scp)
+            {
+                return scp;
+            }
+        }
+    }
+
+    return new SshScpSend(name, this);
 }
 
-QString SshClient::sendFile(const QString &src, const QString &dst)
+SshScpGet *SshClient::getSshScpGet(const QString &name)
 {
-    SshScpSend *sender = new SshScpSend(src, this);
-    QString d = sender->send(src, dst);
-    unregisterChannel(sender);
-    return d;
+    for(SshChannel *ch: m_channels)
+    {
+        if(ch->name() == name)
+        {
+            SshScpGet *scp = qobject_cast<SshScpGet*>(ch);
+            if(scp)
+            {
+                return scp;
+            }
+        }
+    }
+
+    return new SshScpGet(name, this);
 }
 
 SshSFtp *SshClient::getSFtp(const QString &name)

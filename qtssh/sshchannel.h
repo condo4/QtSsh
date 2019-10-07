@@ -27,6 +27,21 @@ public:
     QString name() const;
     virtual void close() = 0;
 
+    enum ChannelState {
+        Openning,
+        Exec,
+        Read,
+        Close,
+        WaitClose,
+        Freeing,
+        Free,
+        Error
+    };
+    Q_ENUM(ChannelState)
+
+    ChannelState channelState() const;
+    void setChannelState(const ChannelState &channelState);
+
 protected:
     explicit SshChannel(QString name, SshClient *client);
     SshClient *m_sshClient  {nullptr};
@@ -35,6 +50,10 @@ protected:
 protected slots:
     virtual void sshDataReceived() {}
 
+private:
+    ChannelState m_channelState {ChannelState::Openning};
+
 signals:
+    void stateChanged(ChannelState state);
     void canBeDestroy(SshChannel *);
 };
