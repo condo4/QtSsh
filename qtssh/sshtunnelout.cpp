@@ -5,13 +5,9 @@
 Q_LOGGING_CATEGORY(logsshtunnelout, "ssh.tunnelout", QtWarningMsg)
 
 
-SshTunnelOut::SshTunnelOut(SshClient *client, const QString &port_identifier, quint16 port):
-    SshChannel(port_identifier, client),
-    m_sshclient(client),
-    m_port(port)
+SshTunnelOut::SshTunnelOut(const QString &name, SshClient *client)
+    : SshChannel(name, client)
 {
-    m_tcpserver.listen(QHostAddress("127.0.0.1"), 0);
-    QObject::connect(&m_tcpserver, &QTcpServer::newConnection, this, &SshTunnelOut::createConnection);
 }
 
 SshTunnelOut::~SshTunnelOut()
@@ -44,13 +40,13 @@ void SshTunnelOut::close()
 
 void SshTunnelOut::createConnection()
 {
-    if(!m_sshclient->getSshConnected())
+    if(!m_sshClient->getSshConnected())
     {
         qDebug() << "WARNING : SshTunnelOut cannot open channel before connected()";
         return;
     }
 
-    SshTunnelOutConnection *ch = new SshTunnelOutConnection(m_name, m_sshclient, m_tcpserver, m_port, m_myself.toStrongRef());
+    SshTunnelOutConnection *ch = new SshTunnelOutConnection(m_name, m_sshClient, m_tcpserver, m_port, m_myself.toStrongRef());
     m_connections.push_back(ch);
 }
 
@@ -77,4 +73,11 @@ void SshTunnelOut::_removeClosedConnection(SshTunnelOutConnection *ch)
 bool SshTunnelOut::isClosed()
 {
     return m_connections.length() == 0;
+}
+
+void SshTunnelOut::listen(quint16 port)
+{
+    m_port = port;
+    m_tcpserver.listen(QHostAddress("127.0.0.1"), 0);
+    QObject::connect(&m_tcpserver, &QTcpServer::newConnection, this, &SshTunnelOut::createConnection);
 }

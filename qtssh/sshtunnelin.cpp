@@ -11,21 +11,23 @@ Q_LOGGING_CATEGORY(logsshtunnelin, "ssh.tunnelin", QtWarningMsg)
 #define BUFFER_LEN (16384)
 
 
-SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint16 localport, quint16 remoteport, QString host)
-    : SshChannel(portIdentifier, client)
-    , m_localTcpPort(localport)
-    , m_remoteTcpPort(remoteport)
-    , m_sshListener(nullptr)
-    , m_port(localport)
-    , m_tcpsocket(nullptr)
-    , m_valid(false)
-    , m_workinprogress(false)
-    , m_needToDisconnect(false)
-    , m_needToSendEOF(false)
+SshTunnelIn::SshTunnelIn(const QString &name, SshClient *client)
+    : SshChannel(name, client)
     , m_tcpBuffer(BUFFER_LEN, 0)
     , m_sshBuffer(BUFFER_LEN, 0)
 {
-    qCDebug(logsshtunnelin) << m_name << "Try reverse forwarding port" << m_port << "from" << remoteport;
+
+}
+
+void SshTunnelIn::configure(quint16 localport, quint16 remoteport, QString host)
+{
+    m_localTcpPort = localport;
+    m_remoteTcpPort = remoteport;
+    m_port = localport;
+    m_host = host;
+    qCDebug(logsshtunnelin) << m_name << "Try reverse forwarding port" << m_port << "from" << m_remoteTcpPort;
+
+
 
     /* There is an unknown issue here, sometime qssh2_channel_forward_listen_ex will failed with error LIBSSH2_ERROR_REQUEST_DENIED
      * for an unknown reason, if we retry it will do the job... so try a few time
@@ -65,6 +67,7 @@ SshTunnelIn::SshTunnelIn(SshClient *client, const QString &portIdentifier, quint
     QObject::connect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelIn::sshDataReceived, Qt::QueuedConnection);
     m_valid = true;
 }
+
 
 void SshTunnelIn::free()
 {

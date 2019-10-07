@@ -25,18 +25,18 @@ public:
 private:
     QTcpServer              m_tcpserver;
     QList<SshTunnelOutConnection *> m_connections;
-    SshClient               *m_sshclient {nullptr};
     quint16                 m_port {0};
     QWeakPointer<SshTunnelOut> m_myself;
 
 public slots:
     bool isClosed();
+    void listen(quint16 port);
 
 private slots:
     void createConnection();
 
 protected:
-    explicit SshTunnelOut(SshClient * client, const QString &port_identifier, quint16 port);
+    explicit SshTunnelOut(const QString &name, SshClient * client);
     friend class SshClient;
 
 protected slots:

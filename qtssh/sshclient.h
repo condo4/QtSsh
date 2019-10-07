@@ -82,12 +82,24 @@ public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, QByteArrayList methodes = QByteArrayList());
     void disconnectFromHost();
 
-    SshProcess *getSshProcess(const QString &name = "cmd");
-    SshScpSend *getSshScpSend(const QString &name = "scp_send");
-    SshScpGet *getSshScpGet(const QString &name = "scp_get");
-    SshSFtp *getSFtp(const QString &name = "sftp");
-    SshTunnelIn* getTunnelIn(const QString &name, quint16 localport, quint16 remoteport = 0, QString host = "127.0.0.1");
-    SshTunnelOut *getTunnelOut(const QString &name, quint16 port);
+public:
+    template<typename T>
+    T *getChannel(const QString &name)
+    {
+        for(SshChannel *ch: m_channels)
+        {
+            if(ch->name() == name)
+            {
+                T *proc = qobject_cast<T*>(ch);
+                if(proc)
+                {
+                    return proc;
+                }
+            }
+        }
+
+        return new T(name, this);
+    }
 
     void setKeys(const QString &publicKey, const QString &privateKey);
     void setPassphrase(const QString & pass);

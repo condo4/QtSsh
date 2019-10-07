@@ -15,18 +15,19 @@ class SshTunnelIn : public SshChannel
 private:
     int m_localTcpPort;
     int m_remoteTcpPort;
-    LIBSSH2_LISTENER *m_sshListener;
+    QString m_host;
+    LIBSSH2_LISTENER *m_sshListener {nullptr};
     quint16 m_port;
     QScopedPointer<QTcpSocket, QScopedPointerDeleteLater> m_tcpsocket;
-    bool m_valid;
-    bool m_workinprogress;
-    bool m_needToDisconnect;
-    bool m_needToSendEOF;
+    bool m_valid {false};
+    bool m_workinprogress {false};
+    bool m_needToDisconnect {false};
+    bool m_needToSendEOF {false};
     QByteArray m_tcpBuffer;
     QByteArray m_sshBuffer;
 
 protected:
-    explicit SshTunnelIn(SshClient * client, const QString &portIdentifier, quint16 localport, quint16 remoteport, QString host = "localhost");
+    explicit SshTunnelIn(const QString &name, SshClient *client);
     friend class SshClient;
 
     void free();
@@ -35,6 +36,7 @@ public:
     virtual ~SshTunnelIn() override;
     quint16 localPort();
     quint16 remotePort();
+    void configure(quint16 localport, quint16 remoteport, QString host = "localhost");
 
     bool valid() const;
     void close() override;
