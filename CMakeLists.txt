@@ -19,15 +19,10 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-option(UseQt5 "UseQt5" ON)
-if (UseQt5)
-	find_package(Qt5 REQUIRED COMPONENTS Core Network)
-	set(QT_LIBRARIES Qt5::Core Qt5::Network)
-	set(QT_VERSION ${Qt5_VERSION})
-else()
-	find_package(Qt4 REQUIRED COMPONENTS QtCore QtNetwork)
-	set(QT_VERSION ${Qt4_VERSION})
-endif()
+find_package(Qt5 REQUIRED COMPONENTS Core Network)
+set(QT_LIBRARIES Qt5::Core Qt5::Network)
+set(QT_VERSION ${Qt5_VERSION})
+
 
 add_subdirectory(qtssh)
 

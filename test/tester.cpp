@@ -10,7 +10,8 @@
 Q_LOGGING_CATEGORY(testssh, "test.ssh", QtInfoMsg)
 
 #define TestTimeOut (30*1000) // 15s
-#define TEST_ENABLE 0xFFFF
+//#define TEST_ENABLE 0xFFFF
+#define TEST_ENABLE 0x0003
 #define DUMP_IF_ERROR 0
 #define BENCHMARK_REPEAT 100
 
@@ -115,7 +116,12 @@ void Tester::initTestCase()
     }
 
     m_ssh.setPassphrase(m_password);
-    if(m_ssh.connectToHost(m_login, m_hostname, 22) != 0)
+    QEventLoop waitssh;
+    QObject::connect(&m_ssh, &SshClient::sshReady, &waitssh, &QEventLoop::quit);
+    QObject::connect(&m_ssh, &SshClient::sshError, &waitssh, &QEventLoop::quit);
+    m_ssh.connectToHost(m_login, m_hostname, 22);
+    waitssh.exec();
+    if(m_ssh.sshState() != SshClient::SshState::Ready)
     {
         qCCritical(testssh) << "Can't connect to connexion server";
         emit endtest(false);
@@ -127,7 +133,13 @@ void Tester::initTestCase()
 void Tester::test1_RemoteProcess()
 {
 #if (TEST_ENABLE & 0x1)
-    QString devs = m_ssh.runCommand("cat /proc/cpuinfo");
+    QEventLoop wait;
+    SshProcess *proc = m_ssh.getChannel<SshProcess>("command");
+    QObject::connect(proc, &SshProcess::finished, &wait, &QEventLoop::quit);
+    QObject::connect(proc, &SshProcess::failed, &wait, &QEventLoop::quit);
+    proc->runCommand("cat /proc/cpuinfo");
+    wait.exec();
+    QString devs = proc->result();
     QVERIFY2(devs.size() > 50, "Remote process has not enougth result to be right");
 #else
     QSKIP("Remote process disable by TEST_ENABLE variable");
@@ -149,7 +161,9 @@ void Tester::test2_directTunnelComClientToServer()
     QFETCH(QByteArray, dataForTest);
     m_currentDataToUse=dataForTest;
     //qDebug() << "Test fetch" << dataForTest.length() << m_currentDataToUse.length();
-    QSharedPointer<SshTunnelOut> out1 = m_ssh.getTunnelOut("T2_OUT", m_srv.serverPort());
+    static int i=1;
+    SshTunnelOut *out1 = m_ssh.getChannel<SshTunnelOut>(QString("T2_OUT_%1").arg(i++));
+    out1->listen(m_srv.serverPort());
     m_cli.connectToHost("127.0.0.1", out1->localPort());
     int result = m_waitTestEnd.exec();
     // Cleanup test
@@ -159,6 +173,7 @@ void Tester::test2_directTunnelComClientToServer()
 
     // Test results
     QVERIFY2(result == 0, "Test failed in timeout");
+    out1->close();
     compareResults();
 #endif
 }
@@ -618,7 +633,8 @@ void Tester::benchmark6_reverseTunnelBothWays()
     m_mode = TEST_BIDIR;
     m_testName = "SshTunnel Out Benchmark CLI <-O<- SRV";
     m_currentDataToUse=m_dataSetBySize[1024*1024*4];
-    QSharedPointer<SshTunnelIn> in1 = m_ssh.getTunnelIn("T7_IN", m_srv.serverPort(), 0);
+    SshTunnelIn *in1 = m_ssh.getChannel<SshTunnelIn>("T7_IN");
+    in1->configure(m_srv.serverPort(), 0);
     if ( in1->valid())
     {
         int count = BENCHMARK_REPEAT;

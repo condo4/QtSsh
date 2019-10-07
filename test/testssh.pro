@@ -2,7 +2,7 @@ QT -= gui
 
 QT += testlib
 
-CONFIG += c++11 console testcase
+CONFIG += c++1z console testcase
 CONFIG -= app_bundle
 
 # The following define makes your compiler emit warnings if you use

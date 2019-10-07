@@ -9,16 +9,9 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-option(UseQt5 "UseQt5" ON)
-if (UseQt5)
-	find_package(Qt5 REQUIRED COMPONENTS Core Network)
-	set(QT_LIBRARIES Qt5::Core Qt5::Network)
-	set(QT_VERSION ${Qt5_VERSION})
-else()
-	find_package(Qt4 REQUIRED COMPONENTS QtCore QtNetwork)
-	set(QT_VERSION ${Qt4_VERSION})
-endif()
-
+find_package(Qt5 REQUIRED COMPONENTS Core Network)
+set(QT_LIBRARIES Qt5::Core Qt5::Network)
+set(QT_VERSION ${Qt5_VERSION})
 
 if(WITH_SSH_LIBRARIES)
     message("USE External SSH Headers ${WITH_SSH_HEADERS}")
@@ -37,19 +30,26 @@ set(SOURCES
 	sshchannel.cpp
 	sshclient.cpp
 	sshkey.cpp
-	sshtunneloutsrv.cpp
 	sshscpsend.cpp
 	sshsftp.cpp
-	sshfilesystemmodel.cpp
-	sshfilesystemnode.cpp
+	sshtunnelout.cpp
+	sshtunneloutconnection.cpp
+	sshtunnelin.cpp
 )
 
 set(HEADERS
+	sshtunnelout.h
+	sshtunnelin.h
+	sshprocess.h
+	sshchannel.h
 	sshclient.h
-	sshinterface.h
-	sshfsinterface.h
-	sshfilesystemmodel.h
-	sshserviceport.h
+	sshkey.h
+	sshscpsend.h
+	sshsftp.h
+	sshtunnelout.h
+	sshtunneloutconnection.h
+	sshtunnelin.h
+	async_libssh2.h
 )
 if(BUILD_STATIC)
 	add_library(${PROJECT_NAME} STATIC ${SOURCES})
