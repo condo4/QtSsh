@@ -9,6 +9,7 @@ SshTunnelOut::SshTunnelOut(const QString &name, SshClient *client)
     : SshChannel(name, client)
 {
     QObject::connect(&m_tcpserver, &QTcpServer::newConnection, this, &SshTunnelOut::_createConnection);
+    sshDataReceived();
 }
 
 SshTunnelOut::~SshTunnelOut()
@@ -27,7 +28,7 @@ void SshTunnelOut::listen(quint16 port)
 {
     m_port = port;
     m_tcpserver.listen(QHostAddress("127.0.0.1"), 0);
-    setChannelState(ChannelState::Exec);
+    setChannelState(ChannelState::Read);
 }
 
 void SshTunnelOut::sshDataReceived()
@@ -42,11 +43,10 @@ void SshTunnelOut::sshDataReceived()
 
         FALLTHROUGH; case Exec:
         {
-            setChannelState(ChannelState::Read);
             /* OK, next step */
         }
 
-        FALLTHROUGH; case Read:
+        case Read:
         {
             // Nothing to do...
             return;
@@ -89,11 +89,29 @@ void SshTunnelOut::sshDataReceived()
     }
 }
 
+quint16 SshTunnelOut::port() const
+{
+    return m_port;
+}
+
 
 void SshTunnelOut::_createConnection()
 {
     qCDebug(logsshtunnelout) << "SshTunnelOut new connection";
-    new SshTunnelOutConnection(m_name + QString("_%1").arg(m_connection++), m_sshClient, m_tcpserver, m_port);
+    SshTunnelOutConnection *connection = new SshTunnelOutConnection(m_name + QString("_%1").arg(m_connectionCounter++), m_sshClient, m_tcpserver, m_port);
+    QObject::connect(connection, &SshTunnelOutConnection::canBeDestroy, this, &SshTunnelOut::_destroyConnection);
+    m_connection.append(connection);
+    emit connectionChanged(m_connection.count());
+}
+
+void SshTunnelOut::_destroyConnection(SshChannel *ch)
+{
+    SshTunnelOutConnection *connection = qobject_cast<SshTunnelOutConnection*>(ch);
+    if(connection)
+    {
+        m_connection.removeAll(connection);
+        emit connectionChanged(m_connection.count());
+    }
 }
 
 quint16 SshTunnelOut::localPort()

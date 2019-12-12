@@ -261,7 +261,6 @@ void SshClient::_sendKeepAlive()
         }
         else
         {
-            qCDebug(sshclient) << m_name << ": Keepalive [" << ret << "] (next in " << keepalive << ")";
             keepalive -= 1;
             if(keepalive < 2) keepalive = 2;
             m_keepalive.start(keepalive * 1000);
@@ -567,7 +566,6 @@ void SshClient::_ssh_processEvent()
                 libssh2_keepalive_config(m_session, 1, 5);
                 setSshState(SshState::Ready);
                 emit sshReady();
-                FALLTHROUGH;
             }
             else
             {
@@ -575,6 +573,7 @@ void SshClient::_ssh_processEvent()
                 setSshState(SshState::Error);
                 return;
             }
+            FALLTHROUGH;
         }
 
         case SshState::Ready:
@@ -627,11 +626,16 @@ void SshClient::_ssh_processEvent()
                 m_knownHosts = nullptr;
             }
 
-            int ret = libssh2_session_free(m_session);
-            if(ret == LIBSSH2_ERROR_EAGAIN)
+            if(m_session)
             {
-                return;
+                int ret = libssh2_session_free(m_session);
+                if(ret == LIBSSH2_ERROR_EAGAIN)
+                {
+                    return;
+                }
             }
+
+            m_session = nullptr;
             emit sshDisconnected();
             setSshState(Unconnected);
             break;

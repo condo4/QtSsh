@@ -19,6 +19,7 @@ public:
     virtual ~SshTunnelOut() override;
     void close() override;
     quint16 localPort();
+    quint16 port() const;
 
 public slots:
     void listen(quint16 port);
@@ -27,8 +28,13 @@ public slots:
 private:
     QTcpServer              m_tcpserver;
     quint16                 m_port {0};
-    int                     m_connection {0};
+    int                     m_connectionCounter {0};
+    QList<SshTunnelOutConnection*> m_connection;
 
 private slots:
     void _createConnection();
+    void _destroyConnection(SshChannel *);
+
+signals:
+    void connectionChanged(int);
 };
