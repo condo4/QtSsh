@@ -23,6 +23,7 @@ void SshChannel::setChannelState(const ChannelState &channelState)
 {
     if(m_channelState != channelState)
     {
+        qCDebug(sshchannel)  << m_name << "Change State:" << m_channelState << "->" << channelState;
         m_channelState = channelState;
         emit stateChanged(m_channelState);
     }
