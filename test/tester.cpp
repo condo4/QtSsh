@@ -11,7 +11,7 @@ Q_LOGGING_CATEGORY(testssh, "test.ssh", QtInfoMsg)
 
 #define TestTimeOut (30*1000) // 15s
 //#define TEST_ENABLE 0xFFFF
-#define TEST_ENABLE 0x0003
+#define TEST_ENABLE 0x0006
 #define DUMP_IF_ERROR 0
 #define BENCHMARK_REPEAT 100
 
@@ -153,6 +153,7 @@ void Tester::test2_directTunnelComClientToServer_data()
     m_testName = "SshTunnelOut    CLI >--O--> SRV";
 }
 
+static int channelid=1;
 void Tester::test2_directTunnelComClientToServer()
 {
 #if ((TEST_ENABLE & 0x2) == 0)
@@ -160,9 +161,7 @@ void Tester::test2_directTunnelComClientToServer()
 #else
     QFETCH(QByteArray, dataForTest);
     m_currentDataToUse=dataForTest;
-    //qDebug() << "Test fetch" << dataForTest.length() << m_currentDataToUse.length();
-    static int i=1;
-    SshTunnelOut *out1 = m_ssh.getChannel<SshTunnelOut>(QString("T2_OUT_%1").arg(i++));
+    SshTunnelOut *out1 = m_ssh.getChannel<SshTunnelOut>(QString("T2_OUT_%1").arg(channelid++));
     out1->listen(m_srv.serverPort());
     m_cli.connectToHost("127.0.0.1", out1->localPort());
     int result = m_waitTestEnd.exec();
@@ -184,6 +183,7 @@ void Tester::test3_directTunnelComServerToClient_data()
    m_mode = TEST_SRV2CLI;
    m_testName = "SshTunnelOut    CLI <--O--< SRV";
 }
+
 void Tester::test3_directTunnelComServerToClient()
 {
 #if ((TEST_ENABLE & 0x4) == 0)
@@ -191,13 +191,18 @@ void Tester::test3_directTunnelComServerToClient()
 #else
     QFETCH(QByteArray, dataForTest);
     m_currentDataToUse=dataForTest;
-    QSharedPointer<SshTunnelOut> out1 = m_ssh.getTunnelOut("T3_OUT", m_srv.serverPort());
+    SshTunnelOut *out1 = m_ssh.getChannel<SshTunnelOut>(QString("T3_OUT_%1").arg(channelid++));
+    out1->listen(m_srv.serverPort());
     m_cli.connectToHost("127.0.0.1", out1->localPort());
     int result = m_waitTestEnd.exec();
+    // Cleanup test
     m_cli.disconnectFromHost();
     if ( m_cli.state() != QAbstractSocket::UnconnectedState )
         m_cli.waitForDisconnected(1000);
+
+    // Test results
     QVERIFY2(result == 0, "Test failed in timeout");
+    out1->close();
     compareResults();
 #endif
 }
