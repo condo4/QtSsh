@@ -39,7 +39,6 @@ private:
     LIBSSH2_SESSION    * m_session {nullptr};
     LIBSSH2_KNOWNHOSTS * m_knownHosts {nullptr};
     QList<SshChannel*> m_channels;
-    QAbstractSocket::SocketState m_state {QAbstractSocket::UnconnectedState};
 
 
 
@@ -64,9 +63,6 @@ private:
     QMutex channelCreationInProgress;
     void *currentLockerForChannelCreation {nullptr};
 
-    void _sshClientClose();
-    void _sshClientFree();
-
 public:
     SshClient(const QString &name = "noname", QObject * parent = nullptr);
     virtual ~SshClient();
@@ -76,7 +72,6 @@ public:
     void releaseChannelCreationMutex(void *identifier);
 
 
-    void setState(const QAbstractSocket::SocketState &state);
 
 public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, QByteArrayList methodes = QByteArrayList());
@@ -107,31 +102,15 @@ public:
     void setKownHostFile(const QString &file);
     bool addKnownHost  (const QString &hostname, const SshKey &key);
     QString banner();
-    void waitSocket();
 
 
     LIBSSH2_SESSION *session();
     bool loopWhileBytesWritten(int msecs);
-    bool getSshConnected() const;
 
 
-signals:
-    void sshDataReceived();
-    void sshDisconnected();
-
-    void _connectionFailed();
-
-    void connected();
-    void disconnected();
-    void error(QAbstractSocket::SocketError);
-    void stateChanged(QAbstractSocket::SocketState socketState);
 
 private slots:
-    void _disconnected();
     void _sendKeepAlive();
-
-
-
 
 
 public: /* New function implementation with state machine */
@@ -144,8 +123,10 @@ public: /* New function implementation with state machine */
         GetAuthenticationMethodes,
         Authentication,
         Ready,
-        DisconnectChannel,
-        Error
+        DisconnectingChannel,
+        DisconnectingSession,
+        FreeSession,
+        Error,
     };
     Q_ENUM(SshState)
     SshState sshState() const;
@@ -166,5 +147,9 @@ private slots: /* New function implementation with state machine */
 signals:
     void sshStateChanged(SshState sshState);
     void sshReady();
+    void sshDisconnected();
     void sshError();
+
+    void sshDataReceived();
+    void sshEvent();
 };

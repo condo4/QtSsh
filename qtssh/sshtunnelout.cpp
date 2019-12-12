@@ -18,6 +18,7 @@ SshTunnelOut::~SshTunnelOut()
 
 void SshTunnelOut::close()
 {
+    qCDebug(logsshtunnelout) << m_name << "Ask to close";
     setChannelState(ChannelState::Close);
     sshDataReceived();
 }
@@ -31,7 +32,6 @@ void SshTunnelOut::listen(quint16 port)
 
 void SshTunnelOut::sshDataReceived()
 {
-    qCDebug(logsshtunnelout) << "Channel "<< m_name << "State:" << channelState();
     switch(channelState())
     {
         case Openning:
@@ -49,9 +49,10 @@ void SshTunnelOut::sshDataReceived()
         FALLTHROUGH; case Read:
         {
             // Nothing to do...
+            return;
         }
 
-        FALLTHROUGH; case Close:
+        case Close:
         {
             qCDebug(logsshtunnelout) << m_name << "Close server";
             m_tcpserver.close();
@@ -91,13 +92,8 @@ void SshTunnelOut::sshDataReceived()
 
 void SshTunnelOut::_createConnection()
 {
-    if(!m_sshClient->getSshConnected())
-    {
-        qDebug() << "WARNING : SshTunnelOut cannot open channel before connected()";
-        return;
-    }
-
-    new SshTunnelOutConnection(m_name, m_sshClient, m_tcpserver, m_port);
+    qCDebug(logsshtunnelout) << "SshTunnelOut new connection";
+    new SshTunnelOutConnection(m_name + QString("_%1").arg(m_connection++), m_sshClient, m_tcpserver, m_port);
 }
 
 quint16 SshTunnelOut::localPort()

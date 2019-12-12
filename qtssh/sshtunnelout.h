@@ -27,6 +27,7 @@ public slots:
 private:
     QTcpServer              m_tcpserver;
     quint16                 m_port {0};
+    int                     m_connection {0};
 
 private slots:
     void _createConnection();

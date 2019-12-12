@@ -5,7 +5,7 @@
 #include <QLoggingCategory>
 #include "sshchannel.h"
 
-#define BUFFER_SIZE 16384
+#define BUFFER_SIZE (128*1024)
 
 Q_DECLARE_LOGGING_CATEGORY(logsshtunneloutconnection)
 Q_DECLARE_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer)
@@ -15,44 +15,38 @@ class SshTunnelOutConnection : public SshChannel
     Q_OBJECT
 
 public:
-    enum ConnectionState {
-        None,
-        Error,
-        Creating,
-        Running,
-        Freeing
-    };
-    Q_ENUM(ConnectionState)
     explicit SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort);
-    void disconnectFromHost();
-    bool isClosed();
+    virtual ~SshTunnelOutConnection() override;
     void close() override;
 
 
+
+
+
+
+
 private:
-    ConnectionState m_state {ConnectionState::None};
-    LIBSSH2_CHANNEL *m_channel {nullptr};
-    SshClient *m_client {nullptr};
+    LIBSSH2_CHANNEL *m_sshChannel {nullptr};
     QTcpSocket *m_sock;
     QTcpServer &m_server;
     quint16 m_port;
-    char m_rx_buffer[BUFFER_SIZE] {0,};
+
+    bool m_dataWaitingOnSsh {false};
+    bool m_dataWaitingOnSock {true}; /* When socket is connected, there is perhaps some waiting data */
+
+
     char m_tx_buffer[BUFFER_SIZE] {0,};
-    char *m_tx_start_ptr {nullptr};
-    char *m_rx_start_ptr {nullptr};
     char *m_tx_stop_ptr {nullptr};
-    char *m_rx_stop_ptr {nullptr};
     bool m_sshWaiting {false};
     bool m_disconnectedFromSsh {false};
     bool m_disconnectedFromSock {false};
     ssize_t m_writen {0};
     ssize_t m_readen {0};
+    bool m_error {false};
 
     int _displaySshError(const QString &msg);
 
     /* Transfer function */
-    ssize_t _transferSshToRx();
-    ssize_t _transferRxToSock();
     ssize_t _transferSockToTx();
     ssize_t _transferTxToSsh();
 
@@ -64,12 +58,11 @@ private:
     int _freeing();
 
 private slots:
-    void _socketDataReceived();
     void _socketDisconnected();
-    void _socketDestroyed();
+    void _socketDataRecived();
     void _socketError();
+    void _eventLoop(QString why);
 
-    void _sshDisconnected();
 
 public slots:
     void sshDataReceived() override;

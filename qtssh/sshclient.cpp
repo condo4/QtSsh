@@ -60,6 +60,7 @@ SshClient::SshClient(const QString &name, QObject * parent):
     m_socket(this)
 {
     /* New implementation */
+    QObject::connect(this, &SshClient::sshEvent, this, &SshClient::_ssh_processEvent, Qt::QueuedConnection);
     QObject::connect(&m_socket, &QTcpSocket::connected,      this, &SshClient::_connection_socketConnected);
     QObject::connect(&m_socket, &QTcpSocket::disconnected,   this, &SshClient::_connection_socketDisconnected);
     QObject::connect(&m_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
@@ -89,12 +90,6 @@ SshClient::~SshClient()
         libssh2_exit();
     }
     qCDebug(sshclient) << m_name << ": destroyed";
-}
-
-
-bool SshClient::getSshConnected() const
-{
-    return m_state == QAbstractSocket::ConnectedState;
 }
 
 QString SshClient::getName() const
@@ -166,7 +161,7 @@ bool SshClient::loopWhileBytesWritten(int msecs)
 
 int SshClient::connectToHost(const QString & user, const QString & host, quint16 port, QByteArrayList methodes)
 {
-    if(m_state != QAbstractSocket::UnconnectedState || m_sshState != SshState::Unconnected)
+    if(sshState() != SshState::Unconnected)
     {
         qCCritical(sshclient) << m_name << "Allready connected";
         return 0;
@@ -178,7 +173,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     m_username = user;
 
     setSshState(SshState::SocketConnection);
-    _ssh_processEvent();
+    emit sshEvent();
     return 0;
 }
 
@@ -188,28 +183,18 @@ void SshClient::disconnectFromHost()
     if(m_sshState == SshState::Unconnected)
         return;
 
-    setState(QAbstractSocket::ClosingState);
-
     qCDebug(sshclient) << m_name << ": disconnectFromHost()";
-
-    _sshClientClose();
-    _sshClientFree();
-
-    if(m_socket.state() != QTcpSocket::UnconnectedState)
+    if(m_channels.size() == 0)
     {
-        m_socket.disconnectFromHost();
-        if(m_socket.state() != QTcpSocket::UnconnectedState)
-        {
-            m_socket.waitForDisconnected();
-        }
+        setSshState(DisconnectingSession);
     }
-    m_socket.close();
+    else
+    {
+        setSshState(DisconnectingChannel);
+    }
 
-    m_sshConnected = false;
-    setState(QAbstractSocket::UnconnectedState);
-    emit disconnected();
-
-    qCDebug(sshclient) << m_name << ": disconnected()";
+    emit sshEvent();
+    return;
 }
 
 void SshClient::setPassphrase(const QString & pass)
@@ -222,8 +207,6 @@ void SshClient::setKeys(const QString &publicKey, const QString &privateKey)
     m_publicKey  = publicKey;
     m_privateKey = privateKey;
 }
-
-
 
 bool SshClient::saveKnownHosts(const QString & file)
 {
@@ -260,12 +243,6 @@ QString SshClient::banner()
     return QString(libssh2_session_banner_get(m_session));
 }
 
-void SshClient::waitSocket()
-{
-    m_socket.waitForReadyRead();
-}
-
-
 void SshClient::_sendKeepAlive()
 {
     int keepalive = 0;
@@ -277,13 +254,18 @@ void SshClient::_sendKeepAlive()
             qCWarning(sshclient) << m_name << ": Connection I/O error !!!";
             m_socket.disconnectFromHost();
         }
-
-        if(((QDateTime::currentMSecsSinceEpoch() - m_lastProofOfLive) / 1000) > (MAX_LOST_KEEP_ALIVE * keepalive))
+        else if(((QDateTime::currentMSecsSinceEpoch() - m_lastProofOfLive) / 1000) > (MAX_LOST_KEEP_ALIVE * keepalive))
         {
             qCWarning(sshclient) << m_name << ": Connection lost !!!";
             m_socket.disconnectFromHost();
         }
-        m_keepalive.start(keepalive * 1000);
+        else
+        {
+            qCDebug(sshclient) << m_name << ": Keepalive [" << ret << "] (next in " << keepalive << ")";
+            keepalive -= 1;
+            if(keepalive < 2) keepalive = 2;
+            m_keepalive.start(keepalive * 1000);
+        }
     }
 }
 
@@ -297,20 +279,9 @@ void SshClient::setSshState(const SshState &sshState)
     if(m_sshState != sshState)
     {
         m_sshState = sshState;
-        sshStateChanged(m_sshState);
+        emit sshStateChanged(m_sshState);
     }
 }
-
-void SshClient::_disconnected()
-{
-    qCWarning(sshclient) << m_name << "Unexpected disconnection";
-    emit sshDisconnected();
-    QObject::disconnect(&m_socket, &QAbstractSocket::disconnected, this, &SshClient::_disconnected);
-    QObject::disconnect(&m_keepalive,&QTimer::timeout,             this, &SshClient::_sendKeepAlive);
-    _sshClientFree();
-    emit disconnected();
-}
-
 
 
 void SshClient::unregisterChannel(SshChannel *channel)
@@ -319,7 +290,7 @@ void SshClient::unregisterChannel(SshChannel *channel)
     m_channels.removeOne(channel);
     delete channel;
 
-    if(m_state == QAbstractSocket::ClosingState && m_channels.size() == 0)
+    if(sshState() == SshState::DisconnectingChannel && m_channels.size() == 0)
     {
 
         qCDebug(sshclient) << m_name << ": no more channel registered";
@@ -327,7 +298,8 @@ void SshClient::unregisterChannel(SshChannel *channel)
         /* Stop keepalive */
         m_keepalive.stop();
 
-        qssh2_session_disconnect(m_session, "good bye!");
+        setSshState(SshState::DisconnectingSession);
+        emit sshEvent();
     }
 }
 
@@ -335,54 +307,10 @@ void SshClient::registerChannel(SshChannel *channel)
 {
     qCDebug(sshclient) << m_name << ": Ask to register " << channel->name();
     m_channels.append(channel);
+    QObject::connect(channel, &SshChannel::canBeDestroy, this, &SshClient::unregisterChannel, Qt::QueuedConnection);
 }
 
-void SshClient::setState(const QAbstractSocket::SocketState &state)
-{
-    m_state = state;
-}
 
-void SshClient::_sshClientClose()
-{
-    if (!m_session) return;
-
-    /* Close all Opened Channels */
-    qCDebug(sshclient) << m_name << ": close all channels";
-    if(m_channels.size() > 0)
-    {
-        for(SshChannel* ch: m_channels)
-        {
-            ch->close();
-        }
-    }
-    else
-    {
-
-        qCDebug(sshclient) << m_name << ": no channel registered";
-
-        /* Stop keepalive */
-        m_keepalive.stop();
-
-        qssh2_session_disconnect(m_session, "good bye!");
-    }
-}
-
-void SshClient::_sshClientFree()
-{
-    /* Disconnect session */
-    if (m_knownHosts)
-    {
-        libssh2_knownhost_free(m_knownHosts);
-        m_knownHosts = nullptr;
-    }
-
-    if (m_session)
-    {
-        qCDebug(sshclient) << m_name << ": Destroy SSH session";
-        qssh2_session_free(&m_session);
-        m_session = nullptr;
-    }
-}
 
 
 
@@ -411,14 +339,15 @@ void SshClient::_connection_socketTimeout()
 {
     m_socket.disconnectFromHost();
     qCWarning(sshclient) << m_name << ": ssh socket connection timeout";
-    setState(QAbstractSocket::UnconnectedState);
+    setSshState(SshState::Error);
+    emit sshEvent();
 }
 
 void SshClient::_connection_socketError()
 {
     qCWarning(sshclient) << m_name << ": ssh socket connection error:" << m_sshState;
     setSshState(SshState::Error);
-    _ssh_processEvent();
+    emit sshEvent();
 }
 
 void SshClient::_connection_socketConnected()
@@ -429,20 +358,21 @@ void SshClient::_connection_socketConnected()
     {
         /* Normal process; socket is connected */
         setSshState(SshState::Initialize);
-        _ssh_processEvent();
+        emit sshEvent();
     }
     else
     {
         qCWarning(sshclient) << m_name << ": Unknown conenction on socket";
         setSshState(SshState::Error);
-        _ssh_processEvent();
+        emit sshEvent();
     }
 }
 
 void SshClient::_connection_socketDisconnected()
 {
     qCWarning(sshclient) << m_name << ": ssh socket disconnected";
-    setState(QAbstractSocket::UnconnectedState);
+    setSshState(FreeSession);
+    emit sshEvent();
 }
 
 void SshClient::_ssh_processEvent()
@@ -457,12 +387,9 @@ void SshClient::_ssh_processEvent()
 
         case SshState::SocketConnection:
         {
-            setState(QAbstractSocket::ConnectingState);
-
             m_connectionTimeout.start(ConnectionTimeout);
             m_socket.connectToHost(m_hostname, m_port);
             setSshState(SshState::WaitingSocketConnection);
-
         }
 
         FALLTHROUGH; case SshState::WaitingSocketConnection:
@@ -470,7 +397,6 @@ void SshClient::_ssh_processEvent()
             qCWarning(sshclient) << m_name << ": Unknown data on socket";
             return;
         }
-
 
         case SshState::Initialize:
         {
@@ -635,12 +561,11 @@ void SshClient::_ssh_processEvent()
             if(libssh2_userauth_authenticated(m_session))
             {
                 qCDebug(sshclient) << m_name << ": Connected and authenticated";
-                m_keepalive.setInterval(1000);
+                m_connectionTimeout.stop();
                 m_keepalive.setSingleShot(true);
-                m_keepalive.start();
+                m_keepalive.start(1000);
                 libssh2_keepalive_config(m_session, 1, 5);
                 setSshState(SshState::Ready);
-                setState(QAbstractSocket::ConnectedState);
                 emit sshReady();
                 FALLTHROUGH;
             }
@@ -659,7 +584,7 @@ void SshClient::_ssh_processEvent()
             return;
         }
 
-        case SshState::DisconnectChannel:
+        case SshState::DisconnectingChannel:
         {
             /* Close all Opened Channels */
             if(m_channels.size() > 0)
@@ -669,6 +594,46 @@ void SshClient::_ssh_processEvent()
                     ch->close();
                 }
             }
+            else
+            {
+                setSshState(DisconnectingSession);
+            }
+            break;
+        }
+
+        case SshState::DisconnectingSession:
+        {
+            int ret = libssh2_session_disconnect_ex(m_session, SSH_DISCONNECT_BY_APPLICATION, "good bye!", "");
+            if(ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                return;
+            }
+            if(m_socket.state() == QAbstractSocket::ConnectedState)
+            {
+                m_socket.disconnectFromHost();
+            }
+            else
+            {
+                setSshState(FreeSession);
+                emit sshEvent();
+            }
+        }
+
+        FALLTHROUGH; case SshState::FreeSession:
+        {
+            if (m_knownHosts)
+            {
+                libssh2_knownhost_free(m_knownHosts);
+                m_knownHosts = nullptr;
+            }
+
+            int ret = libssh2_session_free(m_session);
+            if(ret == LIBSSH2_ERROR_EAGAIN)
+            {
+                return;
+            }
+            emit sshDisconnected();
+            setSshState(Unconnected);
             break;
         }
 
@@ -678,7 +643,6 @@ void SshClient::_ssh_processEvent()
                 m_socket.disconnectFromHost();
             qCWarning(sshclient) << m_name << ": ssh socket connection error";
             emit sshError();
-            setState(QAbstractSocket::UnconnectedState);
             return;
         }
     }
