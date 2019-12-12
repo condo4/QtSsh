@@ -44,7 +44,12 @@ void SshProcess::sshDataReceived()
     {
         case Openning:
         {
+            if ( ! m_sshClient->takeChannelCreationMutex(this) )
+            {
+                return;
+            }
             m_sshChannel = libssh2_channel_open_ex(m_sshClient->session(), "session", sizeof("session") - 1, LIBSSH2_CHANNEL_WINDOW_DEFAULT, LIBSSH2_CHANNEL_PACKET_DEFAULT, nullptr, 0);
+            m_sshClient->releaseChannelCreationMutex(this);
             if (m_sshChannel == nullptr)
             {
                 int ret = libssh2_session_last_error(m_sshClient->session(), nullptr, nullptr, 0);

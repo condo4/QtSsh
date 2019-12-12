@@ -39,7 +39,12 @@ void SshScpSend::sshDataReceived()
         case Openning:
         {
             stat(m_source.toStdString().c_str(), &m_fileinfo);
+            if ( ! m_sshClient->takeChannelCreationMutex(this) )
+            {
+                return;
+            }
             m_sshChannel = libssh2_scp_send64(m_sshClient->session(), m_dest.toStdString().c_str(), m_fileinfo.st_mode & 0777, m_fileinfo.st_size, 0, 0);
+            m_sshClient->releaseChannelCreationMutex(this);
             if (m_sshChannel == nullptr)
             {
                 int ret = libssh2_session_last_error(m_sshClient->session(), nullptr, nullptr, 0);
