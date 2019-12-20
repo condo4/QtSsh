@@ -364,6 +364,12 @@ void SshTunnelOutConnection::_eventLoop()
                 libssh2_channel_send_eof(m_sshChannel);
                 setChannelState(ChannelState::Close);
             }
+            if(m_rx_closed && (m_rx_start_ptr == nullptr))
+            {
+                _DEBUG_ << "Send EOF to Socket";
+                m_sock->disconnectFromHost();
+                setChannelState(ChannelState::Close);
+            }
 
             _DEBUG_ << "_eventLoop out:" << channelState() << "RX:" << m_data_to_rx << " TX:" << m_data_to_tx << " BUFTX:" << (m_tx_stop_ptr - m_tx_start_ptr)  << " BUFRX:" << (m_rx_stop_ptr - m_rx_start_ptr);
             return;
