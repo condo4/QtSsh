@@ -34,9 +34,19 @@ private:
     bool m_dataWaitingOnSsh {false};
     bool m_dataWaitingOnSock {true}; /* When socket is connected, there is perhaps some waiting data */
 
-
     char m_tx_buffer[BUFFER_SIZE] {0,};
+    char *m_tx_start_ptr {nullptr};
     char *m_tx_stop_ptr {nullptr};
+    bool m_tx_closed {false};
+    bool m_data_to_tx {false};
+
+    char m_rx_buffer[BUFFER_SIZE] {0,};
+    char *m_rx_start_ptr {nullptr};
+    char *m_rx_stop_ptr {nullptr};
+    bool m_rx_closed {false};
+    bool m_data_to_rx {false};
+
+
     bool m_sshWaiting {false};
     bool m_disconnectedFromSsh {false};
     bool m_disconnectedFromSock {false};
@@ -49,6 +59,8 @@ private:
     /* Transfer function */
     ssize_t _transferSockToTx();
     ssize_t _transferTxToSsh();
+    ssize_t _transferSshToRx();
+    ssize_t _transferRxToSock();
 
     /* States Action */
     int _creating();
@@ -58,12 +70,16 @@ private:
     int _freeing();
 
 private slots:
+    void _socketStateChanged(QAbstractSocket::SocketState socketState);
     void _socketDisconnected();
     void _socketDataRecived();
     void _socketError();
-    void _eventLoop(QString why);
+    void _eventLoop();
 
 
 public slots:
     void sshDataReceived() override;
+
+signals:
+    void sendEvent();
 };

@@ -5,6 +5,9 @@
 Q_LOGGING_CATEGORY(logsshtunneloutconnection, "ssh.tunnelout.connection")
 Q_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer, "ssh.tunnelout.connection.transfer")
 
+#define _DEBUG_ qCDebug(logsshtunneloutconnection) << m_name
+#define _DEBUGT_ qCDebug(logsshtunneloutconnectiontransfer) << m_name
+
 #define SOCKET_WRITE_ERROR (-1001)
 
 SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort)
@@ -13,21 +16,22 @@ SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *c
     , m_port(remotePort)
     , m_tx_stop_ptr(m_tx_buffer)
 {
-    _eventLoop(__FUNCTION__);
+    QObject::connect(this, &SshTunnelOutConnection::sendEvent, this, &SshTunnelOutConnection::_eventLoop, Qt::QueuedConnection);
+    _DEBUG_ << "Create SshTunnelOutConnection (constructor)";
+    emit sendEvent();
 }
 
 SshTunnelOutConnection::~SshTunnelOutConnection()
 {
-    qCDebug(logsshtunneloutconnection) << "free Channel:" << m_name;
+    _DEBUG_ << "Free SshTunnelOutConnection (destructor)";
 }
 
 void SshTunnelOutConnection::close()
 {
-    qCDebug(logsshtunneloutconnection) << m_name << "close Channel asked";
+    _DEBUG_ << "Close SshTunnelOutConnection asked";
     setChannelState(ChannelState::Close);
-    _eventLoop(__FUNCTION__);
+    emit sendEvent();
 }
-
 
 int SshTunnelOutConnection::_displaySshError(const QString &msg)
 {
@@ -48,9 +52,9 @@ int SshTunnelOutConnection::_displaySshError(const QString &msg)
 ssize_t SshTunnelOutConnection::_transferSockToTx()
 {
     qint64 len = 0;
-    if(m_tx_buffer != m_tx_stop_ptr)
+    if(m_tx_stop_ptr != nullptr)
     {
-        qCWarning(logsshtunneloutconnection) << m_name << "Asking transfer sock to tx when buffer not ready";
+        qCWarning(logsshtunneloutconnection) << m_name << "Asking transfer sock to tx when buffer not empty (" << m_tx_stop_ptr - m_tx_start_ptr << " bytes)";
         return -1;
     }
 
@@ -64,23 +68,24 @@ ssize_t SshTunnelOutConnection::_transferSockToTx()
     if(len > 0)
     {
         m_tx_stop_ptr = m_tx_buffer + len;
-        qCDebug(logsshtunneloutconnectiontransfer) << m_name << " read on socket return " << len << "bytes (total:" << m_readen << ", available:" << m_sock->bytesAvailable() << ")";
-        m_dataWaitingOnSock = true;
-        _transferTxToSsh();
-    }
-    else if(len < 0)
-    {
-        m_dataWaitingOnSock = true;
-        qCWarning(logsshtunneloutconnectiontransfer) << m_name << " read on socket return error:" << len << m_sock->errorString();
-    }
-    else if(len == 0)
-    {
-        m_dataWaitingOnSock = false;
-        qCWarning(logsshtunneloutconnectiontransfer) << m_name << "No more data available";
-        if(m_disconnectedFromSock)
+        m_tx_start_ptr = m_tx_buffer;
+        if(len < BUFFER_SIZE)
         {
-            setChannelState(ChannelState::Close);
+            m_data_to_tx = false;
         }
+        _DEBUG_ << "_transferSockToTx: " << len << "bytes (available:" << m_sock->bytesAvailable() << ", state:" << m_sock->state() << ")";
+        if(m_sock->state() == QAbstractSocket::UnconnectedState)
+        {
+            _DEBUG_ << "Detect Socket disconnected";
+            m_tx_closed = true;
+            emit sendEvent();
+        }
+    }
+    else
+    {
+        m_tx_stop_ptr = nullptr;
+        m_tx_start_ptr = nullptr;
+        _DEBUG_ << "_transferSockToTx: error: " << len;
     }
 
     return len;
@@ -88,153 +93,173 @@ ssize_t SshTunnelOutConnection::_transferSockToTx()
 
 ssize_t SshTunnelOutConnection::_transferTxToSsh()
 {
-    char *start = m_tx_buffer;
-    char *end = m_tx_stop_ptr;
     ssize_t transfered = 0;
 
-    while(start < end)
+    while(m_tx_start_ptr < m_tx_stop_ptr)
     {
-        ssize_t len = libssh2_channel_write(m_sshChannel, start, static_cast<size_t>(end - start));
+        ssize_t len = libssh2_channel_write(m_sshChannel, m_tx_start_ptr, m_tx_stop_ptr - m_tx_start_ptr);
         if(len == LIBSSH2_ERROR_EAGAIN)
         {
-            qCDebug(logsshtunneloutconnectiontransfer) << m_name << " write again" ;
+            _DEBUG_ << "_transferTxToSsh: write again" ;
             return 0;
         }
         if (len < 0)
         {
+            _DEBUG_ << "_transferTxToSsh: write again" ;
             return _displaySshError("libssh2_channel_write");
         }
         if (len == 0)
         {
-            qCWarning(logsshtunneloutconnectiontransfer) << "ERROR : " << m_name << " libssh2_channel_write return 0";
+            qCWarning(logsshtunneloutconnectiontransfer) << m_name << "ERROR:  libssh2_channel_write return 0";
             return 0;
         }
         /* xfer OK */
-        start += len;
+        m_tx_start_ptr += len;
         transfered += len;
-        qCDebug(logsshtunneloutconnectiontransfer) << m_name << " write on SSH return " << len << "bytes" ;
+        _DEBUG_ << "_transferTxToSsh: write on SSH return " << len << "bytes" ;
 
-        if(start == end)
+        if(m_tx_start_ptr == m_tx_stop_ptr)
         {
-            qCDebug(logsshtunneloutconnectiontransfer) << m_name << " All buffer sent on SSH, buffer empty" ;
-            m_tx_stop_ptr = m_tx_buffer;
-            if(m_dataWaitingOnSock)
-                _transferSockToTx();
+            _DEBUG_ << "_transferTxToSsh: All buffer sent on SSH, buffer empty" ;
+            m_tx_stop_ptr = nullptr;
+            m_tx_start_ptr = nullptr;
         }
     }
     return transfered;
 }
 
+ssize_t SshTunnelOutConnection::_transferSshToRx()
+{
+    ssize_t sshread = 0;
+
+    if(m_rx_stop_ptr != nullptr)
+    {
+        qCWarning(logsshtunneloutconnection) << "Buffer not empty, need to retry later";
+        emit sendEvent();
+        return 0;
+    }
+
+    sshread = static_cast<ssize_t>(libssh2_channel_read(m_sshChannel, m_rx_buffer, BUFFER_SIZE));
+    if (sshread < 0)
+    {
+        if(sshread != LIBSSH2_ERROR_EAGAIN)
+        {
+            _DEBUG_ << "_transferSshToRx: " << sshread << " (error)";
+            m_rx_stop_ptr = nullptr;
+            _displaySshError(QString("libssh2_channel_read (%1 / %2)").arg(sshread).arg(BUFFER_SIZE));
+        }
+        else
+        {
+            _DEBUG_ << "_transferSshToRx: LIBSSH2_ERROR_EAGAIN";
+            m_data_to_rx = false;
+        }
+        return sshread;
+    }
+
+    if(sshread < BUFFER_SIZE)
+    {
+        _DEBUG_ << "_transferSshToRx: Xfer " << sshread << "bytes";
+        m_data_to_rx = false;
+        if (libssh2_channel_eof(m_sshChannel))
+        {
+            m_rx_closed = true;
+            _DEBUG_ << "_transferSshToRx: Ssh channel closed";
+        }
+    }
+    else
+    {
+        _DEBUG_ << "_transferSshToRx: Xfer " << sshread << "bytes; There is probably more data to read, re-arm event";
+        emit sendEvent();
+    }
+    m_rx_stop_ptr = m_rx_buffer + sshread;
+    m_rx_start_ptr = m_rx_buffer;
+    return sshread;
+}
+
+ssize_t SshTunnelOutConnection::_transferRxToSock()
+{
+    ssize_t total = 0;
+
+    /* If socket not ready, wait for socket connected */
+    if(!m_sock || m_sock->state() != QAbstractSocket::ConnectedState)
+    {
+        qCWarning(logsshtunneloutconnection) << m_name << "_transferRxToSock: Data on SSH when socket closed";
+        m_dataWaitingOnSsh = true;
+        return -1;
+    }
+
+    if(m_rx_stop_ptr == nullptr)
+    {
+        qCWarning(logsshtunneloutconnection) <<  m_name << "Buffer empty";
+        return 0;
+    }
+
+    _DEBUG_ << "_transferRxToSock: libssh2_channel_read return " << (m_rx_stop_ptr - m_rx_start_ptr) << "bytes";
+
+    while (m_rx_start_ptr < m_rx_stop_ptr)
+    {
+        ssize_t slen = m_sock->write(m_rx_start_ptr, m_rx_stop_ptr - m_rx_start_ptr);
+        if (slen <= 0)
+        {
+            qCWarning(logsshtunneloutconnectiontransfer) << "ERROR : " << m_name << " local failed to write (" << slen << ")";
+            return slen;
+        }
+        m_rx_start_ptr += slen;
+        total += slen;
+        _DEBUG_ << "_transferRxToSock: " << slen << "bytes written on socket";
+    }
+
+    /* Buffer is empty */
+    m_rx_stop_ptr = nullptr;
+    m_rx_start_ptr = nullptr;
+    return total;
+}
+
+void SshTunnelOutConnection::_socketStateChanged(QAbstractSocket::SocketState socketState)
+{
+    _DEBUG_ << "_socketStateChanged: Socket State changed: " << socketState;
+}
+
 
 void SshTunnelOutConnection::_socketDisconnected()
 {
-    qCDebug(logsshtunneloutconnection) << "Set Disconnected from socket";
-    m_disconnectedFromSock = true;
-    setChannelState(ChannelState::Close);
-    _eventLoop(__FUNCTION__);
+    _DEBUG_ << "_socketDisconnected: Socket disconnected";
+    m_tx_closed = true;
+    emit sendEvent();
 }
 
 void SshTunnelOutConnection::_socketDataRecived()
 {
-    if(m_tx_stop_ptr != m_tx_buffer)
-    {
-        qCDebug(logsshtunneloutconnection) << "SOCKET DATA RECIVED but buffer not empty";
-        m_dataWaitingOnSock = true;
-        return;
-    }
-    qCDebug(logsshtunneloutconnection) << "SOCKET DATA RECIVED and buffer empty, start transfer";
-    _transferSockToTx();
+    _DEBUG_ << "_socketDataRecived: Socket data received";
+    m_data_to_tx = true;
+    emit sendEvent();
 }
-
 
 void SshTunnelOutConnection::sshDataReceived()
 {
-    static char rxBuffer[BUFFER_SIZE];
-
-    if(channelState() == ChannelState::Read)
-    {
-        if(m_tx_buffer != m_tx_stop_ptr)
-        {
-            _transferTxToSsh();
-        }
-
-        ssize_t sshread = 0;
-        ssize_t total = 0;
-
-        /* If socket not ready, wait for socket connected */
-        if(!m_sock || m_sock->state() != QAbstractSocket::ConnectedState)
-        {
-            qCWarning(logsshtunneloutconnection) << "Data on SSH when socket closed";
-            m_dataWaitingOnSsh = true;
-            return;
-        }
-
-        do
-        {
-            ssize_t sshread = static_cast<ssize_t>(libssh2_channel_read(m_sshChannel, rxBuffer, BUFFER_SIZE));
-            if(sshread == LIBSSH2_ERROR_EAGAIN)
-            {
-                return;
-            }
-            if (sshread < 0)
-            {
-                _displaySshError(QString("libssh2_channel_read (%1 / %2)").arg(sshread).arg(BUFFER_SIZE));
-                return;
-            }
-            if(sshread > 0)
-            {
-                qCDebug(logsshtunneloutconnectiontransfer) << m_name << " libssh2_channel_read return " << sshread << "bytes";
-
-                char *rx = rxBuffer;
-                char *rxend = rxBuffer + sshread;
-
-                while (rx < rxend)
-                {
-                    ssize_t slen = m_sock->write(rx, rxend - rx);
-                    if (slen <= 0)
-                    {
-                        qCWarning(logsshtunneloutconnectiontransfer) << "ERROR : " << m_name << " local failed to write (" << slen << ")";
-                        return;
-                    }
-                    rx += slen;
-                    qCDebug(logsshtunneloutconnectiontransfer) << m_name << slen << "bytes written on socket";
-                }
-                total += sshread;
-            }
-        }
-        while(sshread > 0);
-
-        if (libssh2_channel_eof(m_sshChannel))
-        {
-            qCDebug(logsshtunneloutconnection) << "Set Disconnected from ssh";
-            m_disconnectedFromSsh = true;
-            m_sock->disconnectFromHost();
-            setChannelState(ChannelState::Close);
-            return;
-        }
-    }
-
-    _eventLoop(__FUNCTION__);
+    _DEBUG_ << "sshDataReceived: SSH data received";
+    m_data_to_rx = true;
+    emit sendEvent();
 }
 
 void SshTunnelOutConnection::_socketError()
 {
+    _DEBUG_ << "_socketError";
     auto error = m_sock->error();
     switch(error)
     {
         case QAbstractSocket::RemoteHostClosedError:
-            qCDebug(logsshtunneloutconnection) << m_name << "socket RemoteHostClosedError";
+            _DEBUG_ << "socket RemoteHostClosedError";
             // Socket will be closed just after this, nothing to care about
             break;
         default:
             qCWarning(logsshtunneloutconnection) << m_name << "socket error=" << error << m_sock->errorString();
-            setChannelState(ChannelState::Close);
+            // setChannelState(ChannelState::Close);
     }
 }
 
-void SshTunnelOutConnection::_eventLoop(QString why)
+void SshTunnelOutConnection::_eventLoop()
 {
-    qCDebug(logsshtunneloutconnection) << "_eventLoop for " << why << "in" << channelState();
     switch(channelState())
     {
         case Openning:
@@ -270,7 +295,7 @@ void SshTunnelOutConnection::_eventLoop(QString why)
                 qCWarning(logsshtunneloutconnection) << "Channel session open failed";
                 return;
             }
-            qCDebug(logsshtunneloutconnection) << "Channel session opened";
+            _DEBUG_ << "Channel session opened";
             setChannelState(ChannelState::Exec);
         }
 
@@ -286,6 +311,9 @@ void SshTunnelOutConnection::_eventLoop(QString why)
                 return;
             }
 
+            QObject::connect(m_sock, &QTcpSocket::stateChanged,
+                             this,   &SshTunnelOutConnection::_socketStateChanged);
+
             QObject::connect(m_sock, &QTcpSocket::readyRead,
                              this,   &SshTunnelOutConnection::_socketDataRecived);
 
@@ -296,18 +324,36 @@ void SshTunnelOutConnection::_eventLoop(QString why)
                              this,   &SshTunnelOutConnection::_socketError);
 
             m_name = QString(m_name + ":%1").arg(m_sock->localPort());
-            qCDebug(logsshtunneloutconnection) << m_name << "createConnection: " << m_sock << m_sock->localPort();
+            _DEBUG_ << "createConnection: " << m_sock << m_sock->localPort();
+            m_rx_start_ptr = nullptr;
+            m_rx_stop_ptr = nullptr;
+            m_tx_start_ptr = nullptr;
+            m_tx_stop_ptr = nullptr;
+            m_data_to_tx = true;
             setChannelState(ChannelState::Read);
             /* OK, next step */
         }
 
         FALLTHROUGH; case Read:
         {
-            if(m_dataWaitingOnSock && (m_tx_buffer == m_tx_stop_ptr))
+            _DEBUG_ << "_eventLoop in" << channelState() << "RX:" << m_data_to_rx << " TX:" << m_data_to_tx << " BUFTX:" << m_tx_start_ptr << " BUFRX:" << m_rx_start_ptr;
+            ssize_t xfer = 0;
+            if(m_rx_start_ptr) xfer += _transferRxToSock();
+            if(m_data_to_rx)   _transferSshToRx();
+            if(m_rx_start_ptr) xfer += _transferRxToSock();
+
+            if(m_tx_start_ptr) xfer += _transferTxToSsh();
+            if(m_data_to_tx)   _transferSockToTx();
+            if(m_tx_start_ptr) xfer += _transferTxToSsh();
+
+            if(m_tx_closed && (m_tx_start_ptr == nullptr))
             {
-                _transferSockToTx();
+                _DEBUG_ << "Send EOF to SSH";
+                libssh2_channel_send_eof(m_sshChannel);
+                setChannelState(ChannelState::Close);
             }
-            _transferTxToSsh();
+
+            _DEBUG_ << "_eventLoop out:" << channelState() << "RX:" << m_data_to_rx << " TX:" << m_data_to_tx << " BUFTX:" << m_tx_start_ptr << " BUFRX:" << m_rx_start_ptr;
             return;
         }
 
@@ -317,13 +363,13 @@ void SshTunnelOutConnection::_eventLoop(QString why)
             {
                 m_sock->disconnectFromHost();
             }
-            qCDebug(logsshtunneloutconnection) << m_name << "closeChannel";
+            _DEBUG_ << "closeChannel";
             setChannelState(ChannelState::WaitClose);
         }
 
         FALLTHROUGH; case WaitClose:
         {
-            qCDebug(logsshtunneloutconnection) << "Wait close channel:" << m_name;
+            _DEBUG_ << "Wait close channel";
             if(m_sock->state() == QAbstractSocket::UnconnectedState)
             {
                 setChannelState(ChannelState::Freeing);
@@ -332,7 +378,7 @@ void SshTunnelOutConnection::_eventLoop(QString why)
 
         FALLTHROUGH; case Freeing:
         {
-            qCDebug(logsshtunneloutconnection) << "free Channel:" << m_name;
+            _DEBUG_ << "free Channel";
 
             int ret = libssh2_channel_free(m_sshChannel);
             if(ret == LIBSSH2_ERROR_EAGAIN)
