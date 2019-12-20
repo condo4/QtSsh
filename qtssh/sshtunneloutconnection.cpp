@@ -74,10 +74,19 @@ ssize_t SshTunnelOutConnection::_transferSockToTx()
             m_data_to_tx = false;
         }
         _DEBUG_ << "_transferSockToTx: " << len << "bytes (available:" << m_sock->bytesAvailable() << ", state:" << m_sock->state() << ")";
-        if(m_sock->state() == QAbstractSocket::UnconnectedState)
+        if(m_sock->bytesAvailable() == 0)
         {
-            _DEBUG_ << "Detect Socket disconnected";
-            m_tx_closed = true;
+            if(m_sock->state() == QAbstractSocket::UnconnectedState)
+            {
+                _DEBUG_ << "Detect Socket disconnected";
+                m_tx_closed = true;
+                emit sendEvent();
+            }
+        }
+        else
+        {
+            m_data_to_tx = true;
+            _DEBUG_ << "_transferSockToTx: There is other data in socket, re-arm read";
             emit sendEvent();
         }
     }
