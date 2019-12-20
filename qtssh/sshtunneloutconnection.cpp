@@ -114,7 +114,7 @@ ssize_t SshTunnelOutConnection::_transferTxToSsh()
         }
         if (len < 0)
         {
-            _DEBUG_ << "_transferTxToSsh: write again" ;
+            _DEBUG_ << "_transferTxToSsh: ERROR" << len;
             return _displaySshError("libssh2_channel_write");
         }
         if (len == 0)
@@ -261,7 +261,7 @@ void SshTunnelOutConnection::_socketError()
     switch(error)
     {
         case QAbstractSocket::RemoteHostClosedError:
-            _DEBUG_ << "socket RemoteHostClosedError";
+            _DEBUG_ << "socket RemoteHostClosedError, data available:" << m_sock->bytesAvailable();
             // Socket will be closed just after this, nothing to care about
             break;
         default:
@@ -348,7 +348,7 @@ void SshTunnelOutConnection::_eventLoop()
 
         FALLTHROUGH; case Read:
         {
-            _DEBUG_ << "_eventLoop in" << channelState() << "RX:" << m_data_to_rx << " TX:" << m_data_to_tx << " BUFTX:" << m_tx_start_ptr << " BUFRX:" << m_rx_start_ptr;
+            _DEBUG_ << "_eventLoop in" << channelState() << "RX:" << m_data_to_rx << " TX:" << m_data_to_tx << " BUFTX:" << (m_tx_stop_ptr - m_tx_start_ptr)  << " BUFRX:" << (m_rx_stop_ptr - m_rx_start_ptr);
             ssize_t xfer = 0;
             if(m_rx_start_ptr) xfer += _transferRxToSock();
             if(m_data_to_rx)   _transferSshToRx();
@@ -365,7 +365,7 @@ void SshTunnelOutConnection::_eventLoop()
                 setChannelState(ChannelState::Close);
             }
 
-            _DEBUG_ << "_eventLoop out:" << channelState() << "RX:" << m_data_to_rx << " TX:" << m_data_to_tx << " BUFTX:" << m_tx_start_ptr << " BUFRX:" << m_rx_start_ptr;
+            _DEBUG_ << "_eventLoop out:" << channelState() << "RX:" << m_data_to_rx << " TX:" << m_data_to_tx << " BUFTX:" << (m_tx_stop_ptr - m_tx_start_ptr)  << " BUFRX:" << (m_rx_stop_ptr - m_rx_start_ptr);
             return;
         }
 
