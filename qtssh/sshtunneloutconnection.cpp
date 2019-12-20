@@ -233,8 +233,11 @@ void SshTunnelOutConnection::_socketStateChanged(QAbstractSocket::SocketState so
 void SshTunnelOutConnection::_socketDisconnected()
 {
     _DEBUG_ << "_socketDisconnected: Socket disconnected";
-    m_tx_closed = true;
-    emit sendEvent();
+    if(m_sock->bytesAvailable() == 0)
+    {
+        m_tx_closed = true;
+        emit sendEvent();
+    }
 }
 
 void SshTunnelOutConnection::_socketDataRecived()
