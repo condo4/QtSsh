@@ -115,7 +115,7 @@ void SshTunnelOutConnection::_eventLoop()
         case Close:
         {
             DEBUGCH << "closeChannel";
-            m_connector->close();
+            if(m_connector) m_connector->close();
             setChannelState(ChannelState::WaitClose);
         }
 
