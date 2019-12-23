@@ -4,7 +4,7 @@
 #include <QAbstractSocket>
 #include <QLoggingCategory>
 
-class QTcpSocket;
+class SshTunnelInConnection;
 
 Q_DECLARE_LOGGING_CATEGORY(logsshtunnelin)
 
@@ -13,43 +13,31 @@ class SshTunnelIn : public SshChannel
     Q_OBJECT
 
 private:
-    int m_localTcpPort;
-    int m_remoteTcpPort;
-    QString m_host;
+    int m_localTcpPort {0};
+    int m_remoteTcpPort {0};
+    int m_boundPort {0};
+    int m_queueSize {16};
+    int m_retryListen {10};
+    QString m_targethost;
+    QString m_listenhost;
     LIBSSH2_LISTENER *m_sshListener {nullptr};
-    quint16 m_port;
-    QScopedPointer<QTcpSocket, QScopedPointerDeleteLater> m_tcpsocket;
-    bool m_valid {false};
-    bool m_workinprogress {false};
-    bool m_needToDisconnect {false};
-    bool m_needToSendEOF {false};
-    QByteArray m_tcpBuffer;
-    QByteArray m_sshBuffer;
+    int  m_connectionCounter {0};
+    QList<SshTunnelInConnection*> m_connection;
 
 protected:
     explicit SshTunnelIn(const QString &name, SshClient *client);
     friend class SshClient;
 
-    void free();
-
 public:
     virtual ~SshTunnelIn() override;
+    void listen(QString host, quint16 localPort, quint16 remotePort, QString listenHost = "127.0.0.1", int queueSize = 16);
+    void close() override;
     quint16 localPort();
     quint16 remotePort();
-    void configure(quint16 localport, quint16 remoteport, QString host = "localhost");
 
-    bool valid() const;
-    void close() override;
-
-private slots:
-    void onLocalSocketDisconnected();
-    void onLocalSocketConnected();
-    void onLocalSocketError(QAbstractSocket::SocketError error);
-    void onLocalSocketDataReceived();
-
+public slots:
     void sshDataReceived() override;
 
-private:
-    LIBSSH2_CHANNEL *m_sshChannel {nullptr};
-
+signals:
+    void connectionChanged(int);
 };
