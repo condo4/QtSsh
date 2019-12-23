@@ -24,10 +24,11 @@ void SshTunnelOut::close()
     sshDataReceived();
 }
 
-void SshTunnelOut::listen(quint16 port)
+void SshTunnelOut::listen(quint16 port, QString hostTarget, QString hostListen)
 {
     m_port = port;
-    m_tcpserver.listen(QHostAddress("127.0.0.1"), 0);
+    m_hostTarget = hostTarget;
+    m_tcpserver.listen(QHostAddress(hostListen), 0);
     setChannelState(ChannelState::Read);
 }
 
@@ -98,7 +99,7 @@ quint16 SshTunnelOut::port() const
 void SshTunnelOut::_createConnection()
 {
     qCDebug(logsshtunnelout) << "SshTunnelOut new connection";
-    SshTunnelOutConnection *connection = new SshTunnelOutConnection(m_name + QString("_%1").arg(m_connectionCounter++), m_sshClient, m_tcpserver, m_port);
+    SshTunnelOutConnection *connection = new SshTunnelOutConnection(m_name + QString("_%1").arg(m_connectionCounter++), m_sshClient, m_tcpserver, m_port, m_hostTarget);
     QObject::connect(connection, &SshTunnelOutConnection::canBeDestroy, this, &SshTunnelOut::_destroyConnection);
     m_connection.append(connection);
     emit connectionChanged(m_connection.count());

@@ -22,14 +22,16 @@ public:
     quint16 port() const;
 
 public slots:
-    void listen(quint16 port);
+    void listen(quint16 port, QString hostTarget = "127.0.0.1", QString hostListen = "127.0.0.1");
     void sshDataReceived() override;
 
 private:
     QTcpServer              m_tcpserver;
     quint16                 m_port {0};
     int                     m_connectionCounter {0};
+    QString                 m_hostTarget;
     QList<SshTunnelOutConnection*> m_connection;
+
 
 private slots:
     void _createConnection();

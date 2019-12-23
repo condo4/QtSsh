@@ -15,24 +15,16 @@ class SshTunnelOutConnection : public SshChannel
     Q_OBJECT
 
 public:
-    explicit SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort);
+    explicit SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort, QString target = "127.0.0.1");
     virtual ~SshTunnelOutConnection() override;
     void close() override;
-
-
-
-
-
-
 
 private:
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
     QTcpSocket *m_sock;
     QTcpServer &m_server;
     quint16 m_port;
-
-    bool m_dataWaitingOnSsh {false};
-    bool m_dataWaitingOnSock {true}; /* When socket is connected, there is perhaps some waiting data */
+    QString m_target;
 
     char m_tx_buffer[BUFFER_SIZE] {0,};
     char *m_tx_start_ptr {nullptr};
@@ -47,7 +39,6 @@ private:
     bool m_data_to_rx {false};
 
 
-    bool m_sshWaiting {false};
     bool m_disconnectedFromSsh {false};
     bool m_disconnectedFromSock {false};
     ssize_t m_writen {0};
@@ -62,15 +53,8 @@ private:
     ssize_t _transferSshToRx();
     ssize_t _transferRxToSock();
 
-    /* States Action */
-    int _creating();
-    int _running();
-    int _closing();
-    int _waitingClosed();
-    int _freeing();
 
 private slots:
-    void _socketStateChanged(QAbstractSocket::SocketState socketState);
     void _socketDisconnected();
     void _socketDataRecived();
     void _socketError();
