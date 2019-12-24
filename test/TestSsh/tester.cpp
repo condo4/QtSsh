@@ -11,7 +11,7 @@ Q_LOGGING_CATEGORY(testssh, "test.ssh", QtInfoMsg)
 
 #define TestTimeOut (30*1000) // 15s
 //#define TEST_ENABLE 0xFFFF
-#define TEST_ENABLE 0x0006
+#define TEST_ENABLE 0x000F
 #define DUMP_IF_ERROR 0
 #define BENCHMARK_REPEAT 100
 
@@ -220,7 +220,8 @@ void Tester::test4_directTunnelComBothWays()
 #else
     QFETCH(QByteArray, dataForTest);
     m_currentDataToUse=dataForTest;
-    QSharedPointer<SshTunnelOut> out1 = m_ssh.getTunnelOut("T4_OUT", m_srv.serverPort());
+    SshTunnelOut *out1 = m_ssh.getChannel<SshTunnelOut>("T4_OUT");
+    out1->listen(m_srv.serverPort());
     m_cli.connectToHost("127.0.0.1", out1->localPort());
     int result = m_waitTestEnd.exec();
     m_cli.disconnectFromHost();
@@ -244,8 +245,10 @@ void Tester::test5_doubleDirectTunnelComBothWays()
 #else
     QFETCH(QByteArray, dataForTest);
     m_currentDataToUse=dataForTest;
-    QSharedPointer<SshTunnelOut> out1 = m_ssh.getTunnelOut("T5_OUT1", m_srv.serverPort());
-    QSharedPointer<SshTunnelOut> out2 = m_ssh.getTunnelOut("T5_OUT2", out1->localPort());
+    SshTunnelOut *out1 = m_ssh.getChannel<SshTunnelOut>("T5_OUT1");
+    out1->listen(m_srv.serverPort());
+    SshTunnelOut *out2 = m_ssh.getChannel<SshTunnelOut>("T5_OUT2");
+    out2->listen(out1->localPort());
     qCDebug(testssh) << "SRV: " << m_srv.serverPort();
     qCDebug(testssh) << "OUT1: " << out1->localPort();
     qCDebug(testssh) << "OUT2: " << out2->localPort();
@@ -272,23 +275,20 @@ void Tester::test6_reverseTunnelComClientToServer()
     QSKIP("Test disabled by TEST_ENABLE variable");
 #else
     // Remote tunnel tcp server is local and client is remote
+    QEventLoop wait;
     QFETCH(QByteArray, dataForTest);
     m_currentDataToUse=dataForTest;
-    QSharedPointer<SshTunnelIn> in1 = m_ssh.getTunnelIn("T6_IN", m_srv.serverPort());
-    if ( in1->valid() )
-    {
-        m_cli.connectToHost("127.0.0.1", in1->remotePort());
-        int result = m_waitTestEnd.exec();
-        m_cli.disconnectFromHost();
-        if ( m_cli.state() != QAbstractSocket::UnconnectedState )
-            m_cli.waitForDisconnected(1000);
-        QVERIFY2(result == 0, "Test failed in timeout");
-        compareResults();
-    }
-    else
-    {
-        QFAIL("Cannot create tunnelin");
-    }
+    SshTunnelIn *in1 = m_ssh.getChannel<SshTunnelIn>("T6_IN");
+    QObject::connect(in1, &SshChannel::stateChanged, [&wait, in1](){ if(in1->channelState() == SshChannel::Read) wait.quit();});
+    in1->listen("127.0.0.1", m_srv.serverPort(), 0);
+    if(in1->channelState() != SshChannel::Read) wait.exec();
+    m_cli.connectToHost("127.0.0.1", in1->remotePort());
+    int result = m_waitTestEnd.exec();
+    m_cli.disconnectFromHost();
+    if ( m_cli.state() != QAbstractSocket::UnconnectedState )
+        m_cli.waitForDisconnected(1000);
+    QVERIFY2(result == 0, "Test failed in timeout");
+    compareResults();
 #endif
 }
 
@@ -305,21 +305,19 @@ void Tester::test7_reverseTunnelComServerToClient()
 #else
     QFETCH(QByteArray, dataForTest);
     m_currentDataToUse=dataForTest;
-    QSharedPointer<SshTunnelIn> in1 = m_ssh.getTunnelIn("T7_IN", m_srv.serverPort(), 0);
-    if ( in1->valid())
+    SshTunnelIn *in1 = m_ssh.getChannel<SshTunnelIn>("T7_IN");
+    in1->listen("127.0.0.1", m_srv.serverPort(), 0);
+    while(in1->channelState() != SshChannel::Read)
     {
-        m_cli.connectToHost("127.0.0.1", in1->remotePort());
-        int result = m_waitTestEnd.exec();
-        m_cli.disconnectFromHost();
-        if ( m_cli.state() != QAbstractSocket::UnconnectedState )
-            m_cli.waitForDisconnected(1000);
-        QVERIFY2(result == 0, "Test failed in timeout");
-        compareResults();
+        qApp->processEvents();
     }
-    else
-    {
-        QFAIL("Cannot create tunnelin");
-    }
+    m_cli.connectToHost("127.0.0.1", in1->remotePort());
+    int result = m_waitTestEnd.exec();
+    m_cli.disconnectFromHost();
+    if ( m_cli.state() != QAbstractSocket::UnconnectedState )
+        m_cli.waitForDisconnected(1000);
+    QVERIFY2(result == 0, "Test failed in timeout");
+    compareResults();
 #endif
 }
 

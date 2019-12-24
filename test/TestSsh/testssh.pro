@@ -19,6 +19,6 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += main.cpp tester.cpp
 HEADERS += tester.h
 
-include(../QtSsh.pri)
+include(../../QtSsh.pri)
 
 LIBS += -lssh2

@@ -21,7 +21,7 @@ SOURCES += main.cpp \
     console.cpp
 
 
-include(../QtSsh.pri)
+include(../../QtSsh.pri)
 
 LIBS += -lssh2
 
