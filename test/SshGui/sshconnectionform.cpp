@@ -5,13 +5,13 @@
 #include <QMetaEnum>
 
 
-SshConnectionForm::SshConnectionForm(const QString &name, QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::SshConnectionForm)
+SshConnectionForm::SshConnectionForm(const QString &name, QWidget *parent)
+    : QWidget(parent)
+    , m_client(name)
+    , ui(new Ui::SshConnectionForm)
 {
     ui->setupUi(this);
-    m_client = new SshClient(name, this);
-    QObject::connect(m_client, &SshClient::sshStateChanged, this, &SshConnectionForm::onSshStateChanged);
+    QObject::connect(&m_client, &SshClient::sshStateChanged, this, &SshConnectionForm::onSshStateChanged);
 }
 
 SshConnectionForm::~SshConnectionForm()
@@ -21,14 +21,14 @@ SshConnectionForm::~SshConnectionForm()
 
 void SshConnectionForm::on_connectButton_clicked()
 {
-    if((m_client->sshState() == SshClient::SshState::Unconnected))
+    if((m_client.sshState() == SshClient::SshState::Unconnected))
     {
-        m_client->setPassphrase(ui->passwordEdit->text());
-        m_client->connectToHost(ui->loginEdit->text(), ui->hostnameEdit->text(), ui->portEdit->text().toUShort());
+        m_client.setPassphrase(ui->passwordEdit->text());
+        m_client.connectToHost(ui->loginEdit->text(), ui->hostnameEdit->text(), ui->portEdit->text().toUShort());
     }
     else
     {
-        m_client->disconnectFromHost();
+        m_client.disconnectFromHost();
     }
 }
 
@@ -44,7 +44,7 @@ void SshConnectionForm::on_createDirectTunnelButton_clicked()
 {
     if(ui->portInput->text().length() > 0)
     {
-        DirectTunnelForm *form = new DirectTunnelForm(m_client, ui->hostInput->text(), "0.0.0.0", ui->portInput->text().toUShort(), this);
+        DirectTunnelForm *form = new DirectTunnelForm(&m_client, ui->hostInput->text(), "0.0.0.0", ui->portInput->text().toUShort(), this);
         QObject::connect(form, &DirectTunnelForm::destroyme, this, &SshConnectionForm::destroyChannel);
         ui->listTunnels->layout()->addWidget(form);
     }
@@ -61,7 +61,7 @@ void SshConnectionForm::on_createReverseTunnelButton_clicked()
 {
     if(ui->rtargetPortInput->text().length() > 0)
     {
-        ReverseTunnelForm *form = new ReverseTunnelForm(m_client, ui->rListenPortInput->text().toUShort(), ui->rhostInput->text(), ui->rtargetPortInput->text().toUShort(), this);
+        ReverseTunnelForm *form = new ReverseTunnelForm(&m_client, ui->rListenPortInput->text().toUShort(), ui->rhostInput->text(), ui->rtargetPortInput->text().toUShort(), this);
         QObject::connect(form, &ReverseTunnelForm::destroyme, this, &SshConnectionForm::destroyChannel);
         ui->listTunnels->layout()->addWidget(form);
     }

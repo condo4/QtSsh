@@ -34,6 +34,22 @@ public:
     void unregisterChannel(SshChannel* channel);
     void registerChannel(SshChannel* channel);
 
+    enum SshState {
+        Unconnected,
+        SocketConnection,
+        WaitingSocketConnection,
+        Initialize,
+        HandShake,
+        GetAuthenticationMethodes,
+        Authentication,
+        Ready,
+        DisconnectingChannel,
+        DisconnectingSession,
+        FreeSession,
+        Error,
+    };
+    Q_ENUM(SshState)
+
 private:
     static int s_nbInstance;
     LIBSSH2_SESSION    * m_session {nullptr};
@@ -75,6 +91,7 @@ public:
 
 public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, QByteArrayList methodes = QByteArrayList());
+    bool waitForState(SshClient::SshState state);
     void disconnectFromHost();
 
 public:
@@ -114,22 +131,9 @@ private slots:
 
 
 public: /* New function implementation with state machine */
-    enum SshState {
-        Unconnected,
-        SocketConnection,
-        WaitingSocketConnection,
-        Initialize,
-        HandShake,
-        GetAuthenticationMethodes,
-        Authentication,
-        Ready,
-        DisconnectingChannel,
-        DisconnectingSession,
-        FreeSession,
-        Error,
-    };
-    Q_ENUM(SshState)
     SshState sshState() const;
+
+    void setName(const QString &name);
 
 private: /* New function implementation with state machine */
     SshState m_sshState {SshState::Unconnected};

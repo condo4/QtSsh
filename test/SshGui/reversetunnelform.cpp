@@ -35,7 +35,7 @@ void ReverseTunnelForm::connectionChanged(int connections)
 void ReverseTunnelForm::on_closeButton_clicked()
 {
     switch(m_tunnel->channelState()) {
-    case  SshChannel::ChannelState::Read:
+    case  SshChannel::ChannelState::Ready:
         m_tunnel->close();
         ui->closeButton->setText("Remove");
         break;

@@ -30,7 +30,7 @@ public:
     enum ChannelState {
         Openning,
         Exec,
-        Read,
+        Ready,
         Close,
         WaitClose,
         Freeing,
@@ -41,9 +41,11 @@ public:
 
     ChannelState channelState() const;
     void setChannelState(const ChannelState &channelState);
+    bool waitForState(SshChannel::ChannelState state);
 
 protected:
     explicit SshChannel(QString name, SshClient *client);
+    virtual ~SshChannel();
     SshClient *m_sshClient  {nullptr};
     QString m_name;
 
@@ -55,5 +57,4 @@ private:
 
 signals:
     void stateChanged(ChannelState state);
-    void canBeDestroy(SshChannel *);
 };

@@ -81,11 +81,11 @@ void SshScpSend::sshDataReceived()
                 return;
             }
 
-            setChannelState(ChannelState::Read);
+            setChannelState(ChannelState::Ready);
             /* OK, next step */
         }
 
-        FALLTHROUGH; case Read:
+        FALLTHROUGH; case Ready:
         {
             while(!m_file.atEnd())
             {
@@ -204,7 +204,6 @@ void SshScpSend::sshDataReceived()
             }
             m_sshChannel = nullptr;
             QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshScpSend::sshDataReceived);
-            emit canBeDestroy(this);
             return;
         }
 

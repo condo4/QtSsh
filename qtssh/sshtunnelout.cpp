@@ -15,7 +15,6 @@ SshTunnelOut::SshTunnelOut(const QString &name, SshClient *client)
 SshTunnelOut::~SshTunnelOut()
 {
     qCDebug(logsshtunnelout) << "delete Channel:" << m_name;
-    m_sshClient->unregisterChannel(this);
 }
 
 void SshTunnelOut::close()
@@ -30,7 +29,7 @@ void SshTunnelOut::listen(quint16 port, QString hostTarget, QString hostListen)
     m_port = port;
     m_hostTarget = hostTarget;
     m_tcpserver.listen(QHostAddress(hostListen), 0);
-    setChannelState(ChannelState::Read);
+    setChannelState(ChannelState::Ready);
 }
 
 void SshTunnelOut::sshDataReceived()
@@ -48,7 +47,7 @@ void SshTunnelOut::sshDataReceived()
             /* OK, next step */
         }
 
-        case Read:
+        case Ready:
         {
             // Nothing to do...
             return;
@@ -73,7 +72,6 @@ void SshTunnelOut::sshDataReceived()
             setChannelState(ChannelState::Free);
 
             QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelOut::sshDataReceived);
-            emit canBeDestroy(this);
             return;
         }
 
@@ -104,6 +102,21 @@ void SshTunnelOut::forceClose()
     }
 }
 
+void SshTunnelOut::connectionStateChanged()
+{
+    QObject *obj = QObject::sender();
+    SshTunnelOutConnection *connection = qobject_cast<SshTunnelOutConnection*>(obj);
+    if(connection)
+    {
+        if(connection->channelState() == SshChannel::ChannelState::Free)
+        {
+            m_connection.removeAll(connection);
+            delete connection;
+            emit connectionChanged(m_connection.count());
+        }
+    }
+}
+
 quint16 SshTunnelOut::port() const
 {
     return m_port;
@@ -114,20 +127,11 @@ void SshTunnelOut::_createConnection()
 {
     qCDebug(logsshtunnelout) << "SshTunnelOut new connection";
     SshTunnelOutConnection *connection = new SshTunnelOutConnection(m_name + QString("_%1").arg(m_connectionCounter++), m_sshClient, m_tcpserver, m_port, m_hostTarget);
-    QObject::connect(connection, &SshTunnelOutConnection::canBeDestroy, this, &SshTunnelOut::_destroyConnection);
     m_connection.append(connection);
+    QObject::connect(connection, &SshTunnelOutConnection::stateChanged, this, &SshTunnelOut::connectionStateChanged);
     emit connectionChanged(m_connection.count());
 }
 
-void SshTunnelOut::_destroyConnection(SshChannel *ch)
-{
-    SshTunnelOutConnection *connection = qobject_cast<SshTunnelOutConnection*>(ch);
-    if(connection)
-    {
-        m_connection.removeAll(connection);
-        emit connectionChanged(m_connection.count());
-    }
-}
 
 quint16 SshTunnelOut::localPort()
 {

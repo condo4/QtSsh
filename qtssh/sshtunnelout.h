@@ -26,6 +26,7 @@ public slots:
     void sshDataReceived() override;
     int connections();
     void forceClose();
+    void connectionStateChanged();
 
 private:
     QTcpServer              m_tcpserver;
@@ -37,7 +38,6 @@ private:
 
 private slots:
     void _createConnection();
-    void _destroyConnection(SshChannel *);
 
 signals:
     void connectionChanged(int);

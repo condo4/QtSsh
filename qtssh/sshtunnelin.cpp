@@ -89,10 +89,10 @@ void SshTunnelIn::sshDataReceived()
                 }
             } while (m_sshListener == nullptr);
             /* OK, next step */
-            setChannelState(ChannelState::Read);
+            setChannelState(ChannelState::Ready);
         }
 
-        FALLTHROUGH; case Read:
+        FALLTHROUGH; case Ready:
         {
             LIBSSH2_CHANNEL *newChannel;
             if ( ! m_sshClient->takeChannelCreationMutex(this) )

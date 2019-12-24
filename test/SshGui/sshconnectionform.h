@@ -14,7 +14,7 @@ class DirectTunnelForm;
 class SshConnectionForm : public QWidget
 {
     Q_OBJECT
-    SshClient *m_client;
+    SshClient m_client;
 
 public:
     explicit SshConnectionForm(const QString &name, QWidget *parent = nullptr);

@@ -83,6 +83,7 @@ SshClient::~SshClient()
 {
     qCDebug(sshclient) << m_name << ": SshClient::~SshClient() " << this;
     disconnectFromHost();
+    waitForState(SshClient::SshState::Unconnected);
     --s_nbInstance;
     if(s_nbInstance == 0)
     {
@@ -177,6 +178,17 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     return 0;
 }
 
+bool SshClient::waitForState(SshState state)
+{
+    QEventLoop wait;
+    QObject::connect(this, &SshClient::sshStateChanged, &wait, &QEventLoop::quit);
+    while(sshState() != SshState::Error && sshState() != state)
+    {
+        wait.exec();
+    }
+    return sshState() == state;
+}
+
 
 void SshClient::disconnectFromHost()
 {
@@ -196,6 +208,7 @@ void SshClient::disconnectFromHost()
     emit sshEvent();
     return;
 }
+
 
 void SshClient::setPassphrase(const QString & pass)
 {
@@ -305,28 +318,12 @@ void SshClient::registerChannel(SshChannel *channel)
 {
     qCDebug(sshclient) << m_name << ": Ask to register " << channel->name();
     m_channels.append(channel);
-    QObject::connect(channel, &SshChannel::canBeDestroy, this, &SshClient::unregisterChannel, Qt::QueuedConnection);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void SshClient::setName(const QString &name)
+{
+    m_name = name;
+}
 
 /* New implementation */
 const int ConnectionTimeout = 60000;

@@ -42,7 +42,7 @@ void DirectTunnelForm::on_closeButton_clicked()
     if(!m_tunnel) return;
 
     switch(m_tunnel->channelState()) {
-    case  SshChannel::ChannelState::Read:
+    case  SshChannel::ChannelState::Ready:
         m_tunnel->close();
         ui->closeButton->setText("Remove");
         break;

@@ -50,7 +50,7 @@ void SshTunnelInConnection::_eventLoop()
             // Wait connected, state change by _socketConnected
             break;
 
-        case Read:
+        case Ready:
         {
             if(m_connector && !m_connector->process())
             {
@@ -103,7 +103,6 @@ void SshTunnelInConnection::_eventLoop()
             }
             m_sshChannel = nullptr;
             QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelInConnection::sshDataReceived);
-            emit canBeDestroy(this);
             return;
         }
 
@@ -135,7 +134,7 @@ void SshTunnelInConnection::_socketConnected()
     m_connector = new SshTunnelDataConnector(m_sshClient, m_name, m_sshChannel, &m_sock, this);
     QObject::connect(m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelInConnection::sendEvent);
 
-    setChannelState(ChannelState::Read);
+    setChannelState(ChannelState::Ready);
     emit sendEvent();
 }
 

@@ -14,6 +14,12 @@ SshChannel::SshChannel(QString name, SshClient *client)
     QObject::connect(m_sshClient, &SshClient::sshDataReceived, this, &SshChannel::sshDataReceived, Qt::QueuedConnection);
 }
 
+SshChannel::~SshChannel()
+{
+    qCDebug(sshchannel) << "destroyChannel:" << this;
+    m_sshClient->unregisterChannel(this);
+}
+
 SshChannel::ChannelState SshChannel::channelState() const
 {
     return m_channelState;
@@ -28,6 +34,18 @@ void SshChannel::setChannelState(const ChannelState &channelState)
         emit stateChanged(m_channelState);
     }
 }
+
+bool SshChannel::waitForState(SshChannel::ChannelState state)
+{
+    QEventLoop wait;
+    QObject::connect(this, &SshChannel::stateChanged, &wait, &QEventLoop::quit);
+    while(channelState() != ChannelState::Error && channelState() !=state)
+    {
+        wait.exec();
+    }
+    return channelState() == state;
+}
+
 
 QString SshChannel::name() const
 {

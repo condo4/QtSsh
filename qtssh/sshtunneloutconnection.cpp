@@ -99,11 +99,11 @@ void SshTunnelOutConnection::_eventLoop()
             DEBUGCH << "createConnection: " << m_sock << m_sock->localPort();
             m_connector = new SshTunnelDataConnector(m_sshClient, m_name, m_sshChannel, m_sock, this);
             QObject::connect(m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelOutConnection::sendEvent);
-            setChannelState(ChannelState::Read);
+            setChannelState(ChannelState::Ready);
             /* OK, next step */
         }
 
-        FALLTHROUGH; case Read:
+        FALLTHROUGH; case Ready:
         {
             if(m_connector && !m_connector->process())
             {
@@ -157,7 +157,6 @@ void SshTunnelOutConnection::_eventLoop()
             }
             m_sshChannel = nullptr;
             QObject::disconnect(m_sshClient, &SshClient::sshDataReceived, this, &SshTunnelOutConnection::sshDataReceived);
-            emit canBeDestroy(this);
             return;
         }
 
