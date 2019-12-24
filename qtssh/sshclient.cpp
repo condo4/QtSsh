@@ -287,7 +287,6 @@ void SshClient::unregisterChannel(SshChannel *channel)
 {
     qCDebug(sshclient) << m_name << ": Ask to unregister " << channel->name();
     m_channels.removeOne(channel);
-    delete channel;
 
     if(sshState() == SshState::DisconnectingChannel && m_channels.size() == 0)
     {

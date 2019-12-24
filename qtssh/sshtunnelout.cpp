@@ -14,7 +14,8 @@ SshTunnelOut::SshTunnelOut(const QString &name, SshClient *client)
 
 SshTunnelOut::~SshTunnelOut()
 {
-    qCDebug(logsshtunnelout) << "free Channel:" << m_name;
+    qCDebug(logsshtunnelout) << "delete Channel:" << m_name;
+    m_sshClient->unregisterChannel(this);
 }
 
 void SshTunnelOut::close()
@@ -87,6 +88,19 @@ void SshTunnelOut::sshDataReceived()
             qCDebug(logsshtunnelout) << "Channel" << m_name << "is in error state";
             return;
         }
+    }
+}
+
+int SshTunnelOut::connections()
+{
+    return m_connection.count();
+}
+
+void SshTunnelOut::forceClose()
+{
+    for(SshTunnelOutConnection *connection : m_connection)
+    {
+        connection->close();
     }
 }
 

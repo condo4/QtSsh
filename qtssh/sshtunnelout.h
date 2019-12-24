@@ -24,6 +24,8 @@ public:
 public slots:
     void listen(quint16 port, QString hostTarget = "127.0.0.1", QString hostListen = "127.0.0.1");
     void sshDataReceived() override;
+    int connections();
+    void forceClose();
 
 private:
     QTcpServer              m_tcpserver;

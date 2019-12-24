@@ -70,7 +70,7 @@ ssize_t SshTunnelDataConnector::_transferSockToTx()
     qint64 len = 0;
     if(m_tx_stop_ptr != nullptr)
     {
-        qCWarning(logxfer) << m_name << "Asking transfer sock to tx when buffer not empty (" << m_tx_stop_ptr - m_tx_start_ptr << " bytes)";
+        qCDebug(logxfer) << m_name << "Asking transfer sock to tx when buffer not empty (" << m_tx_stop_ptr - m_tx_start_ptr << " bytes)";
         return -1;
     }
 
