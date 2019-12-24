@@ -37,6 +37,10 @@ class SshTunnelDataConnector : public QObject
     ssize_t _transferSshToRx();
     ssize_t _transferRxToSock();
 
+    ssize_t m_output {0};
+    ssize_t m_input {0};
+    ssize_t m_input_real {0};
+
 public slots:
     void sshDataReceived();
     bool process();

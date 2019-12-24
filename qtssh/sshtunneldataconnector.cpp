@@ -24,12 +24,15 @@ SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, QString name, 
     QObject::connect(m_sock, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
                      this,   &SshTunnelDataConnector::_socketError);
 
+    QObject::connect(m_sock, &QTcpSocket::bytesWritten, this, [this](qint64 len){ m_input_real += len; });
+
 }
 
 SshTunnelDataConnector::~SshTunnelDataConnector()
 {
     QObject::disconnect(m_sock);
     m_sock->deleteLater();
+    DEBUGCH << "TOTAL TRANSFERED: " << m_output << " " << m_input_real << " / " << m_input;
 }
 
 void SshTunnelDataConnector::_socketDisconnected()
@@ -148,6 +151,7 @@ ssize_t SshTunnelDataConnector::_transferTxToSsh()
             return 0;
         }
         /* xfer OK */
+        m_output += len;
         m_tx_start_ptr += len;
         transfered += len;
         DEBUGCH << "_transferTxToSsh: write on SSH return " << len << "bytes" ;
@@ -247,6 +251,7 @@ ssize_t SshTunnelDataConnector::_transferRxToSock()
             qCWarning(logxfer) << "ERROR : " << m_name << " local failed to write (" << slen << ")";
             return slen;
         }
+        m_input += slen;
         m_rx_start_ptr += slen;
         total += slen;
         DEBUGCH << "_transferRxToSock: " << slen << "bytes written on socket";
