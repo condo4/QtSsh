@@ -192,10 +192,10 @@ bool SshClient::waitForState(SshState state)
 
 void SshClient::disconnectFromHost()
 {
+    qCDebug(sshclient) << m_name << ": disconnectFromHost(): state is " << m_sshState << " and channel size is " << m_channels.size();
     if(m_sshState == SshState::Unconnected)
         return;
 
-    qCDebug(sshclient) << m_name << ": disconnectFromHost()";
     if(m_channels.size() == 0)
     {
         setSshState(DisconnectingSession);
@@ -290,6 +290,7 @@ void SshClient::setSshState(const SshState &sshState)
 {
     if(m_sshState != sshState)
     {
+        qCDebug(sshclient) << m_name << ": Change state " <<  m_sshState << " to " << sshState;
         m_sshState = sshState;
         emit sshStateChanged(m_sshState);
     }
@@ -606,11 +607,11 @@ void SshClient::_ssh_processEvent()
             if(m_socket.state() == QAbstractSocket::ConnectedState)
             {
                 m_socket.disconnectFromHost();
+                return;
             }
             else
             {
                 setSshState(FreeSession);
-                emit sshEvent();
             }
         }
 

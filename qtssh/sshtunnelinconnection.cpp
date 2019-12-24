@@ -16,12 +16,14 @@ Q_LOGGING_CATEGORY(logsshtunnelinconnection, "ssh.tunnelin.connection", QtWarnin
 
 SshTunnelInConnection::SshTunnelInConnection(const QString &name, SshClient *client, LIBSSH2_CHANNEL* channel, quint16 port, QString hostname)
     : SshChannel(name, client)
+    , m_connector(client, name)
     , m_sshChannel(channel)
     , m_port(port)
     , m_hostname(hostname)
 {
     QObject::connect(&m_sock, &QTcpSocket::connected, this, &SshTunnelInConnection::_socketConnected);
     QObject::connect(this, &SshTunnelInConnection::sendEvent, this, &SshTunnelInConnection::_eventLoop, Qt::QueuedConnection);
+    QObject::connect(&m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelInConnection::sendEvent);
     _eventLoop();
 }
 
@@ -52,7 +54,7 @@ void SshTunnelInConnection::_eventLoop()
 
         case Ready:
         {
-            if(m_connector && !m_connector->process())
+            if(!m_connector.process())
             {
                 setChannelState(ChannelState::Close);
             }
@@ -61,14 +63,14 @@ void SshTunnelInConnection::_eventLoop()
 
         case Close:
         {
-            if(m_connector) m_connector->close();
+            m_connector.close();
             setChannelState(ChannelState::WaitClose);
         }
 
         FALLTHROUGH; case WaitClose:
         {
             DEBUGCH << "Wait close channel";
-            if(m_connector->isClosed())
+            if(m_connector.isClosed())
             {
                 setChannelState(ChannelState::Freeing);
             }
@@ -91,8 +93,6 @@ void SshTunnelInConnection::_eventLoop()
                     qCWarning(logsshtunnelinconnection) << "Failed to free channel: " << sshErrorToString(ret);
                 }
             }
-            delete m_connector;
-            m_connector = nullptr;
             if(m_error)
             {
                 setChannelState(ChannelState::Error);
@@ -123,17 +123,15 @@ void SshTunnelInConnection::_eventLoop()
 void SshTunnelInConnection::sshDataReceived()
 {
     DEBUGCH << "sshDataReceived: SSH data received";
-    if(m_connector)
-        m_connector->sshDataReceived();
+    m_connector.sshDataReceived();
     emit sendEvent();
 }
 
 void SshTunnelInConnection::_socketConnected()
 {
     DEBUGCH << "Socket connection established";
-    m_connector = new SshTunnelDataConnector(m_sshClient, m_name, m_sshChannel, &m_sock, this);
-    QObject::connect(m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelInConnection::sendEvent);
-
+    m_connector.setChannel(m_sshChannel);
+    m_connector.setSock(&m_sock);
     setChannelState(ChannelState::Ready);
     emit sendEvent();
 }

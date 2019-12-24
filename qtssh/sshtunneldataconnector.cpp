@@ -5,13 +5,27 @@
 Q_LOGGING_CATEGORY(logxfer, "ssh.tunnel.transfer")
 #define DEBUGCH qCDebug(logxfer) << m_name
 
-SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, QString name, LIBSSH2_CHANNEL *channel, QTcpSocket *sock, QObject *parent)
+SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, QString name, QObject *parent)
     : QObject(parent)
     , m_sshClient(client)
-    , m_sshChannel(channel)
-    , m_sock(sock)
     , m_name(name)
 {
+}
+
+SshTunnelDataConnector::~SshTunnelDataConnector()
+{
+    QObject::disconnect(m_sock);
+    DEBUGCH << "TOTAL TRANSFERED: " << m_output << " " << m_input_real << " / " << m_input;
+}
+
+void SshTunnelDataConnector::setChannel(LIBSSH2_CHANNEL *channel)
+{
+    m_sshChannel = channel;
+}
+
+void SshTunnelDataConnector::setSock(QTcpSocket *sock)
+{
+    m_sock = sock;
     QObject::connect(m_sock, &QTcpSocket::disconnected,
                      this,   &SshTunnelDataConnector::_socketDisconnected);
 
@@ -25,14 +39,6 @@ SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, QString name, 
                      this,   &SshTunnelDataConnector::_socketError);
 
     QObject::connect(m_sock, &QTcpSocket::bytesWritten, this, [this](qint64 len){ m_input_real += len; });
-
-}
-
-SshTunnelDataConnector::~SshTunnelDataConnector()
-{
-    QObject::disconnect(m_sock);
-    m_sock->deleteLater();
-    DEBUGCH << "TOTAL TRANSFERED: " << m_output << " " << m_input_real << " / " << m_input;
 }
 
 void SshTunnelDataConnector::_socketDisconnected()
@@ -270,6 +276,7 @@ void SshTunnelDataConnector::sshDataReceived()
 
 bool SshTunnelDataConnector::process()
 {
+    if(!m_sock || !m_sshChannel) return false;
     DEBUGCH << "Process transfer RX(" << m_data_to_rx << ") TX(" << m_data_to_tx << ") BUFTX(" << (m_tx_stop_ptr - m_tx_start_ptr)  << ") BUFRX(" << (m_rx_stop_ptr - m_rx_start_ptr) << ")";
     ssize_t xfer = 0;
     if(m_rx_start_ptr) xfer += _transferRxToSock();

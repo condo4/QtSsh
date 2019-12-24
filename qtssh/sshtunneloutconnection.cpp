@@ -12,11 +12,13 @@ Q_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer, "ssh.tunnelout.connection.
 
 SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort, QString target)
     : SshChannel(name, client)
+    , m_connector(client, name)
     , m_server(server)
     , m_port(remotePort)
     , m_target(target)
 {
     QObject::connect(this, &SshTunnelOutConnection::sendEvent, this, &SshTunnelOutConnection::_eventLoop, Qt::QueuedConnection);
+    QObject::connect(&m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelOutConnection::sendEvent);
     DEBUGCH << "Create SshTunnelOutConnection (constructor)";
     emit sendEvent();
 }
@@ -37,8 +39,7 @@ void SshTunnelOutConnection::close()
 void SshTunnelOutConnection::sshDataReceived()
 {
     DEBUGCH << "sshDataReceived: SSH data received";
-    if(m_connector)
-        m_connector->sshDataReceived();
+    m_connector.sshDataReceived();
     emit sendEvent();
 }
 
@@ -97,15 +98,15 @@ void SshTunnelOutConnection::_eventLoop()
 
             m_name = QString(m_name + ":%1").arg(m_sock->localPort());
             DEBUGCH << "createConnection: " << m_sock << m_sock->localPort();
-            m_connector = new SshTunnelDataConnector(m_sshClient, m_name, m_sshChannel, m_sock, this);
-            QObject::connect(m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelOutConnection::sendEvent);
+            m_connector.setChannel(m_sshChannel);
+            m_connector.setSock(m_sock);
             setChannelState(ChannelState::Ready);
             /* OK, next step */
         }
 
         FALLTHROUGH; case Ready:
         {
-            if(m_connector && !m_connector->process())
+            if(!m_connector.process())
             {
                 setChannelState(ChannelState::Close);
             }
@@ -115,14 +116,14 @@ void SshTunnelOutConnection::_eventLoop()
         case Close:
         {
             DEBUGCH << "closeChannel";
-            if(m_connector) m_connector->close();
+            m_connector.close();
             setChannelState(ChannelState::WaitClose);
         }
 
         FALLTHROUGH; case WaitClose:
         {
             DEBUGCH << "Wait close channel";
-            if(m_connector->isClosed())
+            if(m_connector.isClosed())
             {
                 setChannelState(ChannelState::Freeing);
             }
@@ -145,8 +146,7 @@ void SshTunnelOutConnection::_eventLoop()
                     qCWarning(logsshtunneloutconnection) << "Failed to free channel: " << sshErrorToString(ret);
                 }
             }
-            delete m_connector;
-            m_connector = nullptr;
+
             if(m_error)
             {
                 setChannelState(ChannelState::Error);

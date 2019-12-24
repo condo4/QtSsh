@@ -20,7 +20,7 @@ public:
     void close() override;
 
 private:
-    SshTunnelDataConnector *m_connector {nullptr};
+    SshTunnelDataConnector m_connector;
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
     QTcpSocket m_sock;
     quint16 m_port;

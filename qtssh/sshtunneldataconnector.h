@@ -16,7 +16,7 @@ class SshTunnelDataConnector : public QObject
 
     SshClient *m_sshClient  {nullptr};
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
-    QTcpSocket *m_sock;
+    QTcpSocket *m_sock  {nullptr};
     QString m_name;
 
     char m_tx_buffer[BUFFER_SIZE] {0,};
@@ -48,8 +48,10 @@ public slots:
     bool isClosed();
 
 public:
-    explicit SshTunnelDataConnector(SshClient *client, QString name, LIBSSH2_CHANNEL *channel, QTcpSocket *sock, QObject *parent = nullptr);
+    explicit SshTunnelDataConnector(SshClient *client, QString name, QObject *parent = nullptr);
     virtual ~SshTunnelDataConnector();
+    void setChannel(LIBSSH2_CHANNEL *channel);
+    void setSock(QTcpSocket *sock);
 
 signals:
     void sendEvent();
