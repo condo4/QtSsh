@@ -56,8 +56,6 @@ private:
     LIBSSH2_KNOWNHOSTS * m_knownHosts {nullptr};
     QList<SshChannel*> m_channels;
 
-
-
     QString m_name;
     QTcpSocket m_socket;
     qint64 m_lastProofOfLive {0};
@@ -128,6 +126,7 @@ public:
 
 private slots:
     void _sendKeepAlive();
+    void _channelStateChanged();
 
 
 public: /* New function implementation with state machine */

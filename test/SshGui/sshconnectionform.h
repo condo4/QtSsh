@@ -29,7 +29,7 @@ private:
 private slots:
     void onSshStateChanged(SshClient::SshState sshState);
     void on_createDirectTunnelButton_clicked();
-    void destroyChannel(QWidget *ch);
+    void destroyChannel();
     void on_createReverseTunnelButton_clicked();
 };
 

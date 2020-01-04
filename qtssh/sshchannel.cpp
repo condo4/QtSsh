@@ -17,7 +17,6 @@ SshChannel::SshChannel(QString name, SshClient *client)
 SshChannel::~SshChannel()
 {
     qCDebug(sshchannel) << "destroyChannel:" << this;
-    m_sshClient->unregisterChannel(this);
 }
 
 SshChannel::ChannelState SshChannel::channelState() const

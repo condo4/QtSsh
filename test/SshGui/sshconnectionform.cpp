@@ -50,11 +50,16 @@ void SshConnectionForm::on_createDirectTunnelButton_clicked()
     }
 }
 
-void SshConnectionForm::destroyChannel(QWidget *ch)
+void SshConnectionForm::destroyChannel()
 {
-    qWarning() << "Remove channel" << ch;
-    ui->listTunnels->layout()->removeWidget(ch);
-    ch->deleteLater();
+    QObject *obj = QObject::sender();
+    QWidget *ch = qobject_cast<QWidget*>(obj);
+    if(ch)
+    {
+        qWarning() << "Remove channel" << ch;
+        ui->listTunnels->layout()->removeWidget(ch);
+        ch->deleteLater();
+    }
 }
 
 void SshConnectionForm::on_createReverseTunnelButton_clicked()

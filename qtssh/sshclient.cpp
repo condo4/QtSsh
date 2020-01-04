@@ -281,6 +281,17 @@ void SshClient::_sendKeepAlive()
     }
 }
 
+void SshClient::_channelStateChanged()
+{
+    QObject *obj = QObject::sender();
+    SshChannel *ch = qobject_cast<SshChannel*>(obj);
+    if(ch && ch->channelState() == SshChannel::ChannelState::Free)
+    {
+        unregisterChannel(ch);
+        delete ch;
+    }
+}
+
 SshClient::SshState SshClient::sshState() const
 {
     return m_sshState;
@@ -318,6 +329,7 @@ void SshClient::unregisterChannel(SshChannel *channel)
 void SshClient::registerChannel(SshChannel *channel)
 {
     qCDebug(sshclient) << m_name << ": Ask to register " << channel->name();
+    QObject::connect(channel, &SshChannel::stateChanged, this, &SshClient::_channelStateChanged);
     m_channels.append(channel);
 }
 

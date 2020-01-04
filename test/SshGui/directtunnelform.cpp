@@ -16,6 +16,7 @@ DirectTunnelForm::DirectTunnelForm(SshClient *client, QString hosttarget, QStrin
     m_tunnel->listen(port, hosttarget, hostlisten);
     QObject::connect(m_tunnel, &SshTunnelOut::connectionChanged, this, &DirectTunnelForm::connectionChanged);
     QObject::connect(m_tunnel, &SshTunnelOut::stateChanged, this, &DirectTunnelForm::stateChanged);
+    QObject::connect(m_tunnel, &SshTunnelOut::destroyed, this, &DirectTunnelForm::destroyme);
 
     ui->txtLocalPort->setText(QString("%1").arg(m_tunnel->localPort()));
     ui->txtRemotePort->setText(QString("%1").arg(m_tunnel->port()));
@@ -62,11 +63,4 @@ void DirectTunnelForm::on_closeButton_clicked()
 void DirectTunnelForm::stateChanged(SshChannel::ChannelState state)
 {
     ui->txtState->setText(QMetaEnum::fromType<SshChannel::ChannelState>().valueToKey( int(state) ));
-    if(m_tunnel && m_tunnel->channelState() == SshChannel::Free && m_tunnel->connections() == 0)
-    {
-        QObject::disconnect(m_tunnel);
-        delete m_tunnel;
-        m_tunnel = nullptr;
-        emit destroyme(this);
-    }
 }

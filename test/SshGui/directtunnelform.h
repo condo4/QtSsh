@@ -29,7 +29,7 @@ private slots:
     void stateChanged(SshChannel::ChannelState state);
 
 signals:
-    void destroyme(DirectTunnelForm *);
+    void destroyme();
 };
 
 #endif // DIRECTTUNNELFORM_H
