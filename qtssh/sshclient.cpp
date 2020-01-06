@@ -602,7 +602,6 @@ void SshClient::_channel_free()
     {
         if(connection->channelState() == SshChannel::ChannelState::Free)
         {
-            qCWarning(sshclient) << "@@@@@ _channel_free" ;
             m_channels.removeAll(connection);
             connection->deleteLater();
             emit channelsChanged(m_channels.count());

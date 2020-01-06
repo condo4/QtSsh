@@ -21,14 +21,15 @@ SshTunnelInConnection::SshTunnelInConnection(const QString &name, SshClient *cli
     QObject::connect(&m_sock, &QTcpSocket::connected, this, &SshTunnelInConnection::_socketConnected);
     QObject::connect(this, &SshTunnelInConnection::sendEvent, this, &SshTunnelInConnection::_eventLoop, Qt::QueuedConnection);
     QObject::connect(&m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelInConnection::sendEvent);
-    _eventLoop();
 }
 
 void SshTunnelInConnection::configure(LIBSSH2_CHANNEL *channel, quint16 port, QString hostname)
 {
+    DEBUGCH << "configure: " << hostname << ":" << port;
     m_sshChannel = channel;
     m_port = port;
     m_hostname = hostname;
+    _eventLoop();
 }
 
 SshTunnelInConnection::~SshTunnelInConnection()
@@ -46,16 +47,17 @@ void SshTunnelInConnection::_eventLoop()
     {
         case Openning:
         {
-            DEBUGCH << "Channel session opened";
+            DEBUGCH << "Channel session opened:" << m_hostname << ":" << m_port;
             m_sock.connectToHost(m_hostname, m_port);
             setChannelState(SshChannel::Exec);
-            break;
+            return;
         }
 
         case Exec:
+        {
             // Wait connected, state change by _socketConnected
-            break;
-
+            return;
+        }
         case Ready:
         {
             if(!m_connector.process())

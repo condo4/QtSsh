@@ -45,6 +45,8 @@ void SshTunnelOut::sshDataReceived()
         FALLTHROUGH; case Exec:
         {
             /* OK, next step */
+            setChannelState(ChannelState::Ready);
+            FALLTHROUGH;
         }
 
         case Ready:
@@ -115,10 +117,8 @@ void SshTunnelOut::connectionStateChanged()
     SshTunnelOutConnection *connection = qobject_cast<SshTunnelOutConnection*>(obj);
     if(connection)
     {
-        qCDebug(logsshtunnelout) << "@@@@@  Channel" << m_name << "connectionStateChanged: " << connection->name() << " state:" << connection->channelState();
         if(connection->channelState() == SshChannel::ChannelState::Free)
         {
-            qCDebug(logsshtunnelout) << "@@@@@  Channel" << m_name << "recived free for " << connection->name();
             m_connection.removeAll(connection);
             emit connectionChanged(m_connection.count());
 

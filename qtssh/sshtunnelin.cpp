@@ -61,9 +61,10 @@ void SshTunnelIn::sshDataReceived()
             {
                 if ( ! m_sshClient->takeChannelCreationMutex(this) )
                 {
+                    qCWarning(logsshtunnelin) << m_name << "mutex busy";
                     return;
                 }
-                qCDebug(logsshtunnelin) << "Create Reverse tunnel for " << m_listenhost << m_remoteTcpPort << m_boundPort << m_queueSize;
+                qCDebug(logsshtunnelin) << m_name << "Create Reverse tunnel for " << m_listenhost << m_remoteTcpPort << m_boundPort << m_queueSize;
 
                 m_sshListener = libssh2_channel_forward_listen_ex(m_sshClient->session(), qPrintable(m_listenhost), m_remoteTcpPort, &m_boundPort, m_queueSize);
                 m_sshClient->releaseChannelCreationMutex(this);
@@ -99,7 +100,6 @@ void SshTunnelIn::sshDataReceived()
             {
                 return;
             }
-             qCDebug(logsshtunnelin) << "SshTunnelIn Listen on " << m_boundPort;
             newChannel = libssh2_channel_forward_accept(m_sshListener);
             m_sshClient->releaseChannelCreationMutex(this);
 
@@ -145,7 +145,7 @@ void SshTunnelIn::sshDataReceived()
         FALLTHROUGH; case Freeing:
         {
             qCDebug(logsshtunnelin) << "free Channel";
-            setChannelState(ChannelState::Freeing);
+            setChannelState(ChannelState::Free);
         }
 
         FALLTHROUGH; case Free:
@@ -172,6 +172,11 @@ void SshTunnelIn::connectionStateChanged()
         {
             m_connection.removeAll(connection);
             emit connectionChanged(m_connection.count());
+
+            if(m_connection.count() == 0 && channelState() == SshChannel::ChannelState::WaitClose)
+            {
+                setChannelState(SshChannel::ChannelState::Freeing);
+            }
         }
     }
 }

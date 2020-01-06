@@ -100,7 +100,7 @@ void SshTunnelOutConnection::_eventLoop()
                 return;
             }
 
-            QObject::connect(m_sock, &QObject::destroyed, [](){ qWarning() << "SOCKET DESTROYED";});
+            QObject::connect(m_sock, &QObject::destroyed, [this](){ DEBUGCH << "Client Socket destroyed";});
             m_name = QString(m_name + ":%1").arg(m_sock->localPort());
             DEBUGCH << "createConnection: " << m_sock << m_sock->localPort();
             m_connector.setChannel(m_sshChannel);
