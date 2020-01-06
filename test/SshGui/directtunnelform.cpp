@@ -51,7 +51,7 @@ void DirectTunnelForm::on_closeButton_clicked()
         qWarning() << "Ask to destroy";
         if(m_tunnel->connections() > 0)
         {
-            m_tunnel->forceClose();
+            m_tunnel->closeAllConnections()();
         }
         break;
     default:

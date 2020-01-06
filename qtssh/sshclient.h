@@ -20,7 +20,6 @@
 #endif
 
 Q_DECLARE_LOGGING_CATEGORY(sshclient)
-class SshProcess;
 class SshScpGet;
 class SshScpSend;
 class SshSFtp;

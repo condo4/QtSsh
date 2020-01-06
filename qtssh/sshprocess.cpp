@@ -214,6 +214,8 @@ void SshProcess::sshDataReceived()
         {
             emit failed();
             qCDebug(logsshprocess) << "Channel" << m_name << "is in error state";
+            setChannelState(Free);
+            sshDataReceived();
             return;
         }
     }

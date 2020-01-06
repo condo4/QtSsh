@@ -103,7 +103,7 @@ int SshTunnelOut::connections()
     return m_connection.count();
 }
 
-void SshTunnelOut::forceClose()
+void SshTunnelOut::closeAllConnections()
 {
     for(SshTunnelOutConnection *connection : m_connection)
     {

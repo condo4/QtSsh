@@ -147,6 +147,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 
 bool SshClient::waitForState(SshState state)
 {
+    if(sshState() == state) return true;
     QEventLoop wait;
     QObject::connect(this, &SshClient::sshStateChanged, &wait, &QEventLoop::quit);
     while(sshState() != SshState::Error && sshState() != state)
@@ -551,12 +552,22 @@ void SshClient::_ssh_processEvent()
             }
             if(m_socket.state() == QAbstractSocket::ConnectedState)
             {
+                qCDebug(sshclient) << m_name << ": Ask for main socket disconnection";
                 m_socket.disconnectFromHost();
                 return;
             }
             else
             {
-                setSshState(FreeSession);
+                qCDebug(sshclient) << m_name << ": Socket state is " << m_socket.state();
+                if(m_socket.state() == QAbstractSocket::UnconnectedState)
+                {
+                    qCDebug(sshclient) << m_name << ": Socket state is " << m_socket.state();
+                    setSshState(FreeSession);
+                }
+                else
+                {
+                    return;
+                }
             }
         }
 
@@ -578,8 +589,8 @@ void SshClient::_ssh_processEvent()
             }
 
             m_session = nullptr;
-            emit sshDisconnected();
             setSshState(Unconnected);
+            emit sshDisconnected();
             break;
         }
 
@@ -602,6 +613,7 @@ void SshClient::_channel_free()
     {
         if(connection->channelState() == SshChannel::ChannelState::Free)
         {
+            qCDebug(sshclient) << "Channel " << connection->name() << " is FREE";
             m_channels.removeAll(connection);
             connection->deleteLater();
             emit channelsChanged(m_channels.count());
@@ -615,8 +627,8 @@ void SshClient::_channel_free()
                 m_keepalive.stop();
 
                 setSshState(SshState::DisconnectingSession);
-                emit sshEvent();
             }
+            emit sshEvent();
         }
     }
 }
