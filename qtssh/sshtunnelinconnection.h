@@ -13,9 +13,12 @@ Q_DECLARE_LOGGING_CATEGORY(logsshtunnelinconnection)
 class SshTunnelInConnection : public SshChannel
 {
     Q_OBJECT
+protected:
+    explicit SshTunnelInConnection(const QString &name, SshClient *client);
+    friend class SshClient;
 
 public:
-    explicit SshTunnelInConnection(const QString &name, SshClient *client, LIBSSH2_CHANNEL* channel, quint16 port, QString hostname);
+    void configure(LIBSSH2_CHANNEL* channel, quint16 port, QString hostname);
     virtual ~SshTunnelInConnection() override;
     void close() override;
 

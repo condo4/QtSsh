@@ -14,9 +14,12 @@ Q_DECLARE_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer)
 class SshTunnelOutConnection : public SshChannel
 {
     Q_OBJECT
+protected:
+    explicit SshTunnelOutConnection(const QString &name, SshClient *client);
+    friend class SshClient;
 
 public:
-    explicit SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort, QString target = "127.0.0.1");
+    void configure(QTcpServer *server, quint16 remotePort, QString target = "127.0.0.1");
     virtual ~SshTunnelOutConnection() override;
     void close() override;
 
@@ -24,7 +27,7 @@ private:
     SshTunnelDataConnector m_connector;
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
     QTcpSocket *m_sock;
-    QTcpServer &m_server;
+    QTcpServer *m_server;
     quint16 m_port;
     QString m_target;
     bool m_error {false};

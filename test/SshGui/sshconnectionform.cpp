@@ -12,6 +12,7 @@ SshConnectionForm::SshConnectionForm(const QString &name, QWidget *parent)
 {
     ui->setupUi(this);
     QObject::connect(&m_client, &SshClient::sshStateChanged, this, &SshConnectionForm::onSshStateChanged);
+    QObject::connect(&m_client, &SshClient::channelsChanged, [this](int nb){ ui->channelsCount->setText(QString("%1").arg(nb));});
 }
 
 SshConnectionForm::~SshConnectionForm()

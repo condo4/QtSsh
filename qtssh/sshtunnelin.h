@@ -13,8 +13,8 @@ class SshTunnelIn : public SshChannel
     Q_OBJECT
 
 private:
-    int m_localTcpPort {0};
-    int m_remoteTcpPort {0};
+    quint16 m_localTcpPort {0};
+    quint16 m_remoteTcpPort {0};
     int m_boundPort {0};
     int m_queueSize {16};
     int m_retryListen {10};
@@ -37,6 +37,7 @@ public:
 
 public slots:
     void sshDataReceived() override;
+    void connectionStateChanged();
 
 signals:
     void connectionChanged(int);

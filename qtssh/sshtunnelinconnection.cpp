@@ -14,17 +14,21 @@ Q_LOGGING_CATEGORY(logsshtunnelinconnection, "ssh.tunnelin.connection", QtWarnin
 
 
 
-SshTunnelInConnection::SshTunnelInConnection(const QString &name, SshClient *client, LIBSSH2_CHANNEL* channel, quint16 port, QString hostname)
+SshTunnelInConnection::SshTunnelInConnection(const QString &name, SshClient *client)
     : SshChannel(name, client)
     , m_connector(client, name)
-    , m_sshChannel(channel)
-    , m_port(port)
-    , m_hostname(hostname)
 {
     QObject::connect(&m_sock, &QTcpSocket::connected, this, &SshTunnelInConnection::_socketConnected);
     QObject::connect(this, &SshTunnelInConnection::sendEvent, this, &SshTunnelInConnection::_eventLoop, Qt::QueuedConnection);
     QObject::connect(&m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelInConnection::sendEvent);
     _eventLoop();
+}
+
+void SshTunnelInConnection::configure(LIBSSH2_CHANNEL *channel, quint16 port, QString hostname)
+{
+    m_sshChannel = channel;
+    m_port = port;
+    m_hostname = hostname;
 }
 
 SshTunnelInConnection::~SshTunnelInConnection()

@@ -10,12 +10,9 @@ Q_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer, "ssh.tunnelout.connection.
 
 #define SOCKET_WRITE_ERROR (-1001)
 
-SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client, QTcpServer &server, quint16 remotePort, QString target)
+SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *client)
     : SshChannel(name, client)
     , m_connector(client, name)
-    , m_server(server)
-    , m_port(remotePort)
-    , m_target(target)
 {
     QObject::connect(this, &SshTunnelOutConnection::sendEvent, this, &SshTunnelOutConnection::_eventLoop, Qt::QueuedConnection);
     QObject::connect(&m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelOutConnection::sendEvent);
@@ -23,9 +20,17 @@ SshTunnelOutConnection::SshTunnelOutConnection(const QString &name, SshClient *c
     emit sendEvent();
 }
 
+void SshTunnelOutConnection::configure(QTcpServer *server, quint16 remotePort, QString target)
+{
+    m_server = server;
+    m_port = remotePort;
+    m_target = target;
+}
+
 SshTunnelOutConnection::~SshTunnelOutConnection()
 {
     DEBUGCH << "Free SshTunnelOutConnection (destructor)";
+    delete m_sock;
 }
 
 void SshTunnelOutConnection::close()
@@ -66,15 +71,14 @@ void SshTunnelOutConnection::_eventLoop()
                 }
                 if(!m_error)
                 {
-                    qCDebug(logsshtunneloutconnection) << "Refuse client socket connection on " << m_server.serverPort() << QString(emsg);
+                    qCDebug(logsshtunneloutconnection) << "Refuse client socket connection on " << m_server->serverPort() << QString(emsg);
                     m_error = true;
-                    m_sock = m_server.nextPendingConnection();
+                    m_sock = m_server->nextPendingConnection();
                     if(m_sock)
                     {
                         m_sock->close();
-                        m_sock->deleteLater();
                     }
-                    m_server.close();
+                    m_server->close();
                 }
                 setChannelState(ChannelState::Error);
                 qCWarning(logsshtunneloutconnection) << "Channel session open failed";
@@ -86,16 +90,17 @@ void SshTunnelOutConnection::_eventLoop()
 
         FALLTHROUGH; case Exec:
         {
-            m_sock = m_server.nextPendingConnection();
+            m_sock = m_server->nextPendingConnection();
             if(!m_sock)
             {
-                m_server.close();
+                m_server->close();
                 setChannelState(ChannelState::Error);
                 qCWarning(logsshtunneloutconnection) << "Fail to get client socket";
                 setChannelState(ChannelState::Close);
                 return;
             }
 
+            QObject::connect(m_sock, &QObject::destroyed, [](){ qWarning() << "SOCKET DESTROYED";});
             m_name = QString(m_name + ":%1").arg(m_sock->localPort());
             DEBUGCH << "createConnection: " << m_sock << m_sock->localPort();
             m_connector.setChannel(m_sshChannel);

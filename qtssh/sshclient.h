@@ -31,9 +31,6 @@ class  SshClient : public QObject {
     Q_OBJECT
 
 public:
-    void unregisterChannel(SshChannel* channel);
-    void registerChannel(SshChannel* channel);
-
     enum SshState {
         Unconnected,
         SocketConnection,
@@ -108,7 +105,11 @@ public:
             }
         }
 
-        return new T(name, this);
+        T *res = new T(name, this);
+        m_channels.append(res);
+        QObject::connect(res, &SshChannel::stateChanged, this, &SshClient::_channel_free);
+        emit channelsChanged(m_channels.count());
+        return res;
     }
 
     void setKeys(const QString &publicKey, const QString &privateKey);
@@ -120,13 +121,11 @@ public:
 
 
     LIBSSH2_SESSION *session();
-    bool loopWhileBytesWritten(int msecs);
 
 
 
 private slots:
     void _sendKeepAlive();
-    void _channelStateChanged();
 
 
 public: /* New function implementation with state machine */
@@ -146,6 +145,7 @@ private slots: /* New function implementation with state machine */
     void _connection_socketConnected();
     void _connection_socketDisconnected();
     void _ssh_processEvent();
+    void _channel_free();
 
 signals:
     void sshStateChanged(SshState sshState);
@@ -155,4 +155,5 @@ signals:
 
     void sshDataReceived();
     void sshEvent();
+    void channelsChanged(int);
 };

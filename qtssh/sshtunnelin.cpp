@@ -119,8 +119,10 @@ void SshTunnelIn::sshDataReceived()
 
             /* We have a new connection on the remote port, need to create a connection tunnel */
             qCDebug(logsshtunnelin) << "SshTunnelIn new connection";
-            SshTunnelInConnection *connection = new SshTunnelInConnection(m_name + QString("_%1").arg(m_connectionCounter++), m_sshClient, newChannel, m_localTcpPort, m_targethost);
+            SshTunnelInConnection *connection = m_sshClient->getChannel<SshTunnelInConnection>(m_name + QString("_%1").arg(m_connectionCounter++));
+            connection->configure(newChannel, m_localTcpPort, m_targethost);
             m_connection.append(connection);
+            QObject::connect(connection, &SshTunnelInConnection::stateChanged, this, &SshTunnelIn::connectionStateChanged);
             emit connectionChanged(m_connection.size());
             break;
         }
@@ -160,9 +162,22 @@ void SshTunnelIn::sshDataReceived()
     }
 }
 
+void SshTunnelIn::connectionStateChanged()
+{
+    QObject *obj = QObject::sender();
+    SshTunnelInConnection *connection = qobject_cast<SshTunnelInConnection*>(obj);
+    if(connection)
+    {
+        if(connection->channelState() == SshChannel::ChannelState::Free)
+        {
+            m_connection.removeAll(connection);
+            emit connectionChanged(m_connection.count());
+        }
+    }
+}
+
 void SshTunnelIn::close()
 {
     setChannelState(ChannelState::Close);
     sshDataReceived();
-
 }

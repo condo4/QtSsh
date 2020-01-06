@@ -127,39 +127,6 @@ LIBSSH2_SESSION *SshClient::session()
     return m_session;
 }
 
-bool SshClient::loopWhileBytesWritten(int msecs)
-{
-
-    QEventLoop wait;
-    QTimer timeout;
-    bool written;
-    auto con1 = QObject::connect(&m_socket, &QTcpSocket::bytesWritten, [this, &written, &wait]()
-    {
-        qCDebug(sshclient, "%s: BytesWritten", qPrintable(m_name));
-        written = true;
-        wait.quit();
-    });
-    auto con2 = QObject::connect(&timeout, &QTimer::timeout, [this, &written, &wait]()
-    {
-        qCWarning(sshclient, "%s: Bytes Write Timeout", qPrintable(m_name));
-        written = false;
-        wait.quit();
-    });
-    auto con3 = QObject::connect(&m_socket, static_cast<void (QTcpSocket::*)(QAbstractSocket::SocketError)>(&QTcpSocket::error), [this, &written, &wait]()
-    {
-        qCWarning(sshclient, "%s: Socket Error", qPrintable(m_name));
-        written = false;
-        wait.quit();
-    });
-    timeout.start(msecs); /* Timeout 10s */
-    wait.exec();
-    QObject::disconnect(con1);
-    QObject::disconnect(con2);
-    QObject::disconnect(con3);
-    return written;
-}
-
-
 int SshClient::connectToHost(const QString & user, const QString & host, quint16 port, QByteArrayList methodes)
 {
     if(sshState() != SshState::Unconnected)
@@ -281,16 +248,6 @@ void SshClient::_sendKeepAlive()
     }
 }
 
-void SshClient::_channelStateChanged()
-{
-    QObject *obj = QObject::sender();
-    SshChannel *ch = qobject_cast<SshChannel*>(obj);
-    if(ch && ch->channelState() == SshChannel::ChannelState::Free)
-    {
-        unregisterChannel(ch);
-        delete ch;
-    }
-}
 
 SshClient::SshState SshClient::sshState() const
 {
@@ -307,31 +264,6 @@ void SshClient::setSshState(const SshState &sshState)
     }
 }
 
-
-void SshClient::unregisterChannel(SshChannel *channel)
-{
-    qCDebug(sshclient) << m_name << ": Ask to unregister " << channel->name();
-    m_channels.removeOne(channel);
-
-    if(sshState() == SshState::DisconnectingChannel && m_channels.size() == 0)
-    {
-
-        qCDebug(sshclient) << m_name << ": no more channel registered";
-
-        /* Stop keepalive */
-        m_keepalive.stop();
-
-        setSshState(SshState::DisconnectingSession);
-        emit sshEvent();
-    }
-}
-
-void SshClient::registerChannel(SshChannel *channel)
-{
-    qCDebug(sshclient) << m_name << ": Ask to register " << channel->name();
-    QObject::connect(channel, &SshChannel::stateChanged, this, &SshClient::_channelStateChanged);
-    m_channels.append(channel);
-}
 
 void SshClient::setName(const QString &name)
 {
@@ -561,6 +493,7 @@ void SshClient::_ssh_processEvent()
                     if(ret == 0)
                     {
                         qCDebug(sshclient) << m_name << ": Authenticated with password";
+                        emit channelsChanged(m_channels.count());
                         setSshState(SshState::Ready);
                         break;
                     }
@@ -657,6 +590,34 @@ void SshClient::_ssh_processEvent()
             qCWarning(sshclient) << m_name << ": ssh socket connection error";
             emit sshError();
             return;
+        }
+    }
+}
+
+void SshClient::_channel_free()
+{
+    QObject *obj = QObject::sender();
+    SshChannel *connection = qobject_cast<SshChannel*>(obj);
+    if(connection)
+    {
+        if(connection->channelState() == SshChannel::ChannelState::Free)
+        {
+            qCWarning(sshclient) << "@@@@@ _channel_free" ;
+            m_channels.removeAll(connection);
+            connection->deleteLater();
+            emit channelsChanged(m_channels.count());
+
+            if(sshState() == SshState::DisconnectingChannel && m_channels.size() == 0)
+            {
+
+                qCDebug(sshclient) << m_name << ": no more channel registered";
+
+                /* Stop keepalive */
+                m_keepalive.stop();
+
+                setSshState(SshState::DisconnectingSession);
+                emit sshEvent();
+            }
         }
     }
 }
