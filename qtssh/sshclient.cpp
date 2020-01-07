@@ -311,7 +311,7 @@ void SshClient::_connection_socketConnected()
 
 void SshClient::_connection_socketDisconnected()
 {
-    qCWarning(sshclient) << m_name << ": ssh socket disconnected";
+    qCDebug(sshclient) << m_name << ": ssh socket disconnected";
     setSshState(FreeSession);
     emit sshEvent();
 }
@@ -322,7 +322,6 @@ void SshClient::_ssh_processEvent()
     {
         case SshState::Unconnected:
         {
-            qCWarning(sshclient) << m_name << ": Unknown data on socket";
             return;
         }
 
@@ -335,7 +334,6 @@ void SshClient::_ssh_processEvent()
 
         FALLTHROUGH; case SshState::WaitingSocketConnection:
         {
-            qCWarning(sshclient) << m_name << ": Unknown data on socket";
             return;
         }
 
@@ -465,7 +463,7 @@ void SshClient::_ssh_processEvent()
                     }
                     if(ret == 0)
                     {
-                        qCWarning(sshclient) << m_name << ": Authenticated with publickey";
+                        qCDebug(sshclient) << m_name << ": Authenticated with publickey";
                         setSshState(SshState::Ready);
                         break;
                     }
