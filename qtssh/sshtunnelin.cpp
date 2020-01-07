@@ -20,10 +20,12 @@ SshTunnelIn::SshTunnelIn(const QString &name, SshClient *client)
 
 SshTunnelIn::~SshTunnelIn()
 {
+    qCDebug(logsshtunnelin) << m_name << "SshTunnelIn Destroyed";
 }
 
 void SshTunnelIn::listen(QString host, quint16 localPort, quint16 remotePort, QString listenHost, int queueSize)
 {
+    qCDebug(logsshtunnelin) << m_name << "listen(" << remotePort << " -> " << host << ":" << localPort << ")";
     m_localTcpPort = localPort;
     m_remoteTcpPort = remotePort;
     m_queueSize = queueSize;
@@ -64,7 +66,6 @@ void SshTunnelIn::sshDataReceived()
                     qCWarning(logsshtunnelin) << m_name << "mutex busy";
                     return;
                 }
-                qCDebug(logsshtunnelin) << m_name << "Create Reverse tunnel for " << m_listenhost << m_remoteTcpPort << m_boundPort << m_queueSize;
 
                 m_sshListener = libssh2_channel_forward_listen_ex(m_sshClient->session(), qPrintable(m_listenhost), m_remoteTcpPort, &m_boundPort, m_queueSize);
                 m_sshClient->releaseChannelCreationMutex(this);
@@ -88,6 +89,7 @@ void SshTunnelIn::sshDataReceived()
                     qCWarning(logsshtunnelin) << "Channel session open failed: " << emsg;
                     return;
                 }
+                qCDebug(logsshtunnelin) << m_name << "Create Reverse tunnel for " << m_listenhost << m_remoteTcpPort << m_boundPort << m_queueSize;
             } while (m_sshListener == nullptr);
             /* OK, next step */
             setChannelState(ChannelState::Ready);

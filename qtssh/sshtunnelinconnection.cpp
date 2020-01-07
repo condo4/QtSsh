@@ -34,11 +34,11 @@ void SshTunnelInConnection::configure(LIBSSH2_CHANNEL *channel, quint16 port, QS
 
 SshTunnelInConnection::~SshTunnelInConnection()
 {
+    DEBUGCH << "SshTunnelInConnection Destroyed";
 }
 
 void SshTunnelInConnection::close()
 {
-
 }
 
 void SshTunnelInConnection::_eventLoop()
@@ -84,7 +84,7 @@ void SshTunnelInConnection::_eventLoop()
 
         FALLTHROUGH; case Freeing:
         {
-            DEBUGCH << "free Channel";
+            DEBUGCH << "Freeing Channel";
 
             int ret = libssh2_channel_free(m_sshChannel);
             if(ret == LIBSSH2_ERROR_EAGAIN)
