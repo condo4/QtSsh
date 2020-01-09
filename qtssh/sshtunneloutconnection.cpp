@@ -36,7 +36,10 @@ SshTunnelOutConnection::~SshTunnelOutConnection()
 void SshTunnelOutConnection::close()
 {
     DEBUGCH << "Close SshTunnelOutConnection asked";
-    setChannelState(ChannelState::Close);
+    if(channelState() != ChannelState::Error)
+    {
+        setChannelState(ChannelState::Close);
+    }
     emit sendEvent();
 }
 
