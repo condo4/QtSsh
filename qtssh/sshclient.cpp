@@ -545,9 +545,10 @@ void SshClient::_ssh_processEvent()
             /* Close all Opened Channels */
             if(m_channels.size() > 0)
             {
-                qCDebug(sshclient) << m_name << ": DisconnectingChannel, there is still " << m_channels.size() << "connections";
+                qCDebug(sshclient) << m_name << ": DisconnectingChannel, there is still " << m_channels.size() << "connections:";
                 for(SshChannel* ch: m_channels)
                 {
+                    qCDebug(sshclient) << m_name << "\t" << ch->name();
                     ch->close();
                 }
             }
