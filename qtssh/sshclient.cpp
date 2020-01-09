@@ -151,6 +151,7 @@ bool SshClient::waitForState(SshState state)
     if(sshState() == state) return true;
     QEventLoop wait;
     QObject::connect(this, &SshClient::sshStateChanged, &wait, &QEventLoop::quit);
+    qCDebug(sshclient) << m_name << "Wait for state " << state << ", current state is " << m_sshState;
     while(sshState() != SshState::Error && sshState() != state)
     {
         wait.exec();
@@ -544,6 +545,7 @@ void SshClient::_ssh_processEvent()
             /* Close all Opened Channels */
             if(m_channels.size() > 0)
             {
+                qCDebug(sshclient) << m_name << ": DisconnectingChannel, there is still " << m_channels.size() << "connections";
                 for(SshChannel* ch: m_channels)
                 {
                     ch->close();
