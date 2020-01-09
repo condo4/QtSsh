@@ -134,6 +134,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
         qCCritical(sshclient) << m_name << "Allready connected";
         return 0;
     }
+    qCDebug(sshclient) << m_name << "connectToHost:" << user << "@" << host << ":" << port;
 
     m_authenticationMethodes = methodes;
     m_hostname = host;
@@ -178,6 +179,13 @@ void SshClient::disconnectFromHost()
 
     emit sshEvent();
     return;
+}
+
+void SshClient::resetError()
+{
+    waitForState(Unconnected);
+    if(sshState() == Error)
+        setSshState(Unconnected);
 }
 
 
@@ -517,6 +525,7 @@ void SshClient::_ssh_processEvent()
             else
             {
                 qCWarning(sshclient) << m_name << ": Authentication failed";
+                m_socket.disconnectFromHost();
                 setSshState(SshState::Error);
                 return;
             }
@@ -602,7 +611,10 @@ void SshClient::_ssh_processEvent()
         case SshState::Error:
         {
             if(m_socket.state() != QAbstractSocket::UnconnectedState)
+            {
                 m_socket.disconnectFromHost();
+            }
+            m_socket.waitForDisconnected(3000);
             qCWarning(sshclient) << m_name << ": ssh socket connection error";
             emit sshError();
             return;

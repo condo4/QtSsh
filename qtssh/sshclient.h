@@ -87,6 +87,7 @@ public slots:
     int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, QByteArrayList methodes = QByteArrayList());
     bool waitForState(SshClient::SshState state);
     void disconnectFromHost();
+    void resetError();
 
 public:
     template<typename T>
