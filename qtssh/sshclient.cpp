@@ -472,7 +472,7 @@ void SshClient::_ssh_processEvent()
                     }
                 }
 
-                if(m_authenticationMethodes.first() == "password")
+                if(m_authenticationMethodes.length() != 0 && m_authenticationMethodes.first() == "password")
                 {
                     QByteArray username = m_username.toLatin1();
                     QByteArray passphrase = m_passphrase.toLatin1();
