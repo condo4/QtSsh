@@ -129,7 +129,7 @@ LIBSSH2_SESSION *SshClient::session()
 
 int SshClient::connectToHost(const QString & user, const QString & host, quint16 port, QByteArrayList methodes)
 {
-    if(sshState() != SshState::Unconnected)
+    if(sshState() != SshState::Unconnected && sshState() != SshState::Error)
     {
         qCCritical(sshclient) << m_name << "Allready connected";
         return 0;
@@ -315,7 +315,10 @@ void SshClient::_connection_socketConnected()
 void SshClient::_connection_socketDisconnected()
 {
     qCDebug(sshclient) << m_name << ": ssh socket disconnected";
-    setSshState(FreeSession);
+    if(sshState() != Error)
+    {
+        setSshState(FreeSession);
+    }
     emit sshEvent();
 }
 
@@ -585,6 +588,7 @@ void SshClient::_ssh_processEvent()
                 int ret = libssh2_session_free(m_session);
                 if(ret == LIBSSH2_ERROR_EAGAIN)
                 {
+                    emit sshEvent();
                     return;
                 }
             }
