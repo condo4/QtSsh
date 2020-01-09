@@ -179,6 +179,7 @@ void SshTunnelOutConnection::_eventLoop()
         case Error:
         {
             qCDebug(logsshtunneloutconnection) << "Channel" << m_name << "is in error state";
+            setChannelState(Free);
             return;
         }
     }
