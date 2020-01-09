@@ -132,6 +132,11 @@ void SshTunnelOutConnection::_eventLoop()
             {
                 setChannelState(ChannelState::Freeing);
             }
+            else
+            {
+                m_connector.process();
+                return;
+            }
         }
 
         FALLTHROUGH; case Freeing:

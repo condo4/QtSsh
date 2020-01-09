@@ -164,6 +164,9 @@ void SshClient::disconnectFromHost()
     if(m_sshState == SshState::Unconnected)
         return;
 
+    if(m_sshState == SshState::Error)
+        return;
+
     if(m_channels.size() == 0)
     {
         setSshState(DisconnectingSession);

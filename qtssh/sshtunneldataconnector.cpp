@@ -5,17 +5,19 @@
 Q_LOGGING_CATEGORY(logxfer, "ssh.tunnel.transfer")
 #define DEBUGCH qCDebug(logxfer) << m_name
 
-SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, QString name, QObject *parent)
+SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, const QString &name, QObject *parent)
     : QObject(parent)
     , m_sshClient(client)
     , m_name(name)
 {
+    DEBUGCH << "SshTunnelDataConnector constructor";
+    m_tx_data_on_sock = true;
 }
 
 SshTunnelDataConnector::~SshTunnelDataConnector()
 {
     QObject::disconnect(m_sock);
-    DEBUGCH << "TOTAL TRANSFERED: " << m_output << " " << m_input_real << " / " << m_input;
+    DEBUGCH << "TOTAL TRANSFERED: Tx:" << m_total_TxToSsh << " | Rx:" << m_total_RxToSock;
 }
 
 void SshTunnelDataConnector::setChannel(LIBSSH2_CHANNEL *channel)
@@ -38,23 +40,20 @@ void SshTunnelDataConnector::setSock(QTcpSocket *sock)
     QObject::connect(m_sock, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
                      this,   &SshTunnelDataConnector::_socketError);
 
-    QObject::connect(m_sock, &QTcpSocket::bytesWritten, this, [this](qint64 len){ m_input_real += len; });
+    QObject::connect(m_sock, &QTcpSocket::bytesWritten, this, [this](qint64 len){ m_total_RxToSock += len; });
 }
 
 void SshTunnelDataConnector::_socketDisconnected()
 {
     DEBUGCH << "_socketDisconnected: Socket disconnected";
-    if(m_sock->bytesAvailable() == 0)
-    {
-        m_tx_closed = true;
-        emit sendEvent();
-    }
+    m_tx_eof = true;
+    emit sendEvent();
 }
 
 void SshTunnelDataConnector::_socketDataRecived()
 {
     DEBUGCH << "_socketDataRecived: Socket data received";
-    m_data_to_tx = true;
+    m_tx_data_on_sock = true;
     emit sendEvent();
 }
 
@@ -74,54 +73,60 @@ void SshTunnelDataConnector::_socketError()
     }
 }
 
+size_t SshTunnelDataConnector::_txBufferLen()
+{
+    if(m_tx_stop_ptr == nullptr || m_tx_start_ptr == nullptr)
+        return 0;
+
+    if(m_tx_stop_ptr < m_tx_start_ptr)
+    {
+        qCWarning(logxfer) << m_name << "TX Buffer error";
+        return 0;
+    }
+
+    return static_cast<size_t>(m_tx_stop_ptr - m_tx_start_ptr);
+}
+
 ssize_t SshTunnelDataConnector::_transferSockToTx()
 {
+    if(!m_sock) return 0;
     qint64 len = 0;
-    if(m_tx_stop_ptr != nullptr)
+    if(_txBufferLen() != 0)
     {
-        qCDebug(logxfer) << m_name << "Asking transfer sock to tx when buffer not empty (" << m_tx_stop_ptr - m_tx_start_ptr << " bytes)";
+        qCDebug(logxfer) << m_name << "Asking transfer sock to tx when buffer not empty (" << _txBufferLen() << " bytes)";
         return -1;
     }
 
-    if(m_sock == nullptr && m_sock->state() != QAbstractSocket::ConnectedState)
+    if(m_sock == nullptr)
     {
         qCCritical(logxfer) << m_name << "_transferSockToTx on invalid socket";
         return -1;
     }
 
     len = m_sock->read(m_tx_buffer, BUFFER_SIZE);
+    m_tx_data_on_sock = (m_sock->bytesAvailable() > 0);
     if(len > 0)
     {
-        m_tx_stop_ptr = m_tx_buffer + len;
         m_tx_start_ptr = m_tx_buffer;
-        if(len < BUFFER_SIZE)
-        {
-            m_data_to_tx = false;
-        }
+        m_tx_stop_ptr = m_tx_buffer + len;
+        m_total_sockToTx += len;
+
         DEBUGCH << "_transferSockToTx: " << len << "bytes (available:" << m_sock->bytesAvailable() << ", state:" << m_sock->state() << ")";
-        if(m_sock->bytesAvailable() == 0)
+        if(m_tx_data_on_sock)
         {
-            if(m_sock->state() == QAbstractSocket::UnconnectedState)
-            {
-                DEBUGCH << "Detect Socket disconnected";
-                m_tx_closed = true;
-                emit sendEvent();
-            }
-        }
-        else
-        {
-            m_data_to_tx = true;
             DEBUGCH << "_transferSockToTx: There is other data in socket, re-arm read";
             emit sendEvent();
         }
     }
     else
     {
+        qCWarning(logxfer) << m_name << "_transferSockToTx: error: " << len << " Bytes available " << m_sock->bytesAvailable();
         m_tx_stop_ptr = nullptr;
         m_tx_start_ptr = nullptr;
-        DEBUGCH << "_transferSockToTx: error: " << len;
     }
 
+    if(len > 0)
+        emit sendEvent();
     return len;
 }
 
@@ -129,25 +134,21 @@ ssize_t SshTunnelDataConnector::_transferTxToSsh()
 {
     ssize_t transfered = 0;
 
-    while(m_tx_start_ptr < m_tx_stop_ptr)
+    if(m_tx_closed) return 0;
+    if(!m_sshChannel) return 0;
+
+    while(_txBufferLen() > 0)
     {
-        ssize_t len = libssh2_channel_write(m_sshChannel, m_tx_start_ptr, m_tx_stop_ptr - m_tx_start_ptr);
+        ssize_t len = libssh2_channel_write(m_sshChannel, m_tx_start_ptr, _txBufferLen());
         if(len == LIBSSH2_ERROR_EAGAIN)
         {
-            DEBUGCH << "_transferTxToSsh: write again" ;
             return 0;
         }
         if (len < 0)
         {
-            DEBUGCH << "_transferTxToSsh: ERROR" << len;
             char *emsg;
             int size;
             int ret = libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0);
-            if(ret == LIBSSH2_ERROR_EAGAIN)
-            {
-                /* Process next connection */
-                return LIBSSH2_ERROR_EAGAIN;
-            }
             qCCritical(logxfer) << m_name << "Error" << ret << "libssh2_channel_write" << QString(emsg);
             return ret;
         }
@@ -157,7 +158,8 @@ ssize_t SshTunnelDataConnector::_transferTxToSsh()
             return 0;
         }
         /* xfer OK */
-        m_output += len;
+
+        m_total_TxToSsh += len;
         m_tx_start_ptr += len;
         transfered += len;
         DEBUGCH << "_transferTxToSsh: write on SSH return " << len << "bytes" ;
@@ -169,69 +171,77 @@ ssize_t SshTunnelDataConnector::_transferTxToSsh()
             m_tx_start_ptr = nullptr;
         }
     }
+
     return transfered;
+}
+
+size_t SshTunnelDataConnector::_rxBufferLen()
+{
+    if(m_rx_stop_ptr == nullptr || m_rx_start_ptr == nullptr)
+        return 0;
+
+    if(m_rx_stop_ptr < m_rx_start_ptr)
+    {
+        qCWarning(logxfer) << m_name << "RX Buffer error";
+        return 0;
+    }
+
+    return static_cast<size_t>(m_rx_stop_ptr - m_rx_start_ptr);
 }
 
 ssize_t SshTunnelDataConnector::_transferSshToRx()
 {
-    ssize_t sshread = 0;
+    if(!m_sshChannel) return 0;
 
-    if(m_rx_stop_ptr != nullptr)
+    if(_rxBufferLen() != 0)
     {
-        qCWarning(logxfer) << "Buffer not empty, need to retry later";
+        qCDebug(logxfer) << "Buffer not empty, need to retry later";
         emit sendEvent();
         return 0;
     }
 
-    sshread = static_cast<ssize_t>(libssh2_channel_read(m_sshChannel, m_rx_buffer, BUFFER_SIZE));
-    if (sshread < 0)
-    {
-        if(sshread != LIBSSH2_ERROR_EAGAIN)
-        {
-            DEBUGCH << "_transferSshToRx: " << sshread << " (error)";
-            m_rx_stop_ptr = nullptr;
+    ssize_t len = libssh2_channel_read(m_sshChannel, m_rx_buffer, BUFFER_SIZE);
+    if(len == LIBSSH2_ERROR_EAGAIN)
+        return 0;
 
-            char *emsg;
-            int size;
-            int ret = libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0);
-            if(ret == LIBSSH2_ERROR_EAGAIN)
-            {
-                /* Process next connection */
-                return LIBSSH2_ERROR_EAGAIN;
-            }
-            qCCritical(logxfer) << m_name << "Error" << ret << QString("libssh2_channel_read (%1 / %2)").arg(sshread).arg(BUFFER_SIZE) << QString(emsg);
-            return ret;
-        }
-        else
-        {
-            DEBUGCH << "_transferSshToRx: LIBSSH2_ERROR_EAGAIN";
-            m_data_to_rx = false;
-        }
-        return sshread;
+    if (len < 0)
+    {
+        qCWarning(logxfer) << m_name << "_transferSshToRx: error: " << len;
+        m_rx_stop_ptr = nullptr;
+        m_rx_start_ptr = nullptr;
+
+        char *emsg;
+        int size;
+        int ret = libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0);
+        qCCritical(logxfer) << m_name << "Error" << ret << QString("libssh2_channel_read (%1 / %2)").arg(len).arg(BUFFER_SIZE) << QString(emsg);
+        return 0;
     }
 
-    if(sshread < BUFFER_SIZE)
+    m_total_SshToRx += len;
+
+    if(len < BUFFER_SIZE)
     {
-        DEBUGCH << "_transferSshToRx: Xfer " << sshread << "bytes";
-        m_data_to_rx = false;
+        DEBUGCH << "_transferSshToRx: Xfer " << len << "bytes";
+        m_rx_data_on_ssh = false;
         if (libssh2_channel_eof(m_sshChannel))
         {
-            m_rx_closed = true;
+            m_rx_eof = true;
             DEBUGCH << "_transferSshToRx: Ssh channel closed";
         }
     }
     else
     {
-        DEBUGCH << "_transferSshToRx: Xfer " << sshread << "bytes; There is probably more data to read, re-arm event";
+        DEBUGCH << "_transferSshToRx: Xfer " << len << "bytes; There is probably more data to read, re-arm event";
         emit sendEvent();
     }
-    m_rx_stop_ptr = m_rx_buffer + sshread;
+    m_rx_stop_ptr = m_rx_buffer + len;
     m_rx_start_ptr = m_rx_buffer;
-    return sshread;
+    return len;
 }
 
 ssize_t SshTunnelDataConnector::_transferRxToSock()
 {
+    if(!m_sock) return 0;
     ssize_t total = 0;
 
     /* If socket not ready, wait for socket connected */
@@ -247,9 +257,9 @@ ssize_t SshTunnelDataConnector::_transferRxToSock()
         return 0;
     }
 
-    DEBUGCH << "_transferRxToSock: libssh2_channel_read return " << (m_rx_stop_ptr - m_rx_start_ptr) << "bytes";
+    DEBUGCH << "_transferRxToSock: Buffer contains " << _rxBufferLen() << "bytes";
 
-    while (m_rx_start_ptr < m_rx_stop_ptr)
+    while (_rxBufferLen() > 0)
     {
         ssize_t slen = m_sock->write(m_rx_start_ptr, m_rx_stop_ptr - m_rx_start_ptr);
         if (slen <= 0)
@@ -257,7 +267,7 @@ ssize_t SshTunnelDataConnector::_transferRxToSock()
             qCWarning(logxfer) << "ERROR : " << m_name << " local failed to write (" << slen << ")";
             return slen;
         }
-        m_input += slen;
+
         m_rx_start_ptr += slen;
         total += slen;
         DEBUGCH << "_transferRxToSock: " << slen << "bytes written on socket";
@@ -266,40 +276,67 @@ ssize_t SshTunnelDataConnector::_transferRxToSock()
     /* Buffer is empty */
     m_rx_stop_ptr = nullptr;
     m_rx_start_ptr = nullptr;
+
     return total;
 }
 
 void SshTunnelDataConnector::sshDataReceived()
 {
-    m_data_to_rx = true;
+    m_rx_data_on_ssh = true;
 }
 
 bool SshTunnelDataConnector::process()
 {
-    if(!m_sock || !m_sshChannel) return false;
-    DEBUGCH << "Process transfer RX(" << m_data_to_rx << ") TX(" << m_data_to_tx << ") BUFTX(" << (m_tx_stop_ptr - m_tx_start_ptr)  << ") BUFRX(" << (m_rx_stop_ptr - m_rx_start_ptr) << ")";
-    ssize_t xfer = 0;
-    if(m_rx_start_ptr) xfer += _transferRxToSock();
-    if(m_data_to_rx)   _transferSshToRx();
-    if(m_rx_start_ptr) xfer += _transferRxToSock();
+    if(!m_rx_closed)
+    {
+        if(m_rx_data_on_ssh)
+            _transferSshToRx();
 
-    if(m_tx_start_ptr) xfer += _transferTxToSsh();
-    if(m_data_to_tx)   _transferSockToTx();
-    if(m_tx_start_ptr) xfer += _transferTxToSsh();
+        if(_rxBufferLen() || m_rx_eof)
+            _transferRxToSock();
+    }
 
-    if(m_tx_closed && (m_tx_start_ptr == nullptr))
+    if(!m_tx_closed)
+    {
+        if(m_tx_data_on_sock)
+            _transferSockToTx();
+
+        if(_txBufferLen() || m_tx_eof)
+            _transferTxToSsh();
+    }
+
+
+
+    if(!m_tx_closed && m_tx_eof && (m_sock->bytesAvailable() == 0) && (_txBufferLen() == 0))
     {
         DEBUGCH << "Send EOF to SSH";
-        libssh2_channel_send_eof(m_sshChannel);
-        return false;
+        int ret = libssh2_channel_send_eof(m_sshChannel);
+        if(ret == 0)
+        {
+            m_tx_closed = true;
+            emit sendEvent();
+        }
     }
-    if(m_rx_closed && (m_rx_start_ptr == nullptr))
+
+    if(!m_rx_closed && m_rx_eof && (_rxBufferLen() == 0) && (m_sock->bytesAvailable() == 0) && (_txBufferLen() == 0))
     {
-        DEBUGCH << "Send EOF to Socket";
-        m_sock->disconnectFromHost();
-        return false;
+        if(m_sock->state() == QAbstractSocket::ConnectedState)
+        {
+            DEBUGCH << "_transferRxToSock: RX EOF, need to close ???";
+            m_sock->disconnectFromHost();
+        }
+        else
+        {
+            DEBUGCH << "_transferRxToSock: RX EOF, RX closed";
+            m_rx_closed = true;
+            emit sendEvent();
+        }
     }
-    return true;
+
+    DEBUGCH << "XFer Tx: Sock->" << m_total_sockToTx << "->Tx->" <<  m_total_TxToSsh  << "->SSH" << ((m_tx_eof)?(" (EOF)"):("")) << ((m_tx_closed)?(" (CLOSED)"):(""));
+    DEBUGCH << "XFer Rx: SSH->"  << m_total_SshToRx  << "->Rx->" <<  m_total_RxToSock << "->Sock(" << m_sock->state() << ")" << ((m_rx_eof)?(" (EOF)"):(""))<< ((m_rx_closed)?(" (CLOSED)"):(""));
+
+    return (!m_rx_closed && !m_tx_closed);
 }
 
 void SshTunnelDataConnector::close()
@@ -308,9 +345,14 @@ void SshTunnelDataConnector::close()
     {
         m_sock->disconnectFromHost();
     }
+    else
+    {
+        m_rx_closed = true;
+    }
 }
 
 bool SshTunnelDataConnector::isClosed()
 {
-    return m_tx_closed && m_rx_closed;
+    DEBUGCH << "SshTunnelDataConnector::isClosed(tx:" << m_tx_closed << ", rx:" << m_rx_closed << ")";
+    return m_tx_closed && m_rx_closed && _rxBufferLen() == 0 && _txBufferLen() == 0;
 }

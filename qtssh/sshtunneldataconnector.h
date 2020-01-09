@@ -19,27 +19,39 @@ class SshTunnelDataConnector : public QObject
     QTcpSocket *m_sock  {nullptr};
     QString m_name;
 
+    /* Transfer functions */
+
+    /* TX Channel */
     char m_tx_buffer[BUFFER_SIZE] {0,};
     char *m_tx_start_ptr {nullptr};
     char *m_tx_stop_ptr {nullptr};
-    bool m_tx_closed {false};
-    bool m_data_to_tx {true};
+    size_t _txBufferLen();
 
+    bool m_tx_data_on_sock {false};
+    ssize_t _transferSockToTx();
+    ssize_t m_total_sockToTx {0};
+    bool m_tx_eof {false};
+
+    ssize_t _transferTxToSsh();
+    ssize_t m_total_TxToSsh {0};
+    bool m_tx_closed {false};
+
+
+    /* RX Channel */
     char m_rx_buffer[BUFFER_SIZE] {0,};
     char *m_rx_start_ptr {nullptr};
     char *m_rx_stop_ptr {nullptr};
-    bool m_rx_closed {false};
-    bool m_data_to_rx {false};
+    size_t _rxBufferLen();
 
-    /* Transfer function */
-    ssize_t _transferSockToTx();
-    ssize_t _transferTxToSsh();
+    bool m_rx_data_on_ssh {false};
     ssize_t _transferSshToRx();
-    ssize_t _transferRxToSock();
+    ssize_t m_total_SshToRx {0};
+    bool m_rx_eof {false};
 
-    ssize_t m_output {0};
-    ssize_t m_input {0};
-    ssize_t m_input_real {0};
+    ssize_t _transferRxToSock();
+    ssize_t m_total_RxToSock {0};
+    bool m_rx_closed {false};
+
 
 public slots:
     void sshDataReceived();
@@ -48,7 +60,7 @@ public slots:
     bool isClosed();
 
 public:
-    explicit SshTunnelDataConnector(SshClient *client, QString name, QObject *parent = nullptr);
+    explicit SshTunnelDataConnector(SshClient *client, const QString &name, QObject *parent = nullptr);
     virtual ~SshTunnelDataConnector();
     void setChannel(LIBSSH2_CHANNEL *channel);
     void setSock(QTcpSocket *sock);
