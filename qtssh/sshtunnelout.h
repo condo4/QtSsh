@@ -27,6 +27,7 @@ public slots:
     int connections();
     void closeAllConnections();
     void connectionStateChanged();
+    void flushTx() const;
 
 private:
     QTcpServer              m_tcpserver;

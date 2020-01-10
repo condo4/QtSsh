@@ -51,6 +51,11 @@ void SshTunnelOutConnection::sshDataReceived()
     emit sendEvent();
 }
 
+void SshTunnelOutConnection::flushTx()
+{
+    m_connector.flushTx();
+}
+
 void SshTunnelOutConnection::_eventLoop()
 {
     switch(channelState())

@@ -38,6 +38,7 @@ private slots:
 
 public slots:
     void sshDataReceived() override;
+    void flushTx();
 
 signals:
     void sendEvent();

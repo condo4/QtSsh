@@ -130,6 +130,14 @@ void SshTunnelOut::connectionStateChanged()
     }
 }
 
+void SshTunnelOut::flushTx() const
+{
+    for(auto &c: m_connection)
+    {
+        c->flushTx();
+    }
+}
+
 quint16 SshTunnelOut::port() const
 {
     return m_port;
