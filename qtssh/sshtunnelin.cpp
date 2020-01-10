@@ -131,20 +131,33 @@ void SshTunnelIn::sshDataReceived()
 
         case Close:
         {
-
             if(m_sshListener)
             {
-                libssh2_channel_forward_cancel(m_sshListener);
+                if(libssh2_channel_forward_cancel(m_sshListener) == LIBSSH2_ERROR_EAGAIN)
+                {
+                    return;
+                }
                 m_sshListener = nullptr;
+            }
+            setChannelState(ChannelState::WaitClose);
+            FALLTHROUGH;
+        }
+
+        case WaitClose:
+        {
+            qCDebug(logsshtunnelin) << "Wait close channel:" << m_name << " (connections:"<< m_connection.count() << ")";
+            if(m_connection.count() == 0)
+            {
+                setChannelState(ChannelState::Freeing);
+                FALLTHROUGH;
+            }
+            else
+            {
+                return;
             }
         }
 
-        FALLTHROUGH; case WaitClose:
-        {
-            qCDebug(logsshtunnelin) << "Wait close channel";
-            setChannelState(ChannelState::Freeing);
-        }
-        FALLTHROUGH; case Freeing:
+        case Freeing:
         {
             qCDebug(logsshtunnelin) << "free Channel";
             setChannelState(ChannelState::Free);
