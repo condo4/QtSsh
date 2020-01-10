@@ -6,8 +6,6 @@
 #include "sshchannel.h"
 #include "sshtunneldataconnector.h"
 
-#define BUFFER_SIZE (128*1024)
-
 Q_DECLARE_LOGGING_CATEGORY(logsshtunneloutconnection)
 Q_DECLARE_LOGGING_CATEGORY(logsshtunneloutconnectiontransfer)
 
