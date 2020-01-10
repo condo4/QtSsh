@@ -196,6 +196,14 @@ void SshTunnelIn::connectionStateChanged()
     }
 }
 
+void SshTunnelIn::flushTx() const
+{
+    for(auto &c: m_connection)
+    {
+        c->flushTx();
+    }
+}
+
 void SshTunnelIn::close()
 {
     setChannelState(ChannelState::Close);

@@ -133,6 +133,11 @@ void SshTunnelInConnection::sshDataReceived()
     emit sendEvent();
 }
 
+void SshTunnelInConnection::flushTx()
+{
+    m_connector.flushTx();
+}
+
 void SshTunnelInConnection::_socketConnected()
 {
     DEBUGCH << "Socket connection established";

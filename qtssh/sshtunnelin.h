@@ -38,6 +38,7 @@ public:
 public slots:
     void sshDataReceived() override;
     void connectionStateChanged();
+    void flushTx() const;
 
 signals:
     void connectionChanged(int);
