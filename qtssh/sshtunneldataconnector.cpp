@@ -121,9 +121,15 @@ ssize_t SshTunnelDataConnector::_transferSockToTx()
             emit sendEvent();
         }
     }
-    else
+    else if(len < 0)
     {
         qCWarning(logxfer) << m_name << "_transferSockToTx: error: " << len << " Bytes available " << m_sock->bytesAvailable();
+        m_tx_stop_ptr = nullptr;
+        m_tx_start_ptr = nullptr;
+    }
+    else
+    {
+        DEBUGCH << m_name << "_transferSockToTx: 0 lenght";
         m_tx_stop_ptr = nullptr;
         m_tx_start_ptr = nullptr;
     }
