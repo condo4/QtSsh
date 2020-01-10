@@ -84,6 +84,16 @@ void SshTunnelIn::sshDataReceived()
                         m_retryListen--;
                         return;
                     }
+                    else
+                    {
+                        if(m_remoteTcpPort == 0)
+                        {
+                            m_remoteTcpPort = m_localTcpPort;
+                            m_retryListen = 5;
+                            qCWarning(logsshtunnelin) << "The server refuse dynamic port, try with the same port as local";
+                            return;
+                        }
+                    }
 
                     setChannelState(ChannelState::Error);
                     qCWarning(logsshtunnelin) << "Channel session open failed: " << emsg;
