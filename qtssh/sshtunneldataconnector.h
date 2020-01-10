@@ -58,6 +58,7 @@ public slots:
     bool process();
     void close();
     bool isClosed();
+    void flushTx();
 
 public:
     explicit SshTunnelDataConnector(SshClient *client, const QString &name, QObject *parent = nullptr);
@@ -67,6 +68,7 @@ public:
 
 signals:
     void sendEvent();
+    void processed();
 
 private slots:
     void _socketDisconnected();

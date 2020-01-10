@@ -16,6 +16,7 @@ SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, const QString 
 
 SshTunnelDataConnector::~SshTunnelDataConnector()
 {
+    emit processed();
     QObject::disconnect(m_sock);
     DEBUGCH << "TOTAL TRANSFERED: Tx:" << m_total_TxToSsh << " | Rx:" << m_total_RxToSock;
 }
@@ -47,6 +48,7 @@ void SshTunnelDataConnector::_socketDisconnected()
 {
     DEBUGCH << "_socketDisconnected: Socket disconnected";
     m_tx_eof = true;
+    emit processed();
     emit sendEvent();
 }
 
@@ -60,6 +62,7 @@ void SshTunnelDataConnector::_socketDataRecived()
 void SshTunnelDataConnector::_socketError()
 {
     DEBUGCH << "_socketError";
+    emit processed();
     auto error = m_sock->error();
     switch(error)
     {
@@ -125,6 +128,7 @@ ssize_t SshTunnelDataConnector::_transferSockToTx()
         m_tx_start_ptr = nullptr;
     }
 
+    emit processed();
     if(len > 0)
         emit sendEvent();
     return len;
@@ -142,7 +146,7 @@ ssize_t SshTunnelDataConnector::_transferTxToSsh()
         ssize_t len = libssh2_channel_write(m_sshChannel, m_tx_start_ptr, _txBufferLen());
         if(len == LIBSSH2_ERROR_EAGAIN)
         {
-            return 0;
+            return LIBSSH2_ERROR_EAGAIN;
         }
         if (len < 0)
         {
@@ -172,6 +176,7 @@ ssize_t SshTunnelDataConnector::_transferTxToSsh()
         }
     }
 
+    emit processed();
     return transfered;
 }
 
@@ -236,6 +241,7 @@ ssize_t SshTunnelDataConnector::_transferSshToRx()
     }
     m_rx_stop_ptr = m_rx_buffer + len;
     m_rx_start_ptr = m_rx_buffer;
+    emit processed();
     return len;
 }
 
@@ -277,6 +283,7 @@ ssize_t SshTunnelDataConnector::_transferRxToSock()
     m_rx_stop_ptr = nullptr;
     m_rx_start_ptr = nullptr;
 
+    emit processed();
     return total;
 }
 
@@ -355,4 +362,34 @@ bool SshTunnelDataConnector::isClosed()
 {
     DEBUGCH << "SshTunnelDataConnector::isClosed(tx:" << m_tx_closed << ", rx:" << m_rx_closed << ")";
     return m_tx_closed && m_rx_closed && _rxBufferLen() == 0 && _txBufferLen() == 0;
+}
+
+void SshTunnelDataConnector::flushTx()
+{
+    DEBUGCH << "flushTx: start " << ": Sock: " << m_sock->bytesAvailable() << " | buffer:" << _txBufferLen();
+    while(1)
+    {
+        if(m_sock->bytesAvailable() == 0 && _txBufferLen() == 0)
+            break;
+
+        if(m_tx_closed || m_rx_closed)
+            break;
+
+        if(m_sock->bytesAvailable() > 0)
+        {
+            _transferSockToTx();
+        }
+
+        if(_txBufferLen() > 0)
+        {
+            if(_transferTxToSsh() == LIBSSH2_ERROR_EAGAIN)
+            {
+                QEventLoop wait;
+                QObject::connect(this, &SshTunnelDataConnector::processed, &wait, &QEventLoop::quit);
+                wait.exec();
+            }
+        }
+    }
+
+    DEBUGCH << "flushTx: end " << ": Sock: " << m_sock->bytesAvailable() << " | buffer:" << _txBufferLen();
 }
