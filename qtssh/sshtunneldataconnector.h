@@ -25,7 +25,7 @@ class SshTunnelDataConnector : public QObject
     char m_tx_buffer[BUFFER_SIZE] {0,};
     char *m_tx_start_ptr {nullptr};
     char *m_tx_stop_ptr {nullptr};
-    size_t _txBufferLen();
+    size_t _txBufferLen() const;
 
     bool m_tx_data_on_sock {false};
     ssize_t _transferSockToTx();
@@ -41,7 +41,7 @@ class SshTunnelDataConnector : public QObject
     char m_rx_buffer[BUFFER_SIZE] {0,};
     char *m_rx_start_ptr {nullptr};
     char *m_rx_stop_ptr {nullptr};
-    size_t _rxBufferLen();
+    size_t _rxBufferLen() const;
 
     bool m_rx_data_on_ssh {false};
     ssize_t _transferSshToRx();

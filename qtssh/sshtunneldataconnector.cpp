@@ -73,7 +73,7 @@ void SshTunnelDataConnector::_socketError()
     }
 }
 
-size_t SshTunnelDataConnector::_txBufferLen()
+size_t SshTunnelDataConnector::_txBufferLen() const
 {
     if(m_tx_stop_ptr == nullptr || m_tx_start_ptr == nullptr)
         return 0;
@@ -175,7 +175,7 @@ ssize_t SshTunnelDataConnector::_transferTxToSsh()
     return transfered;
 }
 
-size_t SshTunnelDataConnector::_rxBufferLen()
+size_t SshTunnelDataConnector::_rxBufferLen() const
 {
     if(m_rx_stop_ptr == nullptr || m_rx_start_ptr == nullptr)
         return 0;
