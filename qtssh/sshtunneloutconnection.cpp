@@ -46,7 +46,6 @@ void SshTunnelOutConnection::close()
 
 void SshTunnelOutConnection::sshDataReceived()
 {
-    DEBUGCH << "sshDataReceived: SSH data received";
     m_connector.sshDataReceived();
     emit sendEvent();
 }
