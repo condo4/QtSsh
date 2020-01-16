@@ -616,8 +616,8 @@ void SshClient::_ssh_processEvent()
             if(m_socket.state() != QAbstractSocket::UnconnectedState)
             {
                 m_socket.disconnectFromHost();
+                m_socket.waitForDisconnected(3000);
             }
-            m_socket.waitForDisconnected(3000);
             qCWarning(sshclient) << m_name << ": ssh socket connection error";
             emit sshError();
             return;
