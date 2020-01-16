@@ -16,6 +16,7 @@ SshChannel::SshChannel(QString name, SshClient *client)
 SshChannel::~SshChannel()
 {
     qCDebug(sshchannel) << "destroyChannel:" << this;
+    setChannelState(ChannelState::Free);
 }
 
 SshChannel::ChannelState SshChannel::channelState() const
@@ -37,7 +38,7 @@ bool SshChannel::waitForState(SshChannel::ChannelState state)
 {
     QEventLoop wait;
     QObject::connect(this, &SshChannel::stateChanged, &wait, &QEventLoop::quit);
-    while(channelState() != ChannelState::Error && channelState() !=state)
+    while(channelState() != ChannelState::Error && channelState() != ChannelState::Free && channelState() !=state)
     {
         wait.exec();
     }
