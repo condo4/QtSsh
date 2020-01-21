@@ -250,6 +250,7 @@ void SshClient::_sendKeepAlive()
         else if(((QDateTime::currentMSecsSinceEpoch() - m_lastProofOfLive) / 1000) > (MAX_LOST_KEEP_ALIVE * keepalive))
         {
             qCWarning(sshclient) << m_name << ": Connection lost !!!";
+            setSshState(SshState::Error);
             m_socket.disconnectFromHost();
         }
         else
@@ -589,6 +590,7 @@ void SshClient::_ssh_processEvent()
 
         FALLTHROUGH; case SshState::FreeSession:
         {
+            m_keepalive.stop();
             if (m_knownHosts)
             {
                 libssh2_knownhost_free(m_knownHosts);
@@ -613,6 +615,7 @@ void SshClient::_ssh_processEvent()
 
         case SshState::Error:
         {
+            m_keepalive.stop();
             if(m_socket.state() != QAbstractSocket::UnconnectedState)
             {
                 m_socket.disconnectFromHost();
