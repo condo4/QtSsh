@@ -43,6 +43,8 @@ public:
     void setChannelState(const ChannelState &channelState);
     bool waitForState(SshChannel::ChannelState state);
 
+    SshClient *sshClient() const;
+
 protected:
     explicit SshChannel(QString name, SshClient *client);
     virtual ~SshChannel();

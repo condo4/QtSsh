@@ -19,6 +19,11 @@ SshChannel::~SshChannel()
     setChannelState(ChannelState::Free);
 }
 
+SshClient *SshChannel::sshClient() const
+{
+    return m_sshClient;
+}
+
 SshChannel::ChannelState SshChannel::channelState() const
 {
     return m_channelState;
