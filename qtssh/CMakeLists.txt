@@ -49,7 +49,6 @@ set(HEADERS
 	sshtunnelout.h
 	sshtunneloutconnection.h
 	sshtunnelin.h
-	async_libssh2.h
 )
 if(BUILD_STATIC)
 	add_library(${PROJECT_NAME} STATIC ${SOURCES})

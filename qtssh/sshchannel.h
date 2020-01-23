@@ -11,8 +11,8 @@
 
 #include <QObject>
 #include <QLoggingCategory>
-#include "async_libssh2.h"
 #include <QMutex>
+#include <libssh2.h>
 
 class SshClient;
 

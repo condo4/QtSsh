@@ -156,15 +156,12 @@ void SshTunnelIn::sshDataReceived()
         case WaitClose:
         {
             qCDebug(logsshtunnelin) << "Wait close channel:" << m_name << " (connections:"<< m_connection.count() << ")";
-            if(m_connection.count() == 0)
-            {
-                setChannelState(ChannelState::Freeing);
-                FALLTHROUGH;
-            }
-            else
+            if(m_connection.count() != 0)
             {
                 return;
             }
+            setChannelState(ChannelState::Freeing);
+            FALLTHROUGH;
         }
 
         case Freeing:

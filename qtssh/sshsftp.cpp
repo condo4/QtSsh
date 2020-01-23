@@ -4,10 +4,12 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QCryptographicHash>
-#include <sshsftpcommandsend.h>
-#include <sshsftpcommandget.h>
-#include <sshsftpcommandreaddir.h>
-
+#include "sshsftpcommandsend.h"
+#include "sshsftpcommandget.h"
+#include "sshsftpcommandreaddir.h"
+#include "sshsftpcommandmkdir.h"
+#include "sshsftpcommandunlink.h"
+#include "sshsftpcommandfileinfo.h"
 
 Q_LOGGING_CATEGORY(logsshsftp, "ssh.sftp", QtWarningMsg)
 
@@ -117,19 +119,14 @@ bool SshSFtp::get(const QString &source, QString dest, bool override)
     return true;
 }
 
-int SshSFtp::mkdir(const QString &dest)
+int SshSFtp::mkdir(const QString &dest, int mode)
 {
-    int res = qssh2_sftp_mkdir_ex(m_sftpSession, qPrintable(dest), static_cast<unsigned int>(dest.size()), 0775);
-    if(res != 0)
-    {
-        qCWarning(logsshsftp) << "mkdir " << dest << " error, result = " << res;
-    }
-    else
-    {
-        qCDebug(logsshsftp) << "mkdir "<< dest << " OK";
-    }
-
-    return res;
+    SshSftpCommandMkdir cmd(dest, mode, *this);
+    DEBUGCH << "mkdir(" << dest << "," << mode << ")";
+    processCmd(&cmd);
+    DEBUGCH << "mkdir(" << dest << ") = " << ((cmd.error())?("FAIL"):("OK"));
+    if(cmd.error()) return -1;
+    return 0;
 }
 
 QStringList SshSFtp::readdir(const QString &d)
@@ -173,17 +170,12 @@ int SshSFtp::mkpath(const QString &dest)
 
 bool SshSFtp::unlink(const QString &d)
 {
-    DEBUGCH << "unlink(" << d << ")";
-    ssize_t res = qssh2_sftp_unlink_ex(m_sftpSession, qPrintable(d), static_cast<unsigned int>(d.size()));
-    if(res != 0)
-    {
-        qCWarning(logsshsftp) << "unlink " << d << " error, result = " << res;
-    }
-    else
-    {
-        qCDebug(logsshsftp) << "unlink "<< d << " OK";
-    }
-    return res;
+    SshSftpCommandUnlink cmd(d, *this);
+    DEBUGCH << "unlink(" << d << "," << d << ")";
+    processCmd(&cmd);
+    DEBUGCH << "unlink(" << d << ") = " << ((cmd.error())?("FAIL"):("OK"));
+    if(cmd.error()) return -1;
+    return 0;
 }
 
 quint64 SshSFtp::filesize(const QString &d)
@@ -323,8 +315,11 @@ LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(const QString &path)
 {
     if(!m_fileinfo.contains(path))
     {
-        LIBSSH2_SFTP_ATTRIBUTES fileinfo;
-        qssh2_sftp_stat_ex(m_sftpSession, qPrintable(path), static_cast<unsigned int>(path.size()), LIBSSH2_SFTP_STAT, &fileinfo);
+        SshSftpCommandFileInfo cmd(path, *this);
+        DEBUGCH << "fileinfo(" << path << ")";
+        processCmd(&cmd);
+        DEBUGCH << "fileinfo(" << path << ") = " << ((cmd.error())?("FAIL"):("OK"));
+        LIBSSH2_SFTP_ATTRIBUTES fileinfo = cmd.fileinfo();
         m_fileinfo[path] = fileinfo;
     }
     return m_fileinfo[path];

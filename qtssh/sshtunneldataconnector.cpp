@@ -1,5 +1,6 @@
 #include "sshtunneldataconnector.h"
 #include <QTcpSocket>
+#include <QEventLoop>
 #include "sshclient.h"
 
 Q_LOGGING_CATEGORY(logxfer, "ssh.tunnel.transfer")

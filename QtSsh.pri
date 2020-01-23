@@ -2,9 +2,12 @@
 QT             += core network
 
 HEADERS += \
+    $$PWD/qtssh/sshsftpcommandfileinfo.h \
     $$PWD/qtssh/sshsftpcommandget.h \
+    $$PWD/qtssh/sshsftpcommandmkdir.h \
     $$PWD/qtssh/sshsftpcommandreaddir.h \
     $$PWD/qtssh/sshsftpcommandsend.h \
+    $$PWD/qtssh/sshsftpcommandunlink.h \
     $$PWD/qtssh/sshtunnelout.h \
     $$PWD/qtssh/sshtunnelin.h \
     $$PWD/qtssh/sshprocess.h \
@@ -14,7 +17,6 @@ HEADERS += \
     $$PWD/qtssh/sshscpget.h \
     $$PWD/qtssh/sshsftp.h \
     $$PWD/qtssh/sshsftpcommand.h \
-    $$PWD/qtssh/async_libssh2.h \
     $$PWD/qtssh/sshkey.h \
     $$PWD/qtssh/sshtunnelinconnection.h \
     $$PWD/qtssh/sshtunneloutconnection.h \
@@ -22,9 +24,12 @@ HEADERS += \
 
 
 SOURCES += \
+    $$PWD/qtssh/sshsftpcommandfileinfo.cpp \
     $$PWD/qtssh/sshsftpcommandget.cpp \
+    $$PWD/qtssh/sshsftpcommandmkdir.cpp \
     $$PWD/qtssh/sshsftpcommandreaddir.cpp \
     $$PWD/qtssh/sshsftpcommandsend.cpp \
+    $$PWD/qtssh/sshsftpcommandunlink.cpp \
     $$PWD/qtssh/sshtunnelout.cpp \
     $$PWD/qtssh/sshtunnelin.cpp \
     $$PWD/qtssh/sshprocess.cpp \
