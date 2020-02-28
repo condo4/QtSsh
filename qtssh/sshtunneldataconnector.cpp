@@ -260,7 +260,7 @@ ssize_t SshTunnelDataConnector::_transferRxToSock()
     /* If socket not ready, wait for socket connected */
     if(!m_sock || m_sock->state() != QAbstractSocket::ConnectedState)
     {
-        qCWarning(logxfer) << m_name << "_transferRxToSock: Data on SSH when socket closed";
+        qCDebug(logxfer) << m_name << "_transferRxToSock: Data on SSH when socket closed";
         return -1;
     }
 
