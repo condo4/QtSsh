@@ -54,6 +54,11 @@ static ssize_t qt_callback_libssh_send(int socket,const void * buffer, size_t le
     return static_cast<ssize_t>(r);
 }
 
+void SshClient::setProxy(QNetworkProxy *proxy)
+{
+    m_proxy = proxy;
+}
+
 SshClient::SshClient(const QString &name, QObject * parent):
     QObject(parent),
     m_name(name),
@@ -344,6 +349,10 @@ void SshClient::_ssh_processEvent()
         case SshState::SocketConnection:
         {
             m_connectionTimeout.start(ConnectionTimeout);
+            if(m_proxy)
+            {
+                m_socket.setProxy(*m_proxy);
+            }
             m_socket.connectToHost(m_hostname, m_port);
             setSshState(SshState::WaitingSocketConnection);
         }

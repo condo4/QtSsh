@@ -25,6 +25,7 @@ class SshScpSend;
 class SshSFtp;
 class SshTunnelIn;
 class SshTunnelOut;
+class QNetworkProxy;
 
 class  SshClient : public QObject {
     Q_OBJECT
@@ -54,6 +55,7 @@ private:
 
     QString m_name;
     QTcpSocket m_socket;
+    QNetworkProxy *m_proxy {nullptr};
     qint64 m_lastProofOfLive {0};
 
     quint16 m_port {0};
@@ -132,6 +134,8 @@ public: /* New function implementation with state machine */
     SshState sshState() const;
 
     void setName(const QString &name);
+
+    void setProxy(QNetworkProxy *proxy);
 
 private: /* New function implementation with state machine */
     SshState m_sshState {SshState::Unconnected};
