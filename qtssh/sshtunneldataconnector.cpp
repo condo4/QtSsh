@@ -391,7 +391,7 @@ void SshTunnelDataConnector::flushTx()
         {
             if(_transferTxToSsh() == LIBSSH2_ERROR_EAGAIN)
             {
-                QEventLoop wait;
+                QEventLoop wait(this);
                 QObject::connect(this, &SshTunnelDataConnector::processed, &wait, &QEventLoop::quit);
                 wait.exec();
             }

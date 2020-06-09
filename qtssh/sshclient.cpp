@@ -154,7 +154,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
 bool SshClient::waitForState(SshState state)
 {
     if(sshState() == state) return true;
-    QEventLoop wait;
+    QEventLoop wait(this);
     QObject::connect(this, &SshClient::sshStateChanged, &wait, &QEventLoop::quit);
     qCDebug(sshclient) << m_name << "Wait for state " << state << ", current state is " << m_sshState;
     while(sshState() != SshState::Error && sshState() != state)

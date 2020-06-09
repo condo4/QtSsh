@@ -41,7 +41,7 @@ void SshChannel::setChannelState(const ChannelState &channelState)
 
 bool SshChannel::waitForState(SshChannel::ChannelState state)
 {
-    QEventLoop wait;
+    QEventLoop wait(this);
     QObject::connect(this, &SshChannel::stateChanged, &wait, &QEventLoop::quit);
     while(channelState() != ChannelState::Error && channelState() != ChannelState::Free && channelState() !=state)
     {
