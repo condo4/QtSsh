@@ -18,7 +18,7 @@ SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, const QString 
 SshTunnelDataConnector::~SshTunnelDataConnector()
 {
     emit processed();
-    QObject::disconnect(m_sock);
+    if(m_sock) QObject::disconnect(m_sock);
     DEBUGCH << "TOTAL TRANSFERED: Tx:" << m_total_TxToSsh << " | Rx:" << m_total_RxToSock;
 }
 
@@ -33,6 +33,7 @@ void SshTunnelDataConnector::setSock(QTcpSocket *sock)
     QObject::connect(m_sock, &QTcpSocket::disconnected,
                      this,   &SshTunnelDataConnector::_socketDisconnected);
 
+    QObject::connect(m_sock, &QTcpSocket::destroyed, [this](){m_sock = nullptr;});
 
     QObject::connect(m_sock, &QTcpSocket::readyRead,
                      this,   &SshTunnelDataConnector::_socketDataRecived);
