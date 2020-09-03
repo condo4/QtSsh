@@ -40,7 +40,12 @@ void SshTunnelDataConnector::setSock(QTcpSocket *sock)
 
 
 
-    QObject::connect(m_sock, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
+    QObject::connect(m_sock,
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+                     QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::errorOccurred),
+#else
+                     QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
+#endif
                      this,   &SshTunnelDataConnector::_socketError);
 
     QObject::connect(m_sock, &QTcpSocket::bytesWritten, this, [this](qint64 len){ m_total_RxToSock += len; });
