@@ -296,6 +296,7 @@ const int ConnectionTimeout = 60000;
 
 void SshClient::_connection_socketTimeout()
 {
+    m_connectionTimeout.stop();
     m_socket.disconnectFromHost();
     qCWarning(sshclient) << m_name << ": ssh socket connection timeout";
     setSshState(SshState::Error);
