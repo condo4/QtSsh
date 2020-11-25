@@ -304,7 +304,7 @@ bool SshSFtp::processCmd(SshSftpCommand *cmd)
 
     m_cmd.push_back(cmd);
     emit sendEvent();
-    while(channelState() == ChannelState::Ready && cmd->state() != SshSftpCommand::CommandState::Terminate && cmd->state() != SshSftpCommand::CommandState::Error)
+    while(channelState() <= ChannelState::Ready && cmd->state() != SshSftpCommand::CommandState::Terminate && cmd->state() != SshSftpCommand::CommandState::Error)
     {
         wait.exec();
     }
