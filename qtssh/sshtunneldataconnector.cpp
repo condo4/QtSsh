@@ -3,7 +3,7 @@
 #include <QEventLoop>
 #include "sshclient.h"
 
-Q_LOGGING_CATEGORY(logxfer, "ssh.tunnel.transfer")
+Q_LOGGING_CATEGORY(logxfer, "ssh.tunnel.transfer", QtWarningMsg)
 #define DEBUGCH qCDebug(logxfer) << m_name
 
 SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, const QString &name, QObject *parent)
