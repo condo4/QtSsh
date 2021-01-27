@@ -68,8 +68,13 @@ SshClient::SshClient(const QString &name, QObject * parent):
     QObject::connect(this, &SshClient::sshEvent, this, &SshClient::_ssh_processEvent, Qt::QueuedConnection);
     QObject::connect(&m_socket, &QTcpSocket::connected,      this, &SshClient::_connection_socketConnected);
     QObject::connect(&m_socket, &QTcpSocket::disconnected,   this, &SshClient::_connection_socketDisconnected);
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+    QObject::connect(&m_socket, &QAbstractSocket::errorOccurred,
+                                                             this, &SshClient::_connection_socketError);
+#else
     QObject::connect(&m_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
                                                              this, &SshClient::_connection_socketError);
+#endif
     QObject::connect(&m_socket, &QTcpSocket::readyRead,      this, &SshClient::_ssh_processEvent, Qt::QueuedConnection);
     QObject::connect(&m_connectionTimeout, &QTimer::timeout, this, &SshClient::_connection_socketTimeout);
     QObject::connect(&m_keepalive,&QTimer::timeout,          this, &SshClient::_sendKeepAlive);
