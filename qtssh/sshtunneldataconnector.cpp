@@ -3,7 +3,7 @@
 #include <QEventLoop>
 #include "sshclient.h"
 
-Q_LOGGING_CATEGORY(logxfer, "ssh.tunnel.transfer")
+Q_LOGGING_CATEGORY(logxfer, "ssh.tunnel.transfer", QtWarningMsg)
 #define DEBUGCH qCDebug(logxfer) << m_name
 
 SshTunnelDataConnector::SshTunnelDataConnector(SshClient *client, const QString &name, QObject *parent)
@@ -39,14 +39,13 @@ void SshTunnelDataConnector::setSock(QTcpSocket *sock)
                      this,   &SshTunnelDataConnector::_socketDataRecived);
 
 
-
-    QObject::connect(m_sock,
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
-                     QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::errorOccurred),
-#else
-                     QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
-#endif
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+    QObject::connect(m_sock, &QAbstractSocket::errorOccurred,
                      this,   &SshTunnelDataConnector::_socketError);
+#else
+    QObject::connect(m_sock, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
+                     this,   &SshTunnelDataConnector::_socketError);
+#endif
 
     QObject::connect(m_sock, &QTcpSocket::bytesWritten, this, [this](qint64 len){ m_total_RxToSock += len; });
 }

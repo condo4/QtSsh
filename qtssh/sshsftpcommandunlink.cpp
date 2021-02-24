@@ -33,12 +33,11 @@ void SshSftpCommandUnlink::process()
             }
             m_error = true;
             qCWarning(logsshsftp) << "SFTP unlink error " << res;
+            setState(CommandState::Error);
+            break;
         }
-        else
-        {
-            setState(CommandState::Terminate);
-            FALLTHROUGH;
-        }
+        setState(CommandState::Terminate);
+        FALLTHROUGH;
     case Terminate:
         break;
 
