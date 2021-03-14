@@ -1,6 +1,7 @@
 #include "connection.h"
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QCoreApplication>
 #include <sshclient.h>
 #include <sshtunnelout.h>
 

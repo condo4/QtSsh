@@ -6,6 +6,9 @@
 #include <QDateTime>
 #include <QTest>
 #include <QDataStream>
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+#include <QRandomGenerator>
+#endif
 
 Q_LOGGING_CATEGORY(testssh, "test.ssh", QtInfoMsg)
 
@@ -79,7 +82,11 @@ void Tester::initTestCase()
     qCInfo(testssh) << "Generating test dataset";
 #define RANDOM_DATA 1
 #if RANDOM_DATA
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+    QRandomGenerator(static_cast<unsigned int>(QDateTime::currentDateTime().toMSecsSinceEpoch()));
+#else
     qsrand(static_cast<unsigned int>(QDateTime::currentDateTime().toMSecsSinceEpoch()));
+#endif
     QDataStream streamer(&m_bigdata, QIODevice::WriteOnly);
     foreach (long size, m_sizeForDataSet )
     {
@@ -440,7 +447,7 @@ void Tester::benchmark1_directTunnelComClientToServer()
     m_cli.connectToHost("127.0.0.1", out1->localPort());
     QVERIFY(m_cli.waitForConnected(1000));
     int count = BENCHMARK_REPEAT;
-    QTime timer;
+    QElapsedTimer timer;
     timer.start();
     while (count)
     {
@@ -480,7 +487,7 @@ void Tester::benchmark2_directTunnelComServerToClient()
     SshTunnelOut *out1 = m_ssh.getChannel<SshTunnelOut>(QString("S2_OUT_%1").arg(channelid++));
     out1->listen(m_srv.serverPort());
     int count = BENCHMARK_REPEAT;
-    QTime timer;
+    QElapsedTimer timer;
     m_cli.connectToHost("127.0.0.1", out1->localPort());
     timer.start();
     while (count)
@@ -522,7 +529,7 @@ void Tester::benchmark3_directTunnelBothWays()
     out1->listen(m_srv.serverPort());
 
     int count = BENCHMARK_REPEAT;
-    QTime timer;
+    QElapsedTimer timer;
     m_cli.connectToHost("127.0.0.1", out1->localPort());
     timer.start();
     while (count)
@@ -571,7 +578,7 @@ void Tester::benchmark4_reverseTunnelComClientToServer()
 
     m_cli.connectToHost("127.0.0.1", in1->remotePort());
     int count = BENCHMARK_REPEAT;
-    QTime timer;
+    QElapsedTimer timer;
     timer.start();
     while (count)
     {
@@ -615,7 +622,7 @@ void Tester::benchmark5_reverseTunnelComServerToClient()
     in1->waitForState(SshChannel::Ready);
 
     int count = BENCHMARK_REPEAT;
-    QTime timer;
+    QElapsedTimer timer;
     m_cli.connectToHost("127.0.0.1", in1->remotePort());
     timer.start();
     while (count)
@@ -660,7 +667,7 @@ void Tester::benchmark6_reverseTunnelBothWays()
     in1->waitForState(SshChannel::Ready);
 
     int count = BENCHMARK_REPEAT;
-    QTime timer;
+    QElapsedTimer timer;
     m_cli.connectToHost("127.0.0.1", in1->remotePort());
     timer.start();
     while (count)

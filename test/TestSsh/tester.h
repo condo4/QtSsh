@@ -5,6 +5,7 @@
 #include <sshclient.h>
 #include <QTcpServer>
 #include <QLoggingCategory>
+#include <QEventLoop>
 
 Q_DECLARE_LOGGING_CATEGORY(testssh)
 
