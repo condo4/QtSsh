@@ -37,8 +37,11 @@ public:
 
     QString name() const;
 
+    QStringList errMsg() const;
+
 protected:
     CommandState m_state;
+    QStringList m_errMsg;
 
 signals:
     void stateChanged(CommandState state);

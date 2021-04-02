@@ -4,6 +4,7 @@
 #include <QEventLoop>
 #include <QDateTime>
 #include <QCoreApplication>
+#include <QNetworkProxy>
 #include "sshtunnelin.h"
 #include "sshtunnelout.h"
 #include "sshprocess.h"
@@ -57,6 +58,11 @@ static ssize_t qt_callback_libssh_send(int socket,const void * buffer, size_t le
 void SshClient::setProxy(QNetworkProxy *proxy)
 {
     m_proxy = proxy;
+}
+
+void SshClient::setConnectTimeout(int timeoutMsec)
+{
+    m_connTimeoutCnt = timeoutMsec;
 }
 
 SshClient::SshClient(const QString &name, QObject * parent):
@@ -137,7 +143,7 @@ LIBSSH2_SESSION *SshClient::session()
     return m_session;
 }
 
-int SshClient::connectToHost(const QString & user, const QString & host, quint16 port, QByteArrayList methodes)
+int SshClient::connectToHost(const QString &user, const QString &host, quint16 port, QByteArrayList methodes, int connTimeoutMsecconnTimeoutMsec)
 {
     if(sshState() != SshState::Unconnected && sshState() != SshState::Error)
     {
@@ -146,6 +152,7 @@ int SshClient::connectToHost(const QString & user, const QString & host, quint16
     }
     qCDebug(sshclient) << m_name << "connectToHost:" << user << "@" << host << ":" << port;
 
+    m_connTimeoutCnt = connTimeoutMsec;
     m_authenticationMethodes = methodes;
     m_hostname = host;
     m_port = port;
@@ -295,10 +302,6 @@ void SshClient::setName(const QString &name)
 }
 
 /* New implementation */
-const int ConnectionTimeout = 60000;
-
-
-
 void SshClient::_connection_socketTimeout()
 {
     m_connectionTimeout.stop();
@@ -354,10 +357,14 @@ void SshClient::_ssh_processEvent()
 
         case SshState::SocketConnection:
         {
-            m_connectionTimeout.start(ConnectionTimeout);
+            m_connectionTimeout.start(m_connTimeoutCnt);
             if(m_proxy)
             {
                 m_socket.setProxy(*m_proxy);
+            }
+            else
+            {
+                m_socket.setProxy(QNetworkProxy::NoProxy);
             }
             m_socket.connectToHost(m_hostname, m_port);
             setSshState(SshState::WaitingSocketConnection);

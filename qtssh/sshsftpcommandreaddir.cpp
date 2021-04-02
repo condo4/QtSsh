@@ -36,8 +36,9 @@ void SshSftpCommandReadDir::process()
             {
                 return;
             }
-            qCDebug(logsshsftp) << "Can't open SFTP dir " << m_dir << QString(emsg);
+            qCDebug(logsshsftp) << "Can't open SFTP dir " << m_dir << ", " << QString(emsg);
             m_error = true;
+            m_errMsg << "Can't open SFTP dir " + m_dir + ", " + QString(emsg);
             setState(CommandState::Error);
             return;
         }
@@ -57,6 +58,7 @@ void SshSftpCommandReadDir::process()
                     return;
                 }
                 qCWarning(logsshsftp) << "SFTP readdir error " << rc;
+                m_errMsg << QString("SFTP readdir error: %1").arg(rc);
             }
             else if(rc == 0)
             {
@@ -79,7 +81,8 @@ void SshSftpCommandReadDir::process()
             {
                 return;
             }
-            qCWarning(logsshsftp) << "SFTP Write error " << rc;
+            qCWarning(logsshsftp) << "SFTP close error " << rc;
+            m_errMsg << QString("SFTP close error: %1").arg(rc);
             setState(CommandState::Error);
         }
         if(m_error)

@@ -61,6 +61,7 @@ private:
     quint16 m_port {0};
     int m_errorcode {0};
     bool m_sshConnected {false};
+    int m_connTimeoutCnt;
 
     QString m_hostname;
     QString m_username;
@@ -86,7 +87,7 @@ public:
 
 
 public slots:
-    int connectToHost(const QString & username, const QString & hostname, quint16 port = 22, QByteArrayList methodes = QByteArrayList());
+    int connectToHost(const QString &username, const QString &hostname, quint16 port = 22, QByteArrayList methodes = QByteArrayList(), int connTimeoutMsec = 60000);
     bool waitForState(SshClient::SshState state);
     void disconnectFromHost();
     void resetError();
@@ -136,6 +137,8 @@ public: /* New function implementation with state machine */
     void setName(const QString &name);
 
     void setProxy(QNetworkProxy *proxy);
+
+    void setConnectTimeout(int timeoutMsec);
 
 private: /* New function implementation with state machine */
     SshState m_sshState {SshState::Unconnected};

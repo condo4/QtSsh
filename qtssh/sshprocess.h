@@ -18,19 +18,18 @@ public:
     virtual ~SshProcess() override;
     void close() override;
     QByteArray result();
+    QStringList errMsg();
     bool isError();
 
 public slots:
     void runCommand(const QString &cmd);
     void sshDataReceived() override;
 
-
-
-
 private:
     QString m_cmd;
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
     QByteArray m_result;
+    QStringList m_errMsg;
     bool m_error {false};
 
 signals:

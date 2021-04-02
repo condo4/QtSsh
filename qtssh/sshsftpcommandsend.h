@@ -15,7 +15,7 @@ class SshSftpCommandSend: public SshSftpCommand
     Q_OBJECT
 
     QString m_dest;
-    bool m_error;
+    bool m_error {false};
 
     QFile m_localfile;
     char m_buffer[SFTP_BUFFER_SIZE];

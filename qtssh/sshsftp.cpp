@@ -216,6 +216,7 @@ void SshSFtp::_eventLoop()
                     qCWarning(logsshsftp) << "Create sftp session failed " << QString(emsg);
                     m_error = true;
                 }
+                m_errMsg << QString::fromUtf8(emsg, size);
                 setChannelState(ChannelState::Error);
                 qCWarning(logsshsftp) << "Channel session open failed";
                 return;
@@ -245,6 +246,12 @@ void SshSFtp::_eventLoop()
                 if(m_currentCmd->state() == SshSftpCommand::CommandState::Terminate || m_currentCmd->state() == SshSftpCommand::CommandState::Error)
                 {
                     DEBUGCH << "Finish process command:" << m_currentCmd->name();
+                    if (m_currentCmd->state() == SshSftpCommand::CommandState::Error)
+                    {
+                        if (m_currentCmd->errMsg().size() > 0)
+                            m_errMsg.append(m_currentCmd->errMsg());
+                        m_error = true;
+                    }
                     m_currentCmd = nullptr;
                     emit cmdEvent();
                     emit sendEvent();
@@ -309,6 +316,16 @@ bool SshSFtp::processCmd(SshSftpCommand *cmd)
         wait.exec();
     }
     return (cmd->state() == SshSftpCommand::CommandState::Terminate);
+}
+
+bool SshSFtp::isError()
+{
+    return m_error;
+}
+
+QStringList SshSFtp::errMsg()
+{
+    return m_errMsg;
 }
 
 LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(const QString &path)
