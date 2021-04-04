@@ -6,7 +6,7 @@ SshSftpCommandSend::SshSftpCommandSend(const QString &source, QString dest, SshS
     , m_dest(dest)
     , m_localfile(source)
 {
-    setName(QString("send(%1, %2)").arg(source).arg(dest));
+    setName(QString("send(%1, %2)").arg(source, dest));
 }
 
 void SshSftpCommandSend::process()
@@ -32,8 +32,9 @@ void SshSftpCommandSend::process()
             {
                 return;
             }
-            qCDebug(logsshsftp) << "Can't open SFTP file " << m_localfile.fileName() << QString(emsg);
+            qCDebug(logsshsftp) << "Can't open SFTP file " << m_dest << ", " << QString(emsg);
             m_error = true;
+            m_errMsg << "Can't open SFTP file " + m_dest + ", " + QString(emsg);
             setState(CommandState::Error);
             return;
         }
@@ -42,6 +43,7 @@ void SshSftpCommandSend::process()
         {
             qCWarning(logsshsftp) << "Can't open local file " << m_localfile.fileName();
             m_error = true;
+            m_errMsg << "Can't open local file " + m_localfile.fileName();
             setState(CommandState::Closing);
             break;
         }
@@ -90,7 +92,8 @@ void SshSftpCommandSend::process()
             {
                 return;
             }
-            qCWarning(logsshsftp) << "SFTP Write error " << rc;
+            qCWarning(logsshsftp) << "SFTP close error " << rc;
+            m_errMsg << QString("SFTP close error: %1").arg(rc);
             setState(CommandState::Error);
         }
         if(m_error)

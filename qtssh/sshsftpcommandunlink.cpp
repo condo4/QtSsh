@@ -32,6 +32,7 @@ void SshSftpCommandUnlink::process()
                 return;
             }
             m_error = true;
+            m_errMsg << QString("SFTP unlink error: %1").arg(res);
             qCWarning(logsshsftp) << "SFTP unlink error " << res;
             setState(CommandState::Error);
             break;

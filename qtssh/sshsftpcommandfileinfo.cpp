@@ -41,19 +41,22 @@ void SshSftpCommandFileInfo::process()
                 return;
             }
             m_error = true;
+            m_errMsg << QString("SFTP unlink error: %1").arg(res);
             qCWarning(logsshsftp) << "SFTP unlink error " << res;
             if (res == LIBSSH2_ERROR_SFTP_PROTOCOL)
             {
                 int err = libssh2_sftp_last_error(sftp().getSftpSession());
                 if (err == LIBSSH2_FX_NO_SUCH_FILE)
                 {
-                    qCWarning(logsshsftp) << "No such file or directory:" << m_path;
+                    qCWarning(logsshsftp) << "No such file or directory: " << m_path;
+                    m_errMsg << "No such file or directory: " + m_path;
                     setState(CommandState::Terminate);
                     return;
                 }
                 else
                 {
                     qCWarning(logsshsftp) << "SFTP last error " << err;
+                    m_errMsg << "SFTP last error " + err;
                 }
             }
             setState(CommandState::Error);

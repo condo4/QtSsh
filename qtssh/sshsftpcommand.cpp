@@ -15,6 +15,11 @@ QString SshSftpCommand::name() const
     return m_name;
 }
 
+QStringList SshSftpCommand::errMsg() const
+{
+    return m_errMsg;
+}
+
 SshSftpCommand::SshSftpCommand(SshSFtp &sftp)
     : QObject(qobject_cast<QObject*>(&sftp))
     , m_sftp(sftp)

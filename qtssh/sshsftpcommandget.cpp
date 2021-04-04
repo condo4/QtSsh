@@ -32,8 +32,9 @@ void SshSftpCommandGet::process()
             {
                 return;
             }
-            qCDebug(logsshsftp) << "Can't open SFTP file " << m_src << QString(emsg);
+            qCDebug(logsshsftp) << "Can't open SFTP file " << m_src << ", " << QString(emsg);
             m_error = true;
+            m_errMsg << "Can't open SFTP file " + m_src + ", " + QString(emsg);
             setState(CommandState::Error);
             return;
         }
@@ -57,13 +58,14 @@ void SshSftpCommandGet::process()
                 }
                 qCWarning(logsshsftp) << "SFTP read error " << rc;
                 m_error = true;
-                setState(Error);
+                m_errMsg << QString("SFTP read error: %1").arg(rc);
+                setState(CommandState::Error);
                 break;
             }
             else if(rc == 0)
             {
                 // EOF
-                setState(Closing);
+                setState(CommandState::Closing);
                 break;
             }
             else
@@ -92,6 +94,7 @@ void SshSftpCommandGet::process()
                 return;
             }
             qCWarning(logsshsftp) << "SFTP close error " << rc;
+            m_errMsg << QString("SFTP close error: %1").arg(rc);
             setState(CommandState::Error);
         }
         if(m_error)

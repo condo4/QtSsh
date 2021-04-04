@@ -21,6 +21,7 @@ private:
     LIBSSH2_SFTP *m_sftpSession {nullptr};
     QString m_mkdir;
     bool m_error {false};
+    QStringList m_errMsg;
 
     QList<SshSftpCommand *> m_cmd;
     SshSftpCommand *m_currentCmd {nullptr};
@@ -48,6 +49,9 @@ public:
 
     LIBSSH2_SFTP *getSftpSession() const;
     bool processCmd(SshSftpCommand *cmd);
+
+    bool isError();
+    QStringList errMsg();
 
 public slots:
     void sshDataReceived() override;

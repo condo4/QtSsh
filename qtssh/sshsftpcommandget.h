@@ -12,7 +12,7 @@ class SshSftpCommandGet : public SshSftpCommand
     QFile &m_fout;
     const QString &m_src;
     LIBSSH2_SFTP_HANDLE *m_sftpfile;
-    bool m_error;
+    bool m_error {false};
     char m_buffer[SFTP_BUFFER_SIZE];
 
 public:
