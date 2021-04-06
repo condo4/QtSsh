@@ -143,7 +143,7 @@ LIBSSH2_SESSION *SshClient::session()
     return m_session;
 }
 
-int SshClient::connectToHost(const QString &user, const QString &host, quint16 port, QByteArrayList methodes, int connTimeoutMsecconnTimeoutMsec)
+int SshClient::connectToHost(const QString &user, const QString &host, quint16 port, QByteArrayList methodes, int connTimeoutMsec)
 {
     if(sshState() != SshState::Unconnected && sshState() != SshState::Error)
     {
