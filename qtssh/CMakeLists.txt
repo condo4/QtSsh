@@ -14,7 +14,6 @@ set(QT_LIBRARIES Qt5::Core Qt5::Network)
 set(QT_VERSION ${Qt5_VERSION})
 
 if(WITH_SSH_LIBRARIES)
-    message("USE External SSH Headers ${WITH_SSH_HEADERS}")
     include_directories(${WITH_SSH_HEADERS})
     set(SSH2_LIBRARIES ${WITH_SSH_LIBRARIES})
 else(WITH_SSH_LIBRARIES)
@@ -35,7 +34,18 @@ set(SOURCES
 	sshtunnelout.cpp
 	sshtunneloutconnection.cpp
 	sshtunnelin.cpp
+	sshsftpcommandreaddir.cpp
+	sshtunnelinconnection.cpp
+	sshsftpcommand.cpp
+	sshsftpcommandsend.cpp
+	sshsftpcommandfileinfo.cpp
+	sshsftpcommandunlink.cpp
+	sshsftpcommandget.cpp
+	sshscpget.cpp
+	sshsftpcommandmkdir.cpp
+	sshtunneldataconnector.cpp
 )
+
 
 set(HEADERS
 	sshtunnelout.h
@@ -49,7 +59,19 @@ set(HEADERS
 	sshtunnelout.h
 	sshtunneloutconnection.h
 	sshtunnelin.h
+	sshsftpcommandreaddir.h
+	sshtunnelinconnection.h
+	sshsftpcommandfileinfo.h
+	sshsftpcommandsend.h
+	sshsftpcommandget.h
+	sshsftpcommandunlink.h
+	sshsftpcommand.h
+	sshscpget.h
+	sshsftpcommandmkdir.h
+	sshtunneldataconnector.h
 )
+
+
 if(BUILD_STATIC)
 	add_library(${PROJECT_NAME} STATIC ${SOURCES})
 else(BUILD_STATIC)

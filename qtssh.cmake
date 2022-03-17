@@ -1,4 +1,13 @@
-message(STATUS "QtSsh subdir: ${CMAKE_CURRENT_LIST_DIR}")
 set(BUILD_STATIC ON)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_LIST_DIR}/qtssh)
+string(REPLACE ${PROJECT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} GENLIB ${CMAKE_CURRENT_LIST_DIR})
+
+if(WITH_SSH_LIBRARIES)
+    set(SSH2_LIBRARIES ${WITH_SSH_LIBRARIES})
+else(WITH_SSH_LIBRARIES)
+    find_package(PkgConfig REQUIRED)
+    pkg_search_module(SSH2 REQUIRED libssh2)
+endif(WITH_SSH_LIBRARIES)
+
+set(QTSSH_LIBRARIES "${GENLIB}/qtssh/libqtssh.a;${SSH2_LIBRARIES}")

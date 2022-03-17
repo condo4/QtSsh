@@ -1,12 +1,20 @@
-cmake_minimum_required(VERSION 3.0)
-project(qtssh VERSION 0.1)
+cmake_minimum_required(VERSION 3.13)
+
+if(NOT DEFINED PV)
+    set(PV "1.3.4")
+endif(NOT DEFINED PV)
+
+project(qtssh VERSION ${PV})
 
 option(BUILD_STATIC  "Build static library"            OFF)
 
+
+set(MESSAGE "${PROJECT_NAME}: ${PV}")
+
 if(BUILD_STATIC)
-    message(STATUS "Build QtSsh static")
+    string(APPEND MESSAGE " static")
 else(BUILD_STATIC)
-    message(STATUS "Build QtSsh shared")
+    string(APPEND MESSAGE " shared")
 endif(BUILD_STATIC)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -23,11 +31,17 @@ find_package(Qt5 REQUIRED COMPONENTS Core Network)
 set(QT_LIBRARIES Qt5::Core Qt5::Network)
 set(QT_VERSION ${Qt5_VERSION})
 
+if(WITH_SSH_LIBRARIES)
+	if(WITH_SSH_HEADERS)
+		string(APPEND MESSAGE " libssh2 External Headers ${WITH_SSH_HEADERS}")
+	endif(WITH_SSH_HEADERS)
+	string(APPEND MESSAGE " libssh2 External Library ${WITH_SSH_LIBRARIES}")
+endif(WITH_SSH_LIBRARIES)
 
 add_subdirectory(qtssh)
 
-if (WithExamples)
-add_subdirectory(examples)
+if (WITH_EXAMPLES)
+	add_subdirectory(examples)
 endif()
 
 # create Config.cmake
@@ -46,3 +60,5 @@ install(FILES
 	"${CMAKE_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
 	DESTINATION lib/cmake
 )
+
+message(STATUS ${MESSAGE})
