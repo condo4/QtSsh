@@ -1,7 +1,53 @@
-set(BUILD_STATIC ON)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR})
+set(QTSSH_SOURCES
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelout.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelin.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshprocess.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshchannel.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshclient.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshkey.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshscpsend.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftp.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelout.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunneloutconnection.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelin.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandreaddir.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelinconnection.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommand.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandsend.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandfileinfo.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandunlink.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandget.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshscpget.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandmkdir.cpp
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunneldataconnector.cpp
+)
+
+
+set(QTSSH_HEADERS
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelout.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelin.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshprocess.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshchannel.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshclient.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshkey.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshscpsend.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftp.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelout.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunneloutconnection.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelin.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandreaddir.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunnelinconnection.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandfileinfo.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandsend.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandget.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandunlink.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommand.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshscpget.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshsftpcommandmkdir.h
+	${CMAKE_CURRENT_LIST_DIR}/qtssh/sshtunneldataconnector.h
+)
+
 include_directories(${CMAKE_CURRENT_LIST_DIR}/qtssh)
-string(REPLACE ${PROJECT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} GENLIB ${CMAKE_CURRENT_LIST_DIR})
 
 if(WITH_SSH_LIBRARIES)
     set(SSH2_LIBRARIES ${WITH_SSH_LIBRARIES})
@@ -9,5 +55,3 @@ else(WITH_SSH_LIBRARIES)
     find_package(PkgConfig REQUIRED)
     pkg_search_module(SSH2 REQUIRED libssh2)
 endif(WITH_SSH_LIBRARIES)
-
-set(QTSSH_LIBRARIES "${GENLIB}/qtssh/libqtssh.a;${SSH2_LIBRARIES}")
