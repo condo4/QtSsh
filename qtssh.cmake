@@ -46,9 +46,7 @@ set(QTSSH_FILES
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/qtssh)
 
-if(WITH_SSH_LIBRARIES)
-    set(SSH2_LIBRARIES ${WITH_SSH_LIBRARIES})
-else(WITH_SSH_LIBRARIES)
+if(NOT DEFINED SSH2_LIBRARIES)
     find_package(PkgConfig REQUIRED)
     pkg_search_module(SSH2 REQUIRED libssh2)
-endif(WITH_SSH_LIBRARIES)
+endif()
