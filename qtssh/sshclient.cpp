@@ -386,8 +386,11 @@ void SshClient::_ssh_processEvent()
                 return;
             }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
             libssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_RECV,reinterpret_cast<void*>(& qt_callback_libssh_recv));
             libssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_SEND,reinterpret_cast<void*>(& qt_callback_libssh_send));
+#pragma GCC diagnostic pop
             libssh2_session_set_blocking(m_session, 0);
 
             m_knownHosts = libssh2_knownhost_init(m_session);
