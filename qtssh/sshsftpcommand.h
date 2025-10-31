@@ -22,7 +22,7 @@ public:
         Terminate,
         Error
     };
-    Q_ENUMS(CommandState);
+    Q_ENUMS(CommandState)
 
     explicit SshSftpCommand(SshSFtp &sftp);
     virtual void process() = 0;
