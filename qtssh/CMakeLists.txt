@@ -1,19 +1,17 @@
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+cmake_minimum_required(VERSION 3.10)
+project(QtSsh VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Core Network)
-set(QT_LIBRARIES Qt5::Core Qt5::Network)
-set(QT_VERSION ${Qt5_VERSION})
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Network)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Network)
+set(QT_LIBRARIES Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network)
+
 
 if(WITH_SSH_LIBRARIES)
+    message("USE External SSH Headers ${WITH_SSH_HEADERS}")
     include_directories(${WITH_SSH_HEADERS})
     set(SSH2_LIBRARIES ${WITH_SSH_LIBRARIES})
 else(WITH_SSH_LIBRARIES)
@@ -34,15 +32,15 @@ set(SOURCES
 	sshtunnelout.cpp
 	sshtunneloutconnection.cpp
 	sshtunnelin.cpp
-	sshsftpcommandreaddir.cpp
 	sshtunnelinconnection.cpp
 	sshsftpcommand.cpp
-	sshsftpcommandsend.cpp
-	sshsftpcommandfileinfo.cpp
-	sshsftpcommandunlink.cpp
-	sshsftpcommandget.cpp
-	sshscpget.cpp
 	sshsftpcommandmkdir.cpp
+	sshsftpcommandunlink.cpp
+	sshscpget.cpp
+	sshsftpcommandfileinfo.cpp
+	sshsftpcommandreaddir.cpp
+	sshsftpcommandget.cpp
+	sshsftpcommandsend.cpp
 	sshtunneldataconnector.cpp
 )
 
@@ -59,23 +57,23 @@ set(HEADERS
 	sshtunnelout.h
 	sshtunneloutconnection.h
 	sshtunnelin.h
-	sshsftpcommandreaddir.h
 	sshtunnelinconnection.h
-	sshsftpcommandfileinfo.h
-	sshsftpcommandsend.h
-	sshsftpcommandget.h
-	sshsftpcommandunlink.h
 	sshsftpcommand.h
-	sshscpget.h
 	sshsftpcommandmkdir.h
+	sshsftpcommandunlink.h
+	sshscpget.h
+	sshsftpcommandfileinfo.h
+	sshsftpcommandreaddir.h
+	sshsftpcommandget.h
+	sshsftpcommandsend.h
 	sshtunneldataconnector.h
 )
 
 
 if(BUILD_STATIC)
-	add_library(${PROJECT_NAME} STATIC ${SOURCES})
+	add_library(${PROJECT_NAME} STATIC ${SOURCES} ${HEADERS})
 else(BUILD_STATIC)
-	add_library(${PROJECT_NAME} SHARED ${SOURCES})
+	add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 endif(BUILD_STATIC)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${SSH2_LIBRARIES} ${QT_LIBRARIES})
 

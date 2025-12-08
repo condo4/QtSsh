@@ -7,7 +7,7 @@ endif(NOT DEFINED PV)
 project(qtssh VERSION ${PV})
 
 option(BUILD_STATIC  "Build static library"            OFF)
-
+option(WITH_EXAMPLES "Build with examples"             OFF)
 
 set(MESSAGE "${PROJECT_NAME}: ${PV}")
 
@@ -16,27 +16,6 @@ if(BUILD_STATIC)
 else(BUILD_STATIC)
     string(APPEND MESSAGE " shared")
 endif(BUILD_STATIC)
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-find_package(Qt5 REQUIRED COMPONENTS Core Network)
-set(QT_LIBRARIES Qt5::Core Qt5::Network)
-set(QT_VERSION ${Qt5_VERSION})
-
-if(WITH_SSH_LIBRARIES)
-	if(WITH_SSH_HEADERS)
-		string(APPEND MESSAGE " libssh2 External Headers ${WITH_SSH_HEADERS}")
-	endif(WITH_SSH_HEADERS)
-	string(APPEND MESSAGE " libssh2 External Library ${WITH_SSH_LIBRARIES}")
-endif(WITH_SSH_LIBRARIES)
 
 add_subdirectory(qtssh)
 
