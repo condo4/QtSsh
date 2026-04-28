@@ -211,6 +211,14 @@ void SshSFtp::_eventLoop()
                 {
                     return;
                 }
+                // Transient failure (e.g. concurrent channel negotiation in libssh2):
+                // retry instead of going to Error state.
+                if(m_sftpInitRetries++ < 10)
+                {
+                    qCDebug(logsshsftp) << "Create sftp session failed, retrying (" << m_sftpInitRetries << "/10): " << QString(emsg);
+                    emit sendEvent();
+                    return;
+                }
                 if(!m_error)
                 {
                     qCWarning(logsshsftp) << "Create sftp session failed " << QString(emsg);
@@ -221,6 +229,7 @@ void SshSFtp::_eventLoop()
                 qCWarning(logsshsftp) << "Channel session open failed";
                 return;
             }
+            m_sftpInitRetries = 0;
             DEBUGCH << "Channel session opened";
             setChannelState(ChannelState::Exec);
         }

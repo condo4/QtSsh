@@ -19,6 +19,7 @@ class SshSFtp : public SshChannel
 
 private:
     LIBSSH2_SFTP *m_sftpSession {nullptr};
+    int m_sftpInitRetries {0};
     QString m_mkdir;
     bool m_error {false};
     QStringList m_errMsg;
