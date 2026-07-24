@@ -72,9 +72,17 @@ void SshSftpCommandSend::process()
                         return;
                     }
                     qCWarning(logsshsftp) << "SFTP Write error " << rc;
+                    m_error = true;
+                    m_errMsg << QString("SFTP Write error: %1").arg(rc);
+                    setState(CommandState::Closing);
+                    break;
                 }
                 m_nread -= rc;
                 m_begin += rc;
+            }
+            if(m_state != CommandState::Exec)
+            {
+                break;
             }
         }
         break;
