@@ -41,8 +41,11 @@ void SshSftpCommandGet::process()
 
         if(!m_fout.open(QIODevice::WriteOnly))
         {
+            qCWarning(logsshsftp) << "Can't open local file " << m_fout.fileName();
             m_error = true;
+            m_errMsg << "Can't open local file " + m_fout.fileName();
             setState(CommandState::Closing);
+            break;
         }
         setState(CommandState::Exec);
         FALLTHROUGH;
@@ -74,8 +77,20 @@ void SshSftpCommandGet::process()
                 while(rc)
                 {
                     ssize_t wrc = m_fout.write(begin, rc);
+                    if(wrc < 0)
+                    {
+                        qCWarning(logsshsftp) << "Local file write error " << m_fout.errorString();
+                        m_error = true;
+                        m_errMsg << "Local file write error " + m_fout.errorString();
+                        setState(CommandState::Closing);
+                        break;
+                    }
                     rc -= wrc;
                     begin += wrc;
+                }
+                if(m_state != CommandState::Exec)
+                {
+                    break;
                 }
             }
         }
