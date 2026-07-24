@@ -92,6 +92,18 @@ void SshScpSend::sshDataReceived()
                 if(m_dataInBuf == 0)
                 {
                     m_dataInBuf = m_file.read(m_buffer, PAGE_SIZE);
+                    if(m_dataInBuf < 0)
+                    {
+                        if(!m_error)
+                        {
+                            m_error = true;
+                            emit failed();
+                            qCWarning(logscpsend) << "Can't read source file " << m_file.errorString();
+                        }
+                        setChannelState(ChannelState::Close);
+                        sshDataReceived();
+                        return;
+                    }
                 }
 
                 ssize_t retsz = libssh2_channel_write_ex(m_sshChannel, 0, m_buffer + m_offset, static_cast<size_t>(m_dataInBuf - m_offset));
