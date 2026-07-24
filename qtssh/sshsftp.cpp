@@ -345,8 +345,11 @@ LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(const QString &path)
         DEBUGCH << "fileinfo(" << path << ")";
         processCmd(&cmd);
         DEBUGCH << "fileinfo(" << path << ") = " << ((cmd.error())?("FAIL"):("OK"));
-        LIBSSH2_SFTP_ATTRIBUTES fileinfo = cmd.fileinfo();
-        m_fileinfo[path] = fileinfo;
+        if(cmd.error())
+        {
+            return LIBSSH2_SFTP_ATTRIBUTES{};
+        }
+        m_fileinfo[path] = cmd.fileinfo();
     }
     return m_fileinfo[path];
 }

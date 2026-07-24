@@ -9,7 +9,7 @@ class SshSftpCommandFileInfo : public SshSftpCommand
     Q_OBJECT
     const QString &m_path;
     bool m_error {false};
-    LIBSSH2_SFTP_ATTRIBUTES m_fileinfo;
+    LIBSSH2_SFTP_ATTRIBUTES m_fileinfo {};
 
 public:
     SshSftpCommandFileInfo(const QString &path, SshSFtp &parent);
