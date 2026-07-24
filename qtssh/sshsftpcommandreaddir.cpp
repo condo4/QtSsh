@@ -58,7 +58,10 @@ void SshSftpCommandReadDir::process()
                     return;
                 }
                 qCWarning(logsshsftp) << "SFTP readdir error " << rc;
+                m_error = true;
                 m_errMsg << QString("SFTP readdir error: %1").arg(rc);
+                setState(CommandState::Closing);
+                break;
             }
             else if(rc == 0)
             {
@@ -68,7 +71,7 @@ void SshSftpCommandReadDir::process()
             }
             else
             {
-                m_result.append(QString(m_buffer));
+                m_result.append(QString::fromUtf8(m_buffer, static_cast<int>(rc)));
             }
         }
 
