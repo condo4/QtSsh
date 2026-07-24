@@ -219,6 +219,8 @@ void SshScpGet::sshDataReceived()
         {
             emit failed();
             qCDebug(logscpget) << "Channel" << m_name << "is in error state";
+            setChannelState(ChannelState::Free);
+            sshDataReceived();
             return;
         }
     }

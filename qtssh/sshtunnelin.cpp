@@ -179,6 +179,8 @@ void SshTunnelIn::sshDataReceived()
         case Error:
         {
             qCDebug(logsshtunnelin) << "Channel" << m_name << "is in error state";
+            setChannelState(ChannelState::Free);
+            sshDataReceived();
             return;
         }
     }
