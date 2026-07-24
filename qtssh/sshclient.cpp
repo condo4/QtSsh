@@ -510,6 +510,8 @@ void SshClient::_ssh_processEvent()
                     }
                 }
 
+                if(m_authenticationMethodes.isEmpty()) break;
+
                 if(m_authenticationMethodes.first() == "password")
                 {
                     QByteArray username = m_username.toLatin1();
