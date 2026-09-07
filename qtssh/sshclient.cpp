@@ -413,7 +413,13 @@ void SshClient::_ssh_processEvent()
             }
             if(ret != 0)
             {
-                qCCritical(sshclient) << m_name << "Handshake error" << sshErrorToString(ret);
+                char *errmsg = nullptr;
+                int errlen = 0;
+                libssh2_session_last_error(m_session, &errmsg, &errlen, 0);
+                qCCritical(sshclient) << m_name << "Handshake error" << sshErrorToString(ret)
+                                       << "detail:" << QByteArray(errmsg, errlen)
+                                       << "socket state:" << m_socket.state()
+                                       << "bytesAvailable:" << m_socket.bytesAvailable();
                 setSshState(SshState::Error);
                 m_socket.disconnectFromHost();
                 return;
