@@ -19,6 +19,14 @@ SshChannel::~SshChannel()
     setChannelState(ChannelState::Free);
 }
 
+void SshChannel::sessionClosed()
+{
+    if(m_channelState != ChannelState::Free)
+    {
+        setChannelState(ChannelState::Free);
+    }
+}
+
 SshClient *SshChannel::sshClient() const
 {
     return m_sshClient;

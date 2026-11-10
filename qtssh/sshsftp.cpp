@@ -157,6 +157,9 @@ bool SshSFtp::isFile(const QString &d)
 int SshSFtp::mkpath(const QString &dest)
 {
     DEBUGCH << "mkpath(" << dest << ")";
+    /* An empty path is the current (home) directory: always exists. This
+     * also guarantees the recursion below terminates */
+    if(dest.isEmpty()) return true;
     if(isDir(dest)) return true;
     QStringList d = dest.split("/");
     d.pop_back();
@@ -174,8 +177,7 @@ bool SshSFtp::unlink(const QString &d)
     DEBUGCH << "unlink(" << d << "," << d << ")";
     processCmd(&cmd);
     DEBUGCH << "unlink(" << d << ") = " << ((cmd.error())?("FAIL"):("OK"));
-    if(cmd.error()) return -1;
-    return 0;
+    return !cmd.error();
 }
 
 quint64 SshSFtp::filesize(const QString &d)
@@ -196,6 +198,11 @@ void SshSFtp::_eventLoop()
     {
         case Openning:
         {
+            if(m_sshClient->sshState() != SshClient::SshState::Ready || m_sshClient->session() == nullptr)
+            {
+                /* Session not usable yet, will be retried on sshDataReceived */
+                return;
+            }
             if ( ! m_sshClient->takeChannelCreationMutex(this) )
             {
                 return;
@@ -204,8 +211,8 @@ void SshSFtp::_eventLoop()
             m_sshClient->releaseChannelCreationMutex(this);
             if(m_sftpSession == nullptr)
             {
-                char *emsg;
-                int size;
+                char *emsg = nullptr;
+                int size = 0;
                 int ret = libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0);
                 if(ret == LIBSSH2_ERROR_EAGAIN)
                 {
@@ -272,9 +279,14 @@ void SshSFtp::_eventLoop()
         case Close:
         {
             DEBUGCH << "closeChannel";
-            if(libssh2_sftp_shutdown(m_sftpSession) != 0)
+            if(m_sftpSession != nullptr)
             {
-                return;
+                int ret = libssh2_sftp_shutdown(m_sftpSession);
+                if(ret == LIBSSH2_ERROR_EAGAIN)
+                {
+                    return;
+                }
+                m_sftpSession = nullptr;
             }
             setChannelState(ChannelState::WaitClose);
         }
@@ -324,6 +336,12 @@ bool SshSFtp::processCmd(SshSftpCommand *cmd)
     {
         wait.exec();
     }
+    /* cmd is usually on the caller's stack: never keep a pointer to it */
+    m_cmd.removeAll(cmd);
+    if(m_currentCmd == cmd)
+    {
+        m_currentCmd = nullptr;
+    }
     return (cmd->state() == SshSftpCommand::CommandState::Terminate);
 }
 
@@ -352,4 +370,12 @@ LIBSSH2_SFTP_ATTRIBUTES SshSFtp::getFileInfo(const QString &path)
         m_fileinfo[path] = cmd.fileinfo();
     }
     return m_fileinfo[path];
+}
+
+void SshSFtp::sessionClosed()
+{
+    m_sftpSession = nullptr;
+    m_currentCmd = nullptr;
+    m_cmd.clear();
+    SshChannel::sessionClosed();
 }

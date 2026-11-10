@@ -29,8 +29,8 @@ void SshSftpCommandReadDir::process()
 
         if(!m_sftpdir)
         {
-            char *emsg;
-            int size;
+            char *emsg = nullptr;
+            int size = 0;
             int ret = libssh2_session_last_error(sftp().sshClient()->session(), &emsg, &size, 0);
             if(ret == LIBSSH2_ERROR_EAGAIN)
             {

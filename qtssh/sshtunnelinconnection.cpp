@@ -19,6 +19,11 @@ SshTunnelInConnection::SshTunnelInConnection(const QString &name, SshClient *cli
     , m_connector(client, name)
 {
     QObject::connect(&m_sock, &QTcpSocket::connected, this, &SshTunnelInConnection::_socketConnected);
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+    QObject::connect(&m_sock, &QAbstractSocket::errorOccurred, this, &SshTunnelInConnection::_socketError);
+#else
+    QObject::connect(&m_sock, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), this, &SshTunnelInConnection::_socketError);
+#endif
     QObject::connect(this, &SshTunnelInConnection::sendEvent, this, &SshTunnelInConnection::_eventLoop, Qt::QueuedConnection);
     QObject::connect(&m_connector, &SshTunnelDataConnector::sendEvent, this, &SshTunnelInConnection::sendEvent);
 }
@@ -39,6 +44,23 @@ SshTunnelInConnection::~SshTunnelInConnection()
 
 void SshTunnelInConnection::close()
 {
+    if(channelState() != ChannelState::Error && channelState() != ChannelState::Free)
+    {
+        setChannelState(ChannelState::Close);
+    }
+    emit sendEvent();
+}
+
+void SshTunnelInConnection::_socketError()
+{
+    if(channelState() == ChannelState::Exec)
+    {
+        /* Local connection refused: nothing will ever come, release the ssh channel */
+        qCWarning(logsshtunnelinconnection) << m_name << "local connection failed:" << m_sock.errorString();
+        m_connectFailed = true;
+        setChannelState(ChannelState::Close);
+        emit sendEvent();
+    }
 }
 
 void SshTunnelInConnection::_eventLoop()
@@ -76,17 +98,22 @@ void SshTunnelInConnection::_eventLoop()
         FALLTHROUGH; case WaitClose:
         {
             DEBUGCH << "Wait close channel";
-            if(m_connector.isClosed())
+            if(!m_connectFailed && !m_connector.isClosed())
             {
-                setChannelState(ChannelState::Freeing);
+                m_connector.process();
+                if(!m_connector.isClosed())
+                {
+                    return;
+                }
             }
+            setChannelState(ChannelState::Freeing);
         }
 
         FALLTHROUGH; case Freeing:
         {
             DEBUGCH << "Freeing Channel";
 
-            int ret = libssh2_channel_free(m_sshChannel);
+            int ret = m_sshChannel ? libssh2_channel_free(m_sshChannel) : 0;
             if(ret == LIBSSH2_ERROR_EAGAIN)
             {
                 return;
@@ -149,3 +176,10 @@ void SshTunnelInConnection::_socketConnected()
     emit sendEvent();
 }
 
+
+void SshTunnelInConnection::sessionClosed()
+{
+    m_sshChannel = nullptr;
+    m_connector.setChannel(nullptr);
+    SshChannel::sessionClosed();
+}

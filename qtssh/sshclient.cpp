@@ -26,6 +26,7 @@ Q_LOGGING_CATEGORY(sshclient, "ssh.client", QtWarningMsg)
 #endif
 
 int SshClient::s_nbInstance = 0;
+static QMutex s_instanceMutex;
 
 static ssize_t qt_callback_libssh_recv(int socket,void *buffer, size_t length,int flags, void **abstract)
 {
@@ -85,12 +86,22 @@ SshClient::SshClient(const QString &name, QObject * parent):
     QObject::connect(&m_connectionTimeout, &QTimer::timeout, this, &SshClient::_connection_socketTimeout);
     QObject::connect(&m_keepalive,&QTimer::timeout,          this, &SshClient::_sendKeepAlive);
 
-    if(s_nbInstance == 0)
     {
-        qCDebug(sshclient) << m_name << ": libssh2_init()";
-        Q_ASSERT(libssh2_init(0) == 0);
+        QMutexLocker lock(&s_instanceMutex);
+        if(s_nbInstance == 0)
+        {
+            qCDebug(sshclient) << m_name << ": libssh2_init()";
+            /* Never put the call itself in Q_ASSERT: it is removed in release builds */
+            int rc = libssh2_init(0);
+            if(rc != 0)
+            {
+                qCCritical(sshclient) << m_name << ": libssh2_init() failed:" << rc;
+            }
+            Q_ASSERT(rc == 0);
+            Q_UNUSED(rc)
+        }
+        ++s_nbInstance;
     }
-    ++s_nbInstance;
 
     qCDebug(sshclient) << m_name << ": created " << this;
 }
@@ -100,11 +111,16 @@ SshClient::~SshClient()
     qCDebug(sshclient) << m_name << ": SshClient::~SshClient() " << this;
     disconnectFromHost();
     waitForState(SshClient::SshState::Unconnected);
-    --s_nbInstance;
-    if(s_nbInstance == 0)
+    /* If we ended in Error state the session was never freed */
+    _releaseSession();
     {
-        qCDebug(sshclient) << m_name << ": libssh2_exit()";
-        libssh2_exit();
+        QMutexLocker lock(&s_instanceMutex);
+        --s_nbInstance;
+        if(s_nbInstance == 0)
+        {
+            qCDebug(sshclient) << m_name << ": libssh2_exit()";
+            libssh2_exit();
+        }
     }
     qCDebug(sshclient) << m_name << ": destroyed";
 }
@@ -151,6 +167,9 @@ int SshClient::connectToHost(const QString &user, const QString &host, quint16 p
         return 0;
     }
     qCDebug(sshclient) << m_name << "connectToHost:" << user << "@" << host << ":" << port;
+
+    /* Leftover of a previous connection in Error state */
+    _releaseSession();
 
     m_connTimeoutCnt = connTimeoutMsec;
     m_authenticationMethodes = methodes;
@@ -203,7 +222,46 @@ void SshClient::resetError()
 {
     waitForState(Unconnected);
     if(sshState() == Error)
+    {
+        _releaseSession();
         setSshState(Unconnected);
+    }
+}
+
+/* Every libssh2 channel/sftp/listener handle is owned by the session and is
+ * released with it: tell the channel objects to forget them. */
+void SshClient::_invalidateChannels()
+{
+    const QList<SshChannel*> channels = m_channels;
+    for(SshChannel *ch: channels)
+    {
+        ch->sessionClosed();
+    }
+}
+
+void SshClient::_releaseSession()
+{
+    m_keepalive.stop();
+    if(m_session == nullptr && m_knownHosts == nullptr)
+    {
+        return;
+    }
+    _invalidateChannels();
+    if(m_knownHosts)
+    {
+        libssh2_knownhost_free(m_knownHosts);
+        m_knownHosts = nullptr;
+    }
+    if(m_session)
+    {
+        int ret;
+        int tries = 0;
+        do
+        {
+            ret = libssh2_session_free(m_session);
+        } while(ret == LIBSSH2_ERROR_EAGAIN && ++tries < 10);
+        m_session = nullptr;
+    }
 }
 
 
@@ -507,6 +565,7 @@ void SshClient::_ssh_processEvent()
                     {
                         qCWarning(sshclient) << m_name << ": Authentication with publickey failed:" << sshErrorToString(ret);
                         m_authenticationMethodes.removeFirst();
+                        continue;
                     }
                     if(ret == 0)
                     {
@@ -536,7 +595,7 @@ void SshClient::_ssh_processEvent()
                     {
                         qCWarning(sshclient) << m_name << ": Authentication with password failed";
                         m_authenticationMethodes.removeFirst();
-                        return;
+                        continue;
                     }
                     if(ret == 0)
                     {
@@ -582,7 +641,9 @@ void SshClient::_ssh_processEvent()
             if(m_channels.size() > 0)
             {
                 qCDebug(sshclient) << m_name << ": DisconnectingChannel, there is still " << m_channels.size() << "connections:";
-                for(SshChannel* ch: m_channels)
+                /* close() may free the channel synchronously and so modify m_channels */
+                const QList<SshChannel*> channels = m_channels;
+                for(SshChannel* ch: channels)
                 {
                     qCDebug(sshclient) << m_name << "\t" << ch->name();
                     ch->close();
@@ -597,10 +658,19 @@ void SshClient::_ssh_processEvent()
 
         case SshState::DisconnectingSession:
         {
-            int ret = libssh2_session_disconnect_ex(m_session, SSH_DISCONNECT_BY_APPLICATION, "good bye!", "");
-            if(ret == LIBSSH2_ERROR_EAGAIN)
+            if(m_session)
             {
-                return;
+                int ret = libssh2_session_disconnect_ex(m_session, SSH_DISCONNECT_BY_APPLICATION, "good bye!", "");
+                if(ret == LIBSSH2_ERROR_EAGAIN)
+                {
+                    return;
+                }
+            }
+            if(m_socket.state() == QAbstractSocket::HostLookupState || m_socket.state() == QAbstractSocket::ConnectingState)
+            {
+                /* Disconnect asked before the connection was established */
+                m_connectionTimeout.stop();
+                m_socket.abort();
             }
             if(m_socket.state() == QAbstractSocket::ConnectedState)
             {
@@ -626,6 +696,8 @@ void SshClient::_ssh_processEvent()
         FALLTHROUGH; case SshState::FreeSession:
         {
             m_keepalive.stop();
+            /* Channels must not keep handles of the session we are about to free */
+            _invalidateChannels();
             if (m_knownHosts)
             {
                 libssh2_knownhost_free(m_knownHosts);

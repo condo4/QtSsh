@@ -38,7 +38,22 @@ void SshScpSend::sshDataReceived()
     {
         case Openning:
         {
-            stat(m_source.toStdString().c_str(), &m_fileinfo);
+            if(m_sshClient->sshState() != SshClient::SshState::Ready || m_sshClient->session() == nullptr)
+            {
+                /* Session not usable yet, will be retried on sshDataReceived */
+                return;
+            }
+            if(stat(m_source.toStdString().c_str(), &m_fileinfo) != 0)
+            {
+                if(!m_error)
+                {
+                    m_error = true;
+                    emit failed();
+                }
+                setChannelState(ChannelState::Error);
+                qCWarning(logscpsend) << "Can't stat source file" << m_source;
+                return;
+            }
             if ( ! m_sshClient->takeChannelCreationMutex(this) )
             {
                 return;
@@ -234,4 +249,10 @@ void SshScpSend::sshDataReceived()
             return;
         }
     }
+}
+
+void SshScpSend::sessionClosed()
+{
+    m_sshChannel = nullptr;
+    SshChannel::sessionClosed();
 }

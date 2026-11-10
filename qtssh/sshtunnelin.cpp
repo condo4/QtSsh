@@ -61,6 +61,10 @@ void SshTunnelIn::sshDataReceived()
         {
             do
             {
+                if(m_sshClient->sshState() != SshClient::SshState::Ready || m_sshClient->session() == nullptr)
+                {
+                    return;
+                }
                 if ( ! m_sshClient->takeChannelCreationMutex(this) )
                 {
                     qCWarning(logsshtunnelin) << m_name << "mutex busy";
@@ -72,8 +76,8 @@ void SshTunnelIn::sshDataReceived()
 
                 if(m_sshListener == nullptr)
                 {
-                    char *emsg;
-                    int size;
+                    char *emsg = nullptr;
+                    int size = 0;
                     int ret = libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0);
                     if(ret == LIBSSH2_ERROR_EAGAIN)
                     {
@@ -108,6 +112,10 @@ void SshTunnelIn::sshDataReceived()
         FALLTHROUGH; case Ready:
         {
             LIBSSH2_CHANNEL *newChannel;
+            if(m_sshListener == nullptr || m_sshClient->session() == nullptr)
+            {
+                return;
+            }
             if ( ! m_sshClient->takeChannelCreationMutex(this) )
             {
                 return;
@@ -117,8 +125,8 @@ void SshTunnelIn::sshDataReceived()
 
             if(newChannel == nullptr)
             {
-                char *emsg;
-                int size;
+                char *emsg = nullptr;
+                int size = 0;
                 int ret = libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0);
                 if(ret == LIBSSH2_ERROR_EAGAIN)
                 {
@@ -217,4 +225,10 @@ void SshTunnelIn::close()
 {
     setChannelState(ChannelState::Close);
     sshDataReceived();
+}
+
+void SshTunnelIn::sessionClosed()
+{
+    m_sshListener = nullptr;
+    SshChannel::sessionClosed();
 }

@@ -130,6 +130,10 @@ public:
 private slots:
     void _sendKeepAlive();
 
+private:
+    void _invalidateChannels();
+    void _releaseSession();
+
 
 public: /* New function implementation with state machine */
     SshState sshState() const;

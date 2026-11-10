@@ -30,7 +30,10 @@ void SshTunnelOutConnection::configure(QTcpServer *server, quint16 remotePort, Q
 SshTunnelOutConnection::~SshTunnelOutConnection()
 {
     DEBUGCH << "Free SshTunnelOutConnection (destructor)";
-    delete m_sock;
+    if(m_sock)
+    {
+        delete m_sock.data();
+    }
 }
 
 void SshTunnelOutConnection::close()
@@ -61,6 +64,11 @@ void SshTunnelOutConnection::_eventLoop()
     {
         case Openning:
         {
+            if(m_sshClient->sshState() != SshClient::SshState::Ready || m_sshClient->session() == nullptr)
+            {
+                /* Session not usable yet, will be retried on sshDataReceived */
+                return;
+            }
             if ( ! m_sshClient->takeChannelCreationMutex(this) )
             {
                 return;
@@ -69,8 +77,8 @@ void SshTunnelOutConnection::_eventLoop()
             m_sshClient->releaseChannelCreationMutex(this);
             if (m_sshChannel == nullptr)
             {
-                char *emsg;
-                int size;
+                char *emsg = nullptr;
+                int size = 0;
                 int ret = libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0);
                 if(ret == LIBSSH2_ERROR_EAGAIN)
                 {
@@ -80,10 +88,11 @@ void SshTunnelOutConnection::_eventLoop()
                 {
                     qCDebug(logsshtunneloutconnection) << "Refuse client socket connection on " << m_server->serverPort() << QString(emsg);
                     m_error = true;
-                    m_sock = m_server->nextPendingConnection();
-                    if(m_sock)
+                    QTcpSocket *pending = m_server->nextPendingConnection();
+                    if(pending)
                     {
-                        m_sock->close();
+                        pending->close();
+                        m_sock = pending;
                     }
                     m_server->close();
                 }
@@ -135,22 +144,22 @@ void SshTunnelOutConnection::_eventLoop()
         FALLTHROUGH; case WaitClose:
         {
             DEBUGCH << "Wait close channel";
-            if(m_connector.isClosed())
-            {
-                setChannelState(ChannelState::Freeing);
-            }
-            else
+            if(!m_connector.isClosed())
             {
                 m_connector.process();
-                return;
+                if(!m_connector.isClosed())
+                {
+                    return;
+                }
             }
+            setChannelState(ChannelState::Freeing);
         }
 
         FALLTHROUGH; case Freeing:
         {
             DEBUGCH << "free Channel";
 
-            int ret = libssh2_channel_free(m_sshChannel);
+            int ret = m_sshChannel ? libssh2_channel_free(m_sshChannel) : 0;
             if(ret == LIBSSH2_ERROR_EAGAIN)
             {
                 return;
@@ -192,3 +201,10 @@ void SshTunnelOutConnection::_eventLoop()
     }
 }
 
+
+void SshTunnelOutConnection::sessionClosed()
+{
+    m_sshChannel = nullptr;
+    m_connector.setChannel(nullptr);
+    SshChannel::sessionClosed();
+}

@@ -12,6 +12,9 @@ class SshTunnelIn : public SshChannel
 {
     Q_OBJECT
 
+protected:
+    void sessionClosed() override;
+
 private:
     quint16 m_localTcpPort {0};
     quint16 m_remoteTcpPort {0};

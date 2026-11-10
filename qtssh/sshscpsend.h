@@ -26,6 +26,9 @@ public slots:
     void sshDataReceived() override;
 
 
+protected:
+    void sessionClosed() override;
+
 private:
     QString m_source;
     QString m_dest;

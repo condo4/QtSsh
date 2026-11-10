@@ -22,6 +22,9 @@ public:
     virtual ~SshTunnelInConnection() override;
     void close() override;
 
+protected:
+    void sessionClosed() override;
+
 private:
     SshTunnelDataConnector m_connector;
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
@@ -29,9 +32,11 @@ private:
     quint16 m_port;
     QString m_hostname;
     bool m_error {false};
+    bool m_connectFailed {false};
 
 private slots:
     void _socketConnected();
+    void _socketError();
     void _eventLoop();
 
 public slots:

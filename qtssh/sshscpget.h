@@ -23,6 +23,9 @@ public slots:
     void get(const QString &source, const QString &dest);
     void sshDataReceived() override;
 
+protected:
+    void sessionClosed() override;
+
 private:
     QString m_source;
     QString m_dest;

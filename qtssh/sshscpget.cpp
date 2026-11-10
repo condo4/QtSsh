@@ -42,6 +42,11 @@ void SshScpGet::sshDataReceived()
     {
         case Openning:
         {
+            if(m_sshClient->sshState() != SshClient::SshState::Ready || m_sshClient->session() == nullptr)
+            {
+                /* Session not usable yet, will be retried on sshDataReceived */
+                return;
+            }
             if ( ! m_sshClient->takeChannelCreationMutex(this) )
             {
                 return;
@@ -224,4 +229,10 @@ void SshScpGet::sshDataReceived()
             return;
         }
     }
+}
+
+void SshScpGet::sessionClosed()
+{
+    m_sshChannel = nullptr;
+    SshChannel::sessionClosed();
 }

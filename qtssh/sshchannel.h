@@ -51,6 +51,11 @@ protected:
     SshClient *m_sshClient  {nullptr};
     QString m_name;
 
+    /* Called by SshClient just before the libssh2 session is freed: every
+     * libssh2 handle owned by the channel becomes invalid. Implementations
+     * must forget their handles, then call SshChannel::sessionClosed(). */
+    virtual void sessionClosed();
+
 protected slots:
     virtual void sshDataReceived() {}
 

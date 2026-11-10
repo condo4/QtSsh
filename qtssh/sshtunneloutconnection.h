@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QTcpServer>
+#include <QPointer>
 #include <QLoggingCategory>
 #include "sshchannel.h"
 #include "sshtunneldataconnector.h"
@@ -21,10 +22,13 @@ public:
     virtual ~SshTunnelOutConnection() override;
     void close() override;
 
+protected:
+    void sessionClosed() override;
+
 private:
     SshTunnelDataConnector m_connector;
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};
-    QTcpSocket *m_sock;
+    QPointer<QTcpSocket> m_sock;
     QTcpServer *m_server;
     quint16 m_port;
     QString m_target;

@@ -25,6 +25,9 @@ public slots:
     void runCommand(const QString &cmd);
     void sshDataReceived() override;
 
+protected:
+    void sessionClosed() override;
+
 private:
     QString m_cmd;
     LIBSSH2_CHANNEL *m_sshChannel {nullptr};

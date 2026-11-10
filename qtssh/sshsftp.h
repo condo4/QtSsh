@@ -17,6 +17,9 @@ class SshSFtp : public SshChannel
 {
     Q_OBJECT
 
+protected:
+    void sessionClosed() override;
+
 private:
     LIBSSH2_SFTP *m_sftpSession {nullptr};
     int m_sftpInitRetries {0};

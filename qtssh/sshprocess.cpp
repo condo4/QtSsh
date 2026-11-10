@@ -49,6 +49,11 @@ void SshProcess::sshDataReceived()
     {
         case Openning:
         {
+            if(m_sshClient->sshState() != SshClient::SshState::Ready || m_sshClient->session() == nullptr)
+            {
+                /* Session not usable yet, will be retried on sshDataReceived */
+                return;
+            }
             if ( ! m_sshClient->takeChannelCreationMutex(this) )
             {
                 return;
@@ -159,7 +164,7 @@ void SshProcess::sshDataReceived()
                     emit failed();
                 }
                 qCWarning(logsshprocess) << "Run command error";
-                m_errMsg << QString("Run command error: (%1)").arg(buffer);
+                m_errMsg << QString("Run command error: (%1)").arg(QString::fromUtf8(buffer, static_cast<int>(retsz)));
             }
 
             if (libssh2_channel_eof(m_sshChannel) == 1)
@@ -259,4 +264,10 @@ void SshProcess::sshDataReceived()
             return;
         }
     }
+}
+
+void SshProcess::sessionClosed()
+{
+    m_sshChannel = nullptr;
+    SshChannel::sessionClosed();
 }

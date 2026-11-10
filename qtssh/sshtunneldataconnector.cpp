@@ -162,9 +162,9 @@ ssize_t SshTunnelDataConnector::_transferTxToSsh()
         }
         if (len < 0)
         {
-            char *emsg;
-            int size;
-            int ret = libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0);
+            char *emsg = nullptr;
+            int size = 0;
+            int ret = m_sshClient->session() ? libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0) : LIBSSH2_ERROR_BAD_USE;
             qCCritical(logxfer) << m_name << "Error" << ret << "libssh2_channel_write" << QString(emsg);
             return ret;
         }
@@ -227,9 +227,9 @@ ssize_t SshTunnelDataConnector::_transferSshToRx()
         m_rx_stop_ptr = nullptr;
         m_rx_start_ptr = nullptr;
 
-        char *emsg;
-        int size;
-        int ret = libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0);
+        char *emsg = nullptr;
+        int size = 0;
+        int ret = m_sshClient->session() ? libssh2_session_last_error(m_sshClient->session(), &emsg, &size, 0) : LIBSSH2_ERROR_BAD_USE;
         qCCritical(logxfer) << m_name << "Error" << ret << QString("libssh2_channel_read (%1 / %2)").arg(len).arg(BUFFER_SIZE) << QString(emsg);
         return 0;
     }
@@ -283,6 +283,13 @@ ssize_t SshTunnelDataConnector::_transferRxToSock()
         if (slen <= 0)
         {
             qCWarning(logxfer) << "ERROR : " << m_name << " local failed to write (" << slen << ")";
+            if(slen < 0)
+            {
+                /* Socket broken: drop pending data so the tunnel can close */
+                m_rx_stop_ptr = nullptr;
+                m_rx_start_ptr = nullptr;
+                m_rx_eof = true;
+            }
             return slen;
         }
 
@@ -306,6 +313,14 @@ void SshTunnelDataConnector::sshDataReceived()
 
 bool SshTunnelDataConnector::process()
 {
+    if(!m_sock || !m_sshChannel)
+    {
+        /* Nothing to transfer anymore (socket destroyed or session closed) */
+        m_rx_closed = true;
+        m_tx_closed = true;
+        return false;
+    }
+
     if(!m_rx_closed)
     {
         if(m_rx_data_on_ssh)
@@ -330,7 +345,7 @@ bool SshTunnelDataConnector::process()
     {
         DEBUGCH << "Send EOF to SSH";
         int ret = libssh2_channel_send_eof(m_sshChannel);
-        if(ret == 0)
+        if(ret == 0 || (ret < 0 && ret != LIBSSH2_ERROR_EAGAIN))
         {
             m_tx_closed = true;
             emit sendEvent();
@@ -378,6 +393,7 @@ bool SshTunnelDataConnector::isClosed()
 
 void SshTunnelDataConnector::flushTx()
 {
+    if(!m_sock) return;
     DEBUGCH << "flushTx: start " << ": Sock: " << m_sock->bytesAvailable() << " | buffer:" << _txBufferLen();
     while(1)
     {
